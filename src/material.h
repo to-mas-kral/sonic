@@ -1,6 +1,6 @@
 #ifndef MATERIALH
 #define MATERIALH
-
+/*
 struct hit_record;
 
 #include "ray.h"
@@ -108,5 +108,5 @@ public:
     }
 
     float ref_idx;
-};
+};*/
 #endif

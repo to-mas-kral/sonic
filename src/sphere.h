@@ -1,7 +1,7 @@
 #ifndef SPHEREH
 #define SPHEREH
 
-#include "hitable.h"
+/*#include "hitable.h"
 
 class sphere: public hitable  {
     public:
@@ -38,7 +38,7 @@ __device__ bool sphere::hit(const ray& r, float t_min, float t_max, hit_record& 
         }
     }
     return false;
-}
+}*/
 
 
 #endif

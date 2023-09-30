@@ -1,7 +1,7 @@
 #ifndef PT_MESH_H
 #define PT_MESH_H
 
-#include "numtypes.h"
+#include "utils/numtypes.h"
 #include "utils/shared_vector.h"
 
 class Mesh {
@@ -31,10 +31,10 @@ public:
     };
 
 private:
-    SharedVector<u32> indices{};
+    SharedVector<u32> indices;
     /// Vertices positions
-    SharedVector<f32> pos{};
-    u32 material_id{0};
+    SharedVector<f32> pos;
+    u32 material_id;
 };
 
 #endif //PT_MESH_H
