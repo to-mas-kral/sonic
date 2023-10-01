@@ -83,7 +83,12 @@ public:
         return *this;
     };
 
-    __host__ __device__ T &get_unchecked(u64 idx) { return mem[idx]; }
+    __host__ __device__ T &last() const {
+        assert(m_len > 0);
+        return mem[m_len - 1];
+    }
+
+    __host__ __device__ T &get_unchecked(u64 idx) const { return mem[idx]; }
 
     __host__ void assume_all_init() { m_len = cap; }
 
@@ -132,7 +137,7 @@ public:
         m_len++;
     }
 
-    __host__ __device__ u64 len() { return m_len; }
+    __host__ __device__ u64 len() const { return m_len; }
 
     T *get_ptr() const { return mem; }
 

@@ -17,7 +17,7 @@ void write_framebuffer(Framebuffer &fb) {
     auto height = fb.get_image_y();
 
     auto filename = "ptout.exr";
-    SharedVector<vec3> &rgb = fb.get_pixels();
+    std::vector<vec3> &rgb = fb.get_pixels();
 
     EXRHeader header;
     InitEXRHeader(&header);

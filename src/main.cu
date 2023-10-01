@@ -6,14 +6,11 @@
 #include <fmt/core.h>
 
 #include "camera.h"
-#include "hitable_list.h"
-#include "material.h"
 #include "ray.h"
-#include "sphere.h"
 
 #include "kernels/megakernel.h"
-#include "mesh.h"
 #include "render_context.h"
+#include "shapes/mesh.h"
 #include "utils/cuda_err.h"
 #include "utils/image_writer.h"
 #include "utils/shared_vector.h"
@@ -136,9 +133,7 @@ __global__ void create_world(hitable **d_list, hitable **d_world, camera **d_cam
     }
 } */
 
-SharedVector<Mesh> init_meshes() {
-    SharedVector<Mesh> meshes{};
-
+void init_meshes(RenderContext *rc) {
     u32 material_id = 0;
 
     SharedVector<u32> indices{0, 1, 2, 0, 2, 3};
@@ -146,22 +141,22 @@ SharedVector<Mesh> init_meshes() {
                           1.f,  -1.74846e-7f, 1.f,  1.f,  -1.74846e-7f, -1.f};
 
     Mesh mesh0(std::move(indices), std::move(pos), material_id);
-    meshes.push(std::move(mesh0));
-
-    return meshes;
+    rc->add_mesh(std::move(mesh0));
 }
 
 int main() {
     // TODO: get these from cmdline
     u32 image_x = 800;
     u32 image_y = 600;
-    u32 num_samples = 1024;
+    u32 num_samples = 256;
 
-    auto meshes = init_meshes();
+    auto fb = Framebuffer(image_x, image_y);
 
-    RenderContext *rc = nullptr;
+    RenderContext *rc;
     CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)));
-    *rc = RenderContext(std::move(meshes), num_samples, image_x, image_y);
+    *rc = RenderContext(num_samples, image_x, image_y);
+
+    init_meshes(rc);
 
     u32 num_blocks = rc->get_blocks();
     u32 threads_per_block = rc->get_threads_per_block();
@@ -173,16 +168,27 @@ int main() {
     for (u32 x = 0; x < image_x; x++) {
         for (u32 y = 0; y < image_y; y++) {
             render_megakernel<<<num_blocks, threads_per_block>>>(rc, x, y);
+            cudaDeviceSynchronize();
+
+            auto &sample_accum = rc->get_sample_accum();
+            auto accum = vec3(0.f, 0.f, 0.f);
+            for (int i = 0; i < sample_accum.len(); i++) {
+                accum += sample_accum[i];
+            }
+
+            fb.get_pixels()[fb.pixel_index(x, y)] = accum / static_cast<f32>(num_samples);
         }
     }
 
     cudaDeviceSynchronize();
     CUDA_CHECK_LAST_ERROR();
 
-    ImageWriter::write_framebuffer(rc->get_fb());
+    ImageWriter::write_framebuffer(fb);
 
     // Call the destructor manually, so the memory inside of RenderContext deallocates.
     rc->~RenderContext();
+    CUDA_CHECK_LAST_ERROR();
+
     CUDA_CHECK(cudaFree(rc));
     CUDA_CHECK(cudaDeviceReset());
 

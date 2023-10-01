@@ -5,7 +5,6 @@ set(CMAKE_CUDA_STANDARD 17)
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_75,-gencode arch=compute_75,code=sm_75")
 
 add_executable(pt src/main.cu
-        src/mesh.h
         src/render_context.h
         src/framebuffer.h
 
@@ -15,6 +14,9 @@ add_executable(pt src/main.cu
         src/utils/cuda_err.h
 
         src/kernels/megakernel.h
+
+        src/shapes/mesh.h
+        src/shapes/triangle.h
 )
 
 target_compile_options(pt PRIVATE
