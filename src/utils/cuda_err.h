@@ -1,6 +1,8 @@
 #ifndef PT_CUDA_ERR_H
 #define PT_CUDA_ERR_H
 
+#include <iostream>
+
 #define CUDA_CHECK(ans)                                                               \
     { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {

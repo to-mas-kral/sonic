@@ -12,12 +12,12 @@
 
 namespace ImageWriter {
 
-void write_framebuffer(Framebuffer &fb) {
+void write_framebuffer(Framebuffer &fb, u32 num_samples) {
     auto width = fb.get_image_x();
     auto height = fb.get_image_y();
 
     auto filename = "ptout.exr";
-    std::vector<vec3> &rgb = fb.get_pixels();
+    SharedVector<vec3> &rgb = fb.get_pixels();
 
     EXRHeader header;
     InitEXRHeader(&header);
@@ -33,7 +33,7 @@ void write_framebuffer(Framebuffer &fb) {
     images[2].resize(width * height);
 
     for (int i = 0; i < width * height; i++) {
-        vec3 col = rgb[i];
+        vec3 col = rgb[i] / static_cast<float>(num_samples);
 
         images[0][i] = col.x;
         images[1][i] = col.y;
@@ -73,7 +73,6 @@ void write_framebuffer(Framebuffer &fb) {
     if (ret != TINYEXR_SUCCESS) {
         fprintf(stderr, "Error when saving output image file: %s\n", err);
     }
-    printf("Saved output image file: %s\n", filename);
 
     free(header.channels);
     free(header.pixel_types);

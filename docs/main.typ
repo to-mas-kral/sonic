@@ -13,7 +13,7 @@
 )
 
 = Host-Device model
-Základní vlastností platformy CUDA je, že program se dělí na 2 části. První se nazývá _host_ část, tedy část programu běžící na CPU, využívající RAM paměť a ostatní prostředky. Druhá část se nazývá _device_ část a označuje programy běžící na jedné nebo více GPU, využívající GPU paměť. Program běžící na GPU se ozančuje pojmem _kernel_. 
+Základní vlastností platformy CUDA je, že program se dělí na 2 části. První se nazývá _host_ část, tedy část programu běžící na CPU, využívající RAM paměť a ostatní prostředky. Druhá část se nazývá _device_ část a označuje programy běžící na jedné nebo více GPU, využívající GPU paměť. Program běžící na GPU se ozančuje pojmem _kernel_.
 
 = Programátorské nástroje pro CUDA
 
@@ -33,7 +33,7 @@ __global__ void cuda_hello(){
 }
 
 int main() {
-    cuda_hello<<<1,1>>>(); 
+    cuda_hello<<<1,1>>>();
     return 0;
 }
 ```
@@ -124,7 +124,7 @@ Lepším způsobem by bylo paralelizovat výpočet jednotlivých vzorků jednoho
 
 = Implementace
 == Konfigurace systému a požadavky
-Implementace byla provedena na platformě CUDA 12.2. Byl použit standard C++23 na kompilátoru GCC 13.2.1. Program byl testován na grafické kartě Nvidia GeForce MX 550M na OS Linux s verzí kernelu 6.5.4.
+Implementace byla provedena na platformě CUDA 12.2. Byl použit standard C++20 na kompilátoru GCC 13.2.1. Program byl testován na grafické kartě Nvidia GeForce MX 550M na OS Linux s verzí kernelu 6.5.4.
 
 Implementace používá Unified Memory, která vyžaduje GPU s architekturou SM 3.0 nebo vyšší (řada Kepler a novější). Některé pokročilé funkce Unified Memory jsou dostupné pouze na OS Linux, ty ale *doufám* nebyly použity.
 

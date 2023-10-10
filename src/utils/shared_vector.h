@@ -4,14 +4,16 @@
 #include <cstring>
 #include <cuda/std/cassert>
 
+#include "cuda_err.h"
 #include "numtypes.h"
 
 /// A "vector" data structure using Unified Memory.
 /// It is designed in a way that the amount of elements can only be modified in host code.
 /// Device code can access / modify individual elements but not modify the "vector"
 /// itself.
-/// FIXME: storing objects that have pointers to non-unified memory is UB if used in
-/// kernels
+// FIXME: storing objects that have pointers to non-unified memory is UB if used in
+// kernels
+// TODO: implement iterator for SharedVector
 template <class T> class SharedVector {
 public:
     __host__ SharedVector() : m_len(0), cap(0), mem(nullptr) {}
