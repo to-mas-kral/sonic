@@ -87,11 +87,12 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
             }
 
             vec3 sample_dir = material->sample(its.normal, -ray.dir, rand_state);
-            Ray new_ray = spawn_ray(its, sample_dir);
-            f32 pdf = material->pdf(its.normal, sample_dir);
-            vec3 brdf = material->eval();
+            // TODO: what to do when cos_theta is 0 ? this minimum value is a band-aid
+            // solution...
+            f32 cos_theta = max(glm::dot(its.normal, sample_dir), 0.0001f);
 
-            f32 cos_theta = glm::dot(its.normal, sample_dir);
+            f32 pdf = material->pdf(cos_theta);
+            vec3 brdf = material->eval();
 
             radiance += throughput * emission;
             throughput *= brdf * cos_theta * (1.f / pdf);
@@ -105,6 +106,7 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
                 throughput *= 1.f / roulette_compensation;
             }
 
+            Ray new_ray = spawn_ray(its, sample_dir);
             ray = new_ray;
             depth++;
         } else {

@@ -19,10 +19,8 @@ public:
         return orient_dir(sample_dir, normal);
     }
 
-    __device__ f32 pdf(vec3 normal, vec3 sample_dir) const {
-        f32 cos_theta = glm::dot(normal, sample_dir);
-        return cos_theta / M_PIf;
-    }
+    // Probability density function of sampling the BRDF
+    __device__ f32 pdf(f32 cos_theta) const { return cos_theta / M_PIf; }
 
     __device__ vec3 eval() const { return reflectance / M_PIf; }
 
