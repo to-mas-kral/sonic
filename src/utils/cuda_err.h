@@ -14,7 +14,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 }
 
 #define CUDA_CHECK_LAST_ERROR() checkLast(__FILE__, __LINE__)
-void checkLast(const char *const file, const int line) {
+inline void checkLast(const char *const file, const int line) {
     cudaError_t err{cudaGetLastError()};
     if (err != cudaSuccess) {
         std::cerr << "CUDA Runtime Error at: " << file << ":" << line << std::endl;

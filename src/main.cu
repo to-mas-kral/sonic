@@ -1,11 +1,8 @@
 #include <bit>
 
 #include <CLI/CLI.hpp>
-
-#include <curand_kernel.h>
 #include <fmt/core.h>
 
-#include "geometry/ray.h"
 #include "kernels/megakernel.h"
 #include "render_context.h"
 #include "shapes/mesh.h"

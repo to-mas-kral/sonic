@@ -8,7 +8,7 @@
 
 const f32 EPS = 0.00001f;
 
-__device__ f32 safe_sqrt(f32 v) {
+__device__ inline f32 safe_sqrt(f32 v) {
     // Sanity check
     assert(v >= -EPS);
 

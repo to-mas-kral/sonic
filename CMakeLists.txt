@@ -6,6 +6,7 @@ set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_75,-gencode arch=compute_75,cod
 
 add_executable(pt src/main.cu
         src/render_context.h
+        src/render_context.cu
         src/framebuffer.h
         src/camera.h
         src/material.h
@@ -26,6 +27,8 @@ add_executable(pt src/main.cu
         src/math/sampling.h
         src/math/vecmath.h
         src/math/math_utils.h
+        src/framebuffer.cu
+        src/kernels/megakernel.cu
 )
 
 target_compile_options(pt PRIVATE

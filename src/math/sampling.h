@@ -12,7 +12,7 @@
  * All sampling code was taken from Physically Based Rendering, 4th edition
  * */
 
-__device__ vec2 sample_uniform_disk_concentric(vec2 u) {
+__device__ inline vec2 sample_uniform_disk_concentric(vec2 u) {
     vec2 u_offset = (2.f * u) - vec2(1.f, 1.f);
 
     if (u_offset.x == 0.f && u_offset.y == 0.f) {
@@ -31,7 +31,7 @@ __device__ vec2 sample_uniform_disk_concentric(vec2 u) {
     return r * vec2(cos(theta), sin(theta));
 }
 
-__device__ vec3 sample_cosine_hemisphere(curandState *rand_state) {
+__device__ inline vec3 sample_cosine_hemisphere(curandState *rand_state) {
     f32 u = rng(rand_state);
     f32 v = rng(rand_state);
 
