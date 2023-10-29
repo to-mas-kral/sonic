@@ -2,7 +2,7 @@
 #define PT_INTERSECTION_H
 
 #include "../utils/numtypes.h"
-#include "../shapes/mesh.h"
+#include "../render_context_common.h"
 
 class Intersection {
 public:
@@ -12,7 +12,6 @@ public:
     /// Intersection ray parameter
     f32 t;
 
-    u32 material_id;
     Mesh* mesh;
 };
 

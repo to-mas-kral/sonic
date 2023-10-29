@@ -37,12 +37,3 @@ Framebuffer::pixel_coords(dim3 block_dim, dim3 block_idx, dim3 thread_idx) const
     return {x, y};
 }
 
-__device__ u64 Framebuffer::pixel_index(u64 x, u64 y) const {
-    return ((image_y - 1U - y) * image_x) + x;
-}
-
-__device__ u64 Framebuffer::pixel_index(dim3 block_dim, dim3 block_idx,
-                                        dim3 thread_idx) const {
-    auto [x, y] = pixel_coords(block_dim, block_idx, thread_idx);
-    return pixel_index(x, y);
-}

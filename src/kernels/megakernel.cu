@@ -1,9 +1,11 @@
 
+#include "megakernel.h"
+
 #include "../camera.h"
-#include "../render_context.h"
+#include "../render_context_common.h"
 #include "../utils/rng.h"
 
-__device__ Ray spawn_ray(Intersection &its, vec3 dir) {
+__device__ Ray spawn_ray(Intersection &its, const vec3 &dir) {
     // TODO: more robust floating-point error handling when spawning rays
     vec3 ray_orig = its.pos + (0.001f * its.normal);
     return Ray(ray_orig, dir);
@@ -46,17 +48,7 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
     f32 s = (static_cast<f32>(x) + s_offset) / image_x;
     f32 t = (static_cast<f32>(y) + t_offset) / image_y;
 
-    // clang-format off
-    const auto world_to_cam =
-        glm::mat4{
-                  1., 0., 0., 0.,
-                  0., 1., 0., 0.,
-                  0., 0., -1., 0.,
-                  0., -1., 6.8, 1
-        };
-    // clang-format on
-
-    auto cam_to_world = glm::inverse(world_to_cam);
+    const mat4 cam_to_world = rc->get_attribs().camera_to_world;
 
     Ray ray = rc->get_cam().get_ray(s, t);
     ray.transform_to_world(cam_to_world);
@@ -70,8 +62,9 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
 
     while (true) {
         Intersection its;
-        if (rc->traverse_scene(its, ray)) {
-            auto material = &rc->get_materials()[its.material_id];
+        // rc->ray_counter.fetch_add(1);
+        if (rc->intersect_scene(its, ray)) {
+            auto material = &rc->get_materials()[its.mesh->get_material_id()];
 
             vec3 emission = vec3(0.f);
             if (its.mesh->has_light()) {
@@ -108,8 +101,15 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
             ray = new_ray;
             depth++;
         } else {
-            // Could do some environment mapping...
-            return vec3(0.);
+            // Ray has escaped the scene
+            auto envmap = rc->get_envmap();
+            if (!envmap) {
+                return vec3(0.);
+            } else {
+                vec3 envrad = envmap->sample(ray);
+                radiance += throughput * envrad;
+                return radiance;
+            }
         }
     }
 }

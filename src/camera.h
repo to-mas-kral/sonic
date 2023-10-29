@@ -25,7 +25,7 @@ public:
     }
 
     __device__ Ray get_ray(float s, float t) const {
-        vec3 offset = vec3(s, t, 0.f) * vec3(viewport_width, viewport_height, 0.f);
+        vec3 offset = vec3(1.f - s, t, 0.f) * vec3(viewport_width, viewport_height, 0.f);
         vec3 screencoord = bottom_left + offset;
 
         return Ray(origin, glm::normalize(screencoord - origin));

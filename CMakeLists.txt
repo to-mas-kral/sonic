@@ -1,16 +1,26 @@
 cmake_minimum_required(VERSION 3.27)
 project(pt CUDA CXX)
 
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 20)
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_75,-gencode arch=compute_75,code=sm_75")
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_ARCHITECTURES 75)
+
+#[[Main executable]]
 
 add_executable(pt src/main.cu
-        src/render_context.h
+        src/render_context_common.h
         src/render_context.cu
+        src/framebuffer.cu
         src/framebuffer.h
         src/camera.h
         src/material.h
         src/light.h
+        src/bvh.cu
+        src/scene_loader.cu
+        src/scene_loader.h
+        src/envmap.h
 
         src/utils/numtypes.h
         src/utils/shared_vector.h
@@ -19,17 +29,30 @@ add_executable(pt src/main.cu
         src/utils/rng.h
 
         src/kernels/megakernel.h
+        src/kernels/megakernel.cu
+        src/kernels/raygen.cu
+        src/kernels/wavefront_common.h
+        src/kernels/raygen.h
+        src/kernels/optix_triangle.h
 
-        src/shapes/mesh.h
-        src/shapes/triangle.h
         src/geometry/intersection.h
+        src/geometry/wavefront_ray.h
+        src/geometry/axis.h
+        src/geometry/aabb.h
 
         src/math/sampling.h
         src/math/vecmath.h
         src/math/math_utils.h
-        src/framebuffer.cu
-        src/kernels/megakernel.cu
+
+        src/shapes/triangle.cu
+        src/shapes/mesh.cu
 )
+
+link_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-6.5.0-linux64/lib64/)
+include_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/)
+
+set_target_properties(pt PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON)
 
 target_compile_options(pt PRIVATE
         $<$<CONFIG:Debug>:-G> # Adds debugging symbols to CUDA code
@@ -51,5 +74,37 @@ target_link_libraries(pt PRIVATE unofficial::tinyexr::tinyexr)
 find_package(CLI11 CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE CLI11::CLI11)
 
-set_target_properties(pt PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON)
+find_package(pugixml CONFIG REQUIRED)
+target_link_libraries(pt PRIVATE pugixml::pugixml)
+
+#[[OptiX modules]]
+
+add_library(optix_triangle OBJECT
+        src/kernels/optix_triangle.cu
+        src/geometry/wavefront_ray.h
+        src/utils/numtypes.h
+)
+
+set_property(TARGET optix_triangle PROPERTY CUDA_PTX_COMPILATION ON)
+
+set_target_properties(optix_triangle PROPERTIES
+        OUTPUT_NAME "optix_triangle.ptx"
+)
+
+target_compile_options(optix_triangle PRIVATE
+        -ptx #[[-lineinfo]] --use_fast_math --relocatable-device-code=true --keep-device-functions
+)
+
+add_dependencies(pt optix_triangle)
+
+#[[Packaging]]
+
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCES_DIR}/)
+
+set(resource_dir ${CMAKE_SOURCE_DIR}/resources)
+set(package_dir ${CMAKE_BINARY_DIR}/package)
+
+install(TARGETS pt DESTINATION ${package_dir})
+install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_triangle.dir/src/kernels/optix_triangle.ptx DESTINATION ${package_dir})
+install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_triangle.dir/src/kernels/optix_triangle.ptx DESTINATION ${CMAKE_BINARY_DIR})
+install(DIRECTORY ${resource_dir} DESTINATION ${package_dir})

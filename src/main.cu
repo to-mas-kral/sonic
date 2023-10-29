@@ -2,156 +2,38 @@
 
 #include <CLI/CLI.hpp>
 #include <fmt/core.h>
+#include <optix.h>
+#include <optix_function_table_definition.h>
+#include <optix_host.h>
+#include <optix_stack_size.h>
+#include <optix_stubs.h>
 
 #include "kernels/megakernel.h"
-#include "render_context.h"
-#include "shapes/mesh.h"
+#include "kernels/optix_triangle.h"
+#include "kernels/raygen.h"
+#include "kernels/wavefront_common.h"
+#include "render_context_common.h"
+#include "scene_loader.h"
 #include "utils/cuda_err.h"
 #include "utils/image_writer.h"
 #include "utils/shared_vector.h"
 
-void init_meshes(RenderContext *rc) {
-    // Taken from the PBRTv4 version of the Cornell Box by Benedikt Bitterli
+auto read_file(std::string_view path) -> std::string {
+    constexpr auto read_size = std::size_t(4096);
+    auto stream = std::ifstream(path.data(), std::ios::binary);
+    stream.exceptions(std::ios_base::badbit);
 
-    /*
-     * Materials
-     * */
-
-    //"LeftWall"
-    rc->add_material(Material(vec3(0.63, 0.065, 0.05)));
-    //"RightWall"
-    rc->add_material(Material(vec3(0.14, 0.45, 0.091)));
-
-    //"Rest - light gray"
-    rc->add_material(Material(vec3(0.725, 0.71, 0.68)));
-
-    //"Light"
-    rc->add_material(Material(vec3(0, 0, 0)));
-
-    /*
-     * Lights
-     * */
-    rc->add_light(Light(vec3(17., 12., 4.)));
-
-    /*
-     * Meshes
-     * */
-
-    // Floor
-    {
-        SharedVector<u32> indices{0, 1, 2, 0, 2, 3};
-        SharedVector<f32> pos{-1.f, 1.74846e-7f,  -1.f, -1.f, 1.74846e-7f,  1.f,
-                              1.f,  -1.74846e-7f, 1.f,  1.f,  -1.74846e-7f, -1.f};
-
-        Mesh mesh(std::move(indices), std::move(pos), 2);
-        rc->add_mesh(std::move(mesh));
+    if (not stream) {
+        throw std::ios_base::failure("file does not exist");
     }
 
-    // Ceiling
-    {
-        SharedVector<u32> indices{
-            0, 1, 2, 0, 2, 3,
-        };
-        SharedVector<f32> pos{1.f,  2.f, 1.f,  -1.f, 2.f, 1.f,
-                              -1.f, 2.f, -1.f, 1.f,  2.f, -1.f};
-
-        Mesh mesh(std::move(indices), std::move(pos), 2);
-        rc->add_mesh(std::move(mesh));
+    auto out = std::string();
+    auto buf = std::string(read_size, '\0');
+    while (stream.read(&buf[0], read_size)) {
+        out.append(buf, 0, stream.gcount());
     }
-
-    // Backwall
-    {
-        SharedVector<u32> indices{
-            0, 1, 2, 0, 2, 3,
-        };
-        SharedVector<f32> pos{-1.f, 0.f, -1.f, -1.f, 2.f, -1.f,
-                              1.f,  2.f, -1.f, 1.f,  0.f, -1.f};
-
-        Mesh mesh(std::move(indices), std::move(pos), 2);
-        rc->add_mesh(std::move(mesh));
-    }
-
-    // LeftWall
-    {
-        SharedVector<u32> indices{
-            0, 1, 2, 0, 2, 3,
-        };
-        SharedVector<f32> pos{-1.f, 0.f, 1.f,  -1.f, 2.f, 1.f,
-                              -1.f, 2.f, -1.f, -1.f, 0.f, -1.f};
-
-        Mesh mesh(std::move(indices), std::move(pos), 0);
-        rc->add_mesh(std::move(mesh));
-    }
-
-    // RightWall
-    {
-        SharedVector<u32> indices{
-            0, 1, 2, 0, 2, 3,
-        };
-        SharedVector<f32> pos{1.f, 0.f, -1.f, 1.f, 2.f, -1.f,
-                              1.f, 2.f, 1.f,  1.f, 0.f, 1.f};
-
-        Mesh mesh(std::move(indices), std::move(pos), 1);
-        rc->add_mesh(std::move(mesh));
-    }
-
-    // Tallbox
-    {
-        SharedVector<u32> indices{0,  2,  1,  0,  3,  2,  4,  6,  5,  4,  7,  6,
-                                  8,  10, 9,  8,  11, 10, 12, 14, 13, 12, 15, 14,
-                                  16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22};
-
-        SharedVector<f32> pos{-0.720444, 1.2, -0.473882, -0.720444, 0,   -0.473882,
-                              -0.146892, 0,   -0.673479, -0.146892, 1.2, -0.673479,
-                              -0.523986, 0,   0.0906493, -0.523986, 1.2, 0.0906492,
-                              0.0495656, 1.2, -0.108948, 0.0495656, 0,   -0.108948,
-                              -0.523986, 1.2, 0.0906492, -0.720444, 1.2, -0.473882,
-                              -0.146892, 1.2, -0.673479, 0.0495656, 1.2, -0.108948,
-                              0.0495656, 0,   -0.108948, -0.146892, 0,   -0.673479,
-                              -0.720444, 0,   -0.473882, -0.523986, 0,   0.0906493,
-                              -0.523986, 0,   0.0906493, -0.720444, 0,   -0.473882,
-                              -0.720444, 1.2, -0.473882, -0.523986, 1.2, 0.0906492,
-                              0.0495656, 1.2, -0.108948, -0.146892, 1.2, -0.673479,
-                              -0.146892, 0,   -0.673479, 0.0495656, 0,   -0.108948};
-
-        Mesh mesh(std::move(indices), std::move(pos), 2);
-        rc->add_mesh(std::move(mesh));
-    }
-
-    // Shortbox
-    {
-        SharedVector<u32> indices{0,  2,  1,  0,  3,  2,  4,  6,  5,  4,  7,  6,
-                                  8,  10, 9,  8,  11, 10, 12, 14, 13, 12, 15, 14,
-                                  16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22};
-
-        SharedVector<f32> pos{
-            -0.0460751, 0.6,         0.573007,   -0.0460751, -2.98023e-8, 0.573007,
-            0.124253,   0,           0.00310463, 0.124253,   0.6,         0.00310463,
-            0.533009,   0,           0.746079,   0.533009,   0.6,         0.746079,
-            0.703337,   0.6,         0.176177,   0.703337,   2.98023e-8,  0.176177,
-            0.533009,   0.6,         0.746079,   -0.0460751, 0.6,         0.573007,
-            0.124253,   0.6,         0.00310463, 0.703337,   0.6,         0.176177,
-            0.703337,   2.98023e-8,  0.176177,   0.124253,   0,           0.00310463,
-            -0.0460751, -2.98023e-8, 0.573007,   0.533009,   0,           0.746079,
-            0.533009,   0,           0.746079,   -0.0460751, -2.98023e-8, 0.573007,
-            -0.0460751, 0.6,         0.573007,   0.533009,   0.6,         0.746079,
-            0.703337,   0.6,         0.176177,   0.124253,   0.6,         0.00310463,
-            0.124253,   0,           0.00310463, 0.703337,   2.98023e-8,  0.176177};
-
-        Mesh mesh(std::move(indices), std::move(pos), 2);
-        rc->add_mesh(std::move(mesh));
-    }
-
-    // Light
-    {
-        SharedVector<f32> pos{-0.24, 1.98, -0.22, 0.23,  1.98, -0.22,
-                              0.23,  1.98, 0.16,  -0.24, 1.98, 0.16};
-
-        SharedVector<u32> indices{0, 1, 2, 0, 2, 3};
-
-        Mesh mesh(std::move(indices), std::move(pos), 3, 0);
-        rc->add_mesh(std::move(mesh));
-    }
+    out.append(buf, 0, stream.gcount());
+    return out;
 }
 
 int main(int argc, char **argv) {
@@ -159,34 +41,62 @@ int main(int argc, char **argv) {
      * Parse comdline arguments
      * */
 
-    u32 image_x = 1280;
-    u32 image_y = 720;
     u32 num_samples = 32;
+    bool silent = false;
+    std::string scene_path{};
 
     CLI::App app{"A CUDA path-tracer project for PGRF3 by Tomáš Král, 2023."};
     // argv = app.ensure_utf8(argv);
 
-    app.add_option("-s,--samples", num_samples, "Number of samples.");
-    app.add_option("-x,--width", image_x, "Image width in pixels.");
-    app.add_option("-y,--height", image_y, "Image height in pixels.");
-
-    bool silent = false;
-
+    app.add_option("--samples", num_samples, "Number of samples.");
+    app.add_option("-s,--scene", scene_path, "Path to the scene file.");
     app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
-
-    fmt::println("{}", silent);
 
     CLI11_PARSE(app, argc, argv);
 
     /*
-     * Set up render context
+     * Load scene attribs from the scene file
      * */
 
+    SceneLoader scene_loader;
+    try {
+        scene_loader = SceneLoader(scene_path);
+    } catch (const std::exception &e) {
+        fmt::println("Error while parsing the scene file");
+        return 1;
+    };
+    auto attrib_result = scene_loader.load_scene_attribs();
+    if (!attrib_result.has_value()) {
+        fmt::println("Error while getting scene attribs");
+        return 1;
+    }
+    SceneAttribs attribs = attrib_result.value();
+
+    /*
+     * Set up render context and wavefront state
+     * */
+
+    // TODO: could probably make some template class for this...
     RenderContext *rc;
     CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)));
-    auto rcx = new (rc) RenderContext(num_samples, image_x, image_y);
+    auto rcx = new (rc) RenderContext(num_samples, attribs);
 
-    init_meshes(rc);
+    WavefrontState *ws;
+    CUDA_CHECK(cudaMallocManaged((void **)&ws, sizeof(WavefrontState)));
+    auto wsx = new (ws) WavefrontState(attribs);
+
+    /*
+     * Load the scene
+     * */
+
+    try {
+        scene_loader.load_scene(rc);
+    } catch (const std::exception &e) {
+        fmt::println("Error while loading the scene");
+        return 1;
+    }
+
+    rc->make_acceleration_structure();
 
     /*
      * Start rendering
@@ -196,15 +106,34 @@ int main(int argc, char **argv) {
     dim3 threads_dim = rc->get_threads_dim();
 
     if (!silent) {
-        fmt::println("Rendering a {}x{} image at {} samples.", image_x, image_y,
+        fmt::println("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
                      num_samples);
         fmt::println("Pixel grid split into {} blocks with {} threads each.",
                      blocks_dim.x * blocks_dim.y, threads_dim.x * threads_dim.y);
     }
 
-    // Moving this for loop into the kernel is a bit faster, but this lets me report
-    // progress...
+    // Wavefront approach
     for (u32 s = 0; s < num_samples; s++) {
+        raygen<<<blocks_dim, threads_dim>>>(rc, ws);
+
+        cudaDeviceSynchronize();
+        CUDA_CHECK_LAST_ERROR();
+
+        if (!silent) {
+            fmt::println("Sample {} done.", s + 1);
+        }
+
+        // Update the framebuffer when the number of samples doubles...
+        if (std::popcount(s + 1) == 1) {
+            if (!silent) {
+                fmt::println("Updating framebuffer");
+            }
+            ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s + 1);
+        }
+    }
+
+    // Megakernel approach
+    /*for (u32 s = 0; s < num_samples; s++) {
         render_megakernel<<<blocks_dim, threads_dim>>>(rc);
 
         cudaDeviceSynchronize();
@@ -219,9 +148,11 @@ int main(int argc, char **argv) {
             if (!silent) {
                 fmt::println("Updating framebuffer");
             }
-            ImageWriter::write_framebuffer(rc->get_framebuffer(), s + 1);
+            ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s + 1);
         }
-    }
+    }*/
+
+    fmt::println("Shot a total of {} rays", rc->ray_counter.fetch_add(0));
 
     /*
      * Clean up and exit
@@ -232,9 +163,10 @@ int main(int argc, char **argv) {
     // Call the destructor manually, so the memory inside of RenderContext
     // deallocates.
     rc->~RenderContext();
+    CUDA_CHECK(cudaFree(rc));
+    CUDA_CHECK(cudaFree(ws));
     CUDA_CHECK_LAST_ERROR();
 
-    CUDA_CHECK(cudaFree(rc));
     CUDA_CHECK(cudaDeviceReset());
 
     return 0;

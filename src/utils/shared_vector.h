@@ -11,19 +11,19 @@
 /// It is designed in a way that the amount of elements can only be modified in host code.
 /// Device code can access / modify individual elements but not modify the "vector"
 /// itself.
-// FIXME: storing objects that have pointers to non-unified memory is UB if used in
-// kernels
-// TODO: implement iterator for SharedVector
+// Storing objects that have pointers to non-unified memory is UB if used in kernels !!!
+// TODO: implement iterator for SharedVector ?
 template <class T> class SharedVector {
 public:
     __host__ SharedVector() : m_len(0), cap(0), mem(nullptr) {}
 
-    // TODO: do I need synchronizations here ? I don't think so execept for destructor...
+    // Do I need synchronizations here ? I don't think so execept for destructor...
     // but could be problematic if multi-threading is used and kernels would be launched
     // from multiple threads (is that even allowed tho ?)
 
     __host__ explicit SharedVector(u64 capacity) : m_len(0), cap(capacity), mem(nullptr) {
         CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+
         cudaDeviceSynchronize();
     }
 
@@ -31,6 +31,7 @@ public:
         : m_len(count), cap(count), mem(nullptr) {
         if (count != 0) {
             CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+
             cudaDeviceSynchronize();
 
             // TODO: is there some sort of memset for this ?
@@ -45,6 +46,7 @@ public:
 
         cap = l.size();
         CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+
         cudaDeviceSynchronize();
 
         memcpy(mem, l.begin(), l.size() * sizeof(T));
@@ -85,6 +87,20 @@ public:
         return *this;
     };
 
+    void swap(SharedVector *other) {
+        auto other_mem = other->mem;
+        auto other_cap = other->cap;
+        auto other_m_len = other->m_len;
+
+        other->mem = mem;
+        other->cap = cap;
+        other->m_len = m_len;
+
+        mem = other_mem;
+        cap = other_cap;
+        m_len = other_m_len;
+    }
+
     __host__ __device__ T &last() const {
         assert(m_len > 0);
         return mem[m_len - 1];
@@ -104,31 +120,18 @@ public:
         return mem[idx];
     }
 
-    __host__ void resize() {
-        u64 new_cap = cap * 2;
-
-        T *new_mem = nullptr;
-        CUDA_CHECK(cudaMallocManaged((void **)&new_mem, new_cap * sizeof(T)));
-        cudaDeviceSynchronize();
-
-        std::memcpy(new_mem, mem, m_len * sizeof(T));
-
-        CUDA_CHECK(cudaFree(mem));
-        mem = new_mem;
-        cap = new_cap;
-    }
-
-    /*__host__ void push(T elem) {
-        if (m_len >= cap) { resize(); }
-        mem[m_len] = elem;
-        m_len++;
+    /*
+    __host__ void push(T elem) {
+        push(std::move(elem));
     }*/
 
+    // TODO: refactor this std::move nonsense...
     __host__ void push(T &&elem) {
         if (cap == 0 || mem == nullptr) {
             // TODO: could select better default size based on T's size...
             cap = 8;
             CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+
             cudaDeviceSynchronize();
         }
 
@@ -141,15 +144,29 @@ public:
 
     __host__ __device__ u64 len() const { return m_len; }
 
-    T *get_ptr() const { return mem; }
+    __host__ T *get_ptr() const { return mem; }
 
 private:
+    __host__ void resize() {
+        u64 new_cap = cap * 2;
+
+        T *new_mem = nullptr;
+        CUDA_CHECK(cudaMallocManaged((void **)&new_mem, new_cap * sizeof(T)));
+
+        cudaDeviceSynchronize();
+
+        std::memcpy(new_mem, mem, m_len * sizeof(T));
+        CUDA_CHECK(cudaFree(mem));
+        mem = new_mem;
+        cap = new_cap;
+    }
+
     // Pointer to the allocated memory
-    T *mem{nullptr};
+    T *mem = nullptr;
     // The number of entries
-    u64 m_len{0};
+    u64 m_len = 0;
     // The capacity
-    u64 cap{0};
+    u64 cap = 0;
 };
 
 #endif // PT_SHARED_VECTOR_H

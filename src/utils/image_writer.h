@@ -12,11 +12,10 @@
 
 namespace ImageWriter {
 
-void write_framebuffer(Framebuffer &fb, u32 num_samples) {
+void write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples) {
     auto width = fb.get_image_x();
     auto height = fb.get_image_y();
 
-    auto filename = "ptout.exr";
     SharedVector<vec3> &rgb = fb.get_pixels();
 
     EXRHeader header;
@@ -69,7 +68,7 @@ void write_framebuffer(Framebuffer &fb, u32 num_samples) {
     }
 
     const char *err;
-    int ret = SaveEXRImageToFile(&image, &header, filename, &err);
+    int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
     if (ret != TINYEXR_SUCCESS) {
         fprintf(stderr, "Error when saving output image file: %s\n", err);
     }

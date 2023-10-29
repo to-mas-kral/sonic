@@ -8,6 +8,7 @@
 
 #include <glm/common.hpp>
 #include <glm/ext.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 using u8 = cuda::std::uint8_t;
 using u16 = cuda::std::uint16_t;
@@ -25,5 +26,12 @@ using f64 = double;
 using vec2 = glm::vec2;
 using vec3 = glm::vec3;
 using vec4 = glm::vec4;
+
+using bvec2 = glm::bvec2;
+using bvec3 = glm::bvec3;
+using bvec4 = glm::bvec4;
+
+using mat3 = glm::mat3;
+using mat4 = glm::mat4;
 
 #endif // PT_NUMTYPES_H
