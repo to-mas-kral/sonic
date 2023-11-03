@@ -5,6 +5,7 @@
 #include <string>
 
 #include <fmt/core.h>
+#include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
 #include "geometry/ray.h"
@@ -22,7 +23,7 @@ public:
 
         if (ret != TINYEXR_SUCCESS) {
             if (err) {
-                fmt::println("EXR loading error: {}", err);
+                spdlog::error("EXR loading error: {}", err);
                 FreeEXRErrorMessage(err);
             }
         }

@@ -30,13 +30,10 @@ add_executable(pt src/main.cu
 
         src/kernels/megakernel.h
         src/kernels/megakernel.cu
-        src/kernels/raygen.cu
-        src/kernels/wavefront_common.h
         src/kernels/raygen.h
-        src/kernels/optix_triangle.h
+        src/kernels/optix_pt.h
 
         src/geometry/intersection.h
-        src/geometry/wavefront_ray.h
         src/geometry/axis.h
         src/geometry/aabb.h
 
@@ -46,6 +43,14 @@ add_executable(pt src/main.cu
 
         src/shapes/triangle.cu
         src/shapes/mesh.cu
+
+        src/optix_renderer.cu
+        src/optix_renderer.h
+        src/optix_common.h
+        src/optix_as.h
+        src/optix_common.cu
+
+        src/integrator/utils.h
 )
 
 link_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-6.5.0-linux64/lib64/)
@@ -77,25 +82,30 @@ target_link_libraries(pt PRIVATE CLI11::CLI11)
 find_package(pugixml CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE pugixml::pugixml)
 
+find_package(spdlog CONFIG REQUIRED)
+target_link_libraries(pt PRIVATE spdlog::spdlog)
+
 #[[OptiX modules]]
 
-add_library(optix_triangle OBJECT
-        src/kernels/optix_triangle.cu
-        src/geometry/wavefront_ray.h
+add_library(optix_pt OBJECT
+        src/kernels/optix_pt.cu
         src/utils/numtypes.h
+        src/geometry/intersection.h
 )
 
-set_property(TARGET optix_triangle PROPERTY CUDA_PTX_COMPILATION ON)
+target_link_libraries(optix_pt PRIVATE fmt::fmt)
 
-set_target_properties(optix_triangle PROPERTIES
-        OUTPUT_NAME "optix_triangle.ptx"
+set_property(TARGET optix_pt PROPERTY CUDA_PTX_COMPILATION ON)
+
+set_target_properties(optix_pt PROPERTIES
+        OUTPUT_NAME "optix_raycast.ptx"
 )
 
-target_compile_options(optix_triangle PRIVATE
-        -ptx #[[-lineinfo]] --use_fast_math --relocatable-device-code=true --keep-device-functions
+target_compile_options(optix_pt PRIVATE
+        -ptx -lineinfo --use_fast_math --relocatable-device-code=true --keep-device-functions
 )
 
-add_dependencies(pt optix_triangle)
+add_dependencies(pt optix_pt)
 
 #[[Packaging]]
 
@@ -105,6 +115,6 @@ set(resource_dir ${CMAKE_SOURCE_DIR}/resources)
 set(package_dir ${CMAKE_BINARY_DIR}/package)
 
 install(TARGETS pt DESTINATION ${package_dir})
-install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_triangle.dir/src/kernels/optix_triangle.ptx DESTINATION ${package_dir})
-install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_triangle.dir/src/kernels/optix_triangle.ptx DESTINATION ${CMAKE_BINARY_DIR})
+install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${package_dir})
+install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${CMAKE_BINARY_DIR})
 install(DIRECTORY ${resource_dir} DESTINATION ${package_dir})

@@ -5,168 +5,162 @@
 #include <optix.h>
 #include <optix_function_table_definition.h>
 #include <optix_host.h>
-#include <optix_stack_size.h>
 #include <optix_stubs.h>
+#include <spdlog/spdlog.h>
 
 #include "kernels/megakernel.h"
-#include "kernels/optix_triangle.h"
 #include "kernels/raygen.h"
-#include "kernels/wavefront_common.h"
+#include "optix_as.h"
+#include "optix_common.h"
+#include "optix_renderer.h"
 #include "render_context_common.h"
 #include "scene_loader.h"
 #include "utils/cuda_err.h"
 #include "utils/image_writer.h"
 #include "utils/shared_vector.h"
 
-auto read_file(std::string_view path) -> std::string {
-    constexpr auto read_size = std::size_t(4096);
-    auto stream = std::ifstream(path.data(), std::ios::binary);
-    stream.exceptions(std::ios_base::badbit);
-
-    if (not stream) {
-        throw std::ios_base::failure("file does not exist");
-    }
-
-    auto out = std::string();
-    auto buf = std::string(read_size, '\0');
-    while (stream.read(&buf[0], read_size)) {
-        out.append(buf, 0, stream.gcount());
-    }
-    out.append(buf, 0, stream.gcount());
-    return out;
-}
-
 int main(int argc, char **argv) {
-    /*
-     * Parse comdline arguments
-     * */
+    auto optix_context = init_optix();
 
-    u32 num_samples = 32;
-    bool silent = false;
-    std::string scene_path{};
+    // TODO: wrap this in some class... need to have a block so that OptixRenderer
+    // destructor is called before resetting the device at the end of main()...
+    {
+        /*
+         * Parse comdline arguments
+         * */
 
-    CLI::App app{"A CUDA path-tracer project for PGRF3 by Tomáš Král, 2023."};
-    // argv = app.ensure_utf8(argv);
+        u32 num_samples = 32;
+        bool silent = false;
+        bool optix = true;
+        std::string scene_path{};
 
-    app.add_option("--samples", num_samples, "Number of samples.");
-    app.add_option("-s,--scene", scene_path, "Path to the scene file.");
-    app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
+        CLI::App app{"A CUDA path-tracer project for PGRF3 by Tomáš Král, 2023."};
+        // argv = app.ensure_utf8(argv);
 
-    CLI11_PARSE(app, argc, argv);
+        app.add_option("--samples", num_samples, "Number of samples.");
+        app.add_option("-s,--scene", scene_path, "Path to the scene file.");
+        app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
+        app.add_flag("--optix,!--no-optix", optix, "Use OptiX.")->default_val(true);
 
-    /*
-     * Load scene attribs from the scene file
-     * */
+        CLI11_PARSE(app, argc, argv);
 
-    SceneLoader scene_loader;
-    try {
-        scene_loader = SceneLoader(scene_path);
-    } catch (const std::exception &e) {
-        fmt::println("Error while parsing the scene file");
-        return 1;
-    };
-    auto attrib_result = scene_loader.load_scene_attribs();
-    if (!attrib_result.has_value()) {
-        fmt::println("Error while getting scene attribs");
-        return 1;
-    }
-    SceneAttribs attribs = attrib_result.value();
+        if (silent) {
+            spdlog::set_level(spdlog::level::err);
+        }
 
-    /*
-     * Set up render context and wavefront state
-     * */
+        /*
+         * Load scene attribs from the scene file
+         * */
 
-    // TODO: could probably make some template class for this...
-    RenderContext *rc;
-    CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)));
-    auto rcx = new (rc) RenderContext(num_samples, attribs);
+        SceneLoader scene_loader;
+        try {
+            scene_loader = SceneLoader(scene_path);
+        } catch (const std::exception &e) {
+            spdlog::error("Error while parsing the scene file");
+            return 1;
+        };
+        auto attrib_result = scene_loader.load_scene_attribs();
+        if (!attrib_result.has_value()) {
+            spdlog::error("Error while getting scene attribs");
+            return 1;
+        }
+        SceneAttribs attribs = attrib_result.value();
 
-    WavefrontState *ws;
-    CUDA_CHECK(cudaMallocManaged((void **)&ws, sizeof(WavefrontState)));
-    auto wsx = new (ws) WavefrontState(attribs);
+        /*
+         * Set up render context
+         * */
 
-    /*
-     * Load the scene
-     * */
+        // TODO: could probably make some template class for this...
+        RenderContext *rc;
+        CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)));
+        auto rcx = new (rc) RenderContext(num_samples, attribs);
 
-    try {
-        scene_loader.load_scene(rc);
-    } catch (const std::exception &e) {
-        fmt::println("Error while loading the scene");
-        return 1;
-    }
+        /*
+         * Load the scene
+         * */
 
-    rc->make_acceleration_structure();
+        spdlog::info("Loading the scene");
+        try {
+            scene_loader.load_scene(rc);
+        } catch (const std::exception &e) {
+            spdlog::error("Error while loading the scene");
+            return 1;
+        }
+        spdlog::info("Scene loaded");
 
-    /*
-     * Start rendering
-     * */
+        rc->fixup_geometry_pointers();
 
-    dim3 blocks_dim = rc->get_blocks_dim();
-    dim3 threads_dim = rc->get_threads_dim();
+        spdlog::info("Creating OptiX acceleration structure");
+        auto optix_as = OptixAS(rc, optix_context);
+        spdlog::info("OptiX acceleration structure initialized");
+        auto optix_renderer = OptixRenderer(rc, optix_context, &optix_as);
 
-    if (!silent) {
-        fmt::println("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
+        /*
+         * Start rendering
+         * */
+
+        dim3 blocks_dim = rc->get_blocks_dim();
+        dim3 threads_dim = rc->get_threads_dim();
+
+        spdlog::info("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
                      num_samples);
-        fmt::println("Pixel grid split into {} blocks with {} threads each.",
-                     blocks_dim.x * blocks_dim.y, threads_dim.x * threads_dim.y);
-    }
 
-    // Wavefront approach
-    for (u32 s = 0; s < num_samples; s++) {
-        raygen<<<blocks_dim, threads_dim>>>(rc, ws);
+        if (!optix) {
+            spdlog::info("Creating BVH acceleration structure");
+            rc->make_acceleration_structure();
+            spdlog::info("BVH acceleration structure created");
+
+            spdlog::info("Pixel grid split into {} blocks with {} threads each.",
+                         blocks_dim.x * blocks_dim.y, threads_dim.x * threads_dim.y);
+        }
+
+        PtParams params{};
+        // Pass straight to params due to performance reasons...
+        // No need to traverse 1 extra pointer...
+        params.rc = rc;
+        params.fb = &rc->get_framebuffer();
+        params.meshes = rc->get_meshes().get_ptr();
+        params.materials = rc->get_materials().get_ptr();
+        params.lights = rc->get_lights().get_ptr();
+
+        // OptiX path-tracer
+        for (u32 s = 0; s < num_samples; s++) {
+            if (optix) {
+                optix_renderer.launch(params, attribs.resx, attribs.resy);
+            } else {
+                render_megakernel<<<blocks_dim, threads_dim>>>(rc);
+
+                cudaDeviceSynchronize();
+                CUDA_CHECK_LAST_ERROR();
+            }
+
+            // Update the framebuffer when the number of samples doubles...
+            if (std::popcount(s + 1) == 1) {
+                if (!silent) {
+                    spdlog::info("Sample {} done.", s + 1);
+                    spdlog::info("Updating framebuffer");
+                }
+                ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s + 1);
+            }
+        }
+
+        // TODO: add an options for statistics...
+        // spdlog::info("Shot a total of {} rays", rc->ray_counter.fetch_add(0));
+
+        /*
+         * Clean up and exit
+         * */
 
         cudaDeviceSynchronize();
+
+        // Call the destructor manually, so the memory inside of RenderContext
+        // deallocates.
+        rc->~RenderContext();
+        CUDA_CHECK(cudaFree(rc));
         CUDA_CHECK_LAST_ERROR();
-
-        if (!silent) {
-            fmt::println("Sample {} done.", s + 1);
-        }
-
-        // Update the framebuffer when the number of samples doubles...
-        if (std::popcount(s + 1) == 1) {
-            if (!silent) {
-                fmt::println("Updating framebuffer");
-            }
-            ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s + 1);
-        }
     }
 
-    // Megakernel approach
-    /*for (u32 s = 0; s < num_samples; s++) {
-        render_megakernel<<<blocks_dim, threads_dim>>>(rc);
-
-        cudaDeviceSynchronize();
-        CUDA_CHECK_LAST_ERROR();
-
-        if (!silent) {
-            fmt::println("Sample {} done.", s + 1);
-        }
-
-        // Update the framebuffer when the number of samples doubles...
-        if (std::popcount(s + 1) == 1) {
-            if (!silent) {
-                fmt::println("Updating framebuffer");
-            }
-            ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s + 1);
-        }
-    }*/
-
-    fmt::println("Shot a total of {} rays", rc->ray_counter.fetch_add(0));
-
-    /*
-     * Clean up and exit
-     * */
-
-    cudaDeviceSynchronize();
-
-    // Call the destructor manually, so the memory inside of RenderContext
-    // deallocates.
-    rc->~RenderContext();
-    CUDA_CHECK(cudaFree(rc));
-    CUDA_CHECK(cudaFree(ws));
-    CUDA_CHECK_LAST_ERROR();
-
+    OPTIX_CHECK(optixDeviceContextDestroy(optix_context));
     CUDA_CHECK(cudaDeviceReset());
 
     return 0;

@@ -1,10 +1,9 @@
 #ifndef PT_IMAGE_WRITER_H
 #define PT_IMAGE_WRITER_H
 
-// FIXME: get a compiler memory leak from NVCC when including OpenEXR Imf headers...
-
 #include <vector>
 
+#include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
 #include "../framebuffer.h"
@@ -70,7 +69,7 @@ void write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_sam
     const char *err;
     int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
     if (ret != TINYEXR_SUCCESS) {
-        fprintf(stderr, "Error when saving output image file: %s\n", err);
+        spdlog::error("Error when saving output image file: %s\n", err);
     }
 
     free(header.channels);

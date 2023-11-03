@@ -29,7 +29,7 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
         auto ref_node = shape.child("ref");
         if (!ref_node) {
             // TODO: the bsdf can be specified inline
-            fmt::println("Shape has no ref node");
+            spdlog::error("Shape has no ref node");
             throw;
         }
 
@@ -55,9 +55,9 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
         } else if (type == "obj") {
             load_obj(shape, mat_id, transform, light_id, rc);
         } else if (type == "sphere") {
-            fmt::println("Ingoring sphere shape");
+            spdlog::debug("Ingoring sphere shape");
         } else {
-            fmt::v10::println("Unknown shape type: {}", type);
+            spdlog::error("Unknown shape type: {}", type);
             throw;
         }
     }
@@ -70,7 +70,6 @@ void SceneLoader::load_materials(pugi::xml_node scene, RenderContext *rc) {
         std::string id = bsdf.attribute("id").as_string();
         std::string type = bsdf.attribute("type").as_string();
 
-        // TODO: I consider all BSFDs two-sided...
         if (type == "twosided") {
             bsdf = bsdf.child("bsdf");
             type = bsdf.attribute("type").as_string();
@@ -83,7 +82,7 @@ void SceneLoader::load_materials(pugi::xml_node scene, RenderContext *rc) {
             u32 mat_id = rc->add_material(std::move(mat));
             materials.insert({id, mat_id});
         } else {
-            fmt::println("Unknown BSDF type: {}, defaulting to diffuse", type);
+            spdlog::debug("Unknown BSDF type: {}, defaulting to diffuse", type);
             auto mat = Material(vec3(0.1, 0.1, 0.1));
             u32 mat_id = rc->add_material(std::move(mat));
             materials.insert({id, mat_id});
@@ -105,7 +104,7 @@ mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
         int i = 0;
         for (f32 f : floats) {
             if (i > 15) {
-                fmt::println("Wrong matrix element count");
+                spdlog::error("Wrong matrix element count");
                 throw;
             }
 
@@ -117,7 +116,7 @@ mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
         // GLM stores matrices in column-majorm, but Mitsuba's format is row-major...
         return glm::transpose(glm::make_mat4(mat.data()));
     } else {
-        fmt::println("Unknown transform type");
+        spdlog::error("Unknown transform type");
         throw;
     }
 }
@@ -134,7 +133,7 @@ vec3 SceneLoader::parse_rgb(const std::string &str) {
     for (f32 f : floats) {
         rgb[i] = f;
         if (i > 2) {
-            fmt::println("Wrong rgb element count");
+            spdlog::error("Wrong rgb element count");
             throw;
         }
 
@@ -147,13 +146,13 @@ vec3 SceneLoader::parse_rgb(const std::string &str) {
 u32 SceneLoader::load_emitter(pugi::xml_node emitter_node, RenderContext *rc) {
     std::string type = emitter_node.attribute("type").as_string();
     if (type != "area") {
-        fmt::println("Unknown emitter type");
+        spdlog::error("Unknown emitter type");
         throw;
     }
 
     auto rgb_node = emitter_node.child("rgb");
     if (!rgb_node) {
-        fmt::println("Emitter doesn't have rgb");
+        spdlog::error("Emitter doesn't have rgb");
         throw;
     }
 
@@ -238,50 +237,24 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
 
     if (!reader.ParseFromFile(file_path, reader_config)) {
         if (!reader.Error().empty()) {
-            fmt::println("Error reading obj file: '{}'", reader.Error());
+            spdlog::error("Error reading obj file: '{}'", reader.Error());
         }
         throw;
     }
 
     if (!reader.Warning().empty()) {
-        fmt::println("Warning when reading obj file");
+        spdlog::warn("Warning when reading obj file");
     }
 
     auto &attrib = reader.GetAttrib();
     auto &shapes = reader.GetShapes();
 
     SharedVector<vec3> pos{};
+    SharedVector<vec3> normals{};
     SharedVector<u32> indices{};
 
     assert(shapes.size() == 1);
     auto shape = &shapes[0];
-
-    // Copy vertices
-    for (int v = 0; v < attrib.vertices.size(); v += 3) {
-        tinyobj::real_t x = attrib.vertices[v];
-        tinyobj::real_t y = attrib.vertices[v + 1];
-        tinyobj::real_t z = attrib.vertices[v + 2];
-
-        vec3 vert = vec3(x, y, z);
-        pos.push(std::move(vert));
-
-        // Check if `normal_index` is zero or positive. negative = no normal data
-        // if (idx.normal_index >= 0) {
-        //    tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) +
-        //    0]; tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index)
-        //    + 1]; tinyobj::real_t nz = attrib.normals[3 *
-        //    size_t(idx.normal_index) + 2];
-        //}
-
-        // Check if `texcoord_index` is zero or positive. negative = no texcoord
-        // data
-        // if (idx.texcoord_index >= 0) {
-        //    tinyobj::real_t tx =
-        //        attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
-        //    tinyobj::real_t ty =
-        //        attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
-        //}
-    }
 
     // Load indices
     for (size_t f = 0; f < shape->mesh.num_face_vertices.size(); f++) {
@@ -294,9 +267,49 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         int i1 = shape->mesh.indices[3 * f + 1].vertex_index;
         int i2 = shape->mesh.indices[3 * f + 2].vertex_index;
 
+        for (int i = 0; i < 3; i++) {
+            auto ind = shape->mesh.indices[3 * f + i];
+            assert(ind.vertex_index == ind.normal_index &&
+                   ind.vertex_index == ind.texcoord_index);
+        }
+
         indices.push(std::move(i0));
         indices.push(std::move(i1));
         indices.push(std::move(i2));
+    }
+
+    // Copy vertices
+    for (int v = 0; v < attrib.vertices.size(); v += 3) {
+        tinyobj::real_t x = attrib.vertices[v];
+        tinyobj::real_t y = attrib.vertices[v + 1];
+        tinyobj::real_t z = attrib.vertices[v + 2];
+
+        vec3 vert_pos = vec3(x, y, z);
+        pos.push(std::move(vert_pos));
+
+        // TODO: finish normal loading
+        tinyobj::real_t nx = attrib.normals[v];
+        tinyobj::real_t ny = attrib.normals[v + 1];
+        tinyobj::real_t nz = attrib.normals[v + 2];
+
+        vec3 vert_normal = vec3(nx, ny, nz);
+        normals.push(std::move(vert_normal));
+
+        // Check if `normal_index` is zero or positive. negative = no normal data
+        /*if (idx.normal_index >= 0) {
+            tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+            tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+            tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+        }*/
+
+        // Check if `texcoord_index` is zero or positive. negative = no texcoord
+        // data
+        // if (idx.texcoord_index >= 0) {
+        //    tinyobj::real_t tx =
+        //        attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
+        //    tinyobj::real_t ty =
+        //        attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
+        //}
     }
 
     for (int i = 0; i < pos.len(); i++) {

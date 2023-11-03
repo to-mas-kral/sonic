@@ -1,9 +1,6 @@
 #ifndef PT_RENDER_CONTEXT_COMMON_H
 #define PT_RENDER_CONTEXT_COMMON_H
 
-#ifndef PT_RENDER_CONTEXT_H
-#define PT_RENDER_CONTEXT_H
-
 #include <span>
 
 #include <cuda/std/atomic>
@@ -11,6 +8,8 @@
 class Mesh;
 class Triangle;
 class RenderContext;
+
+struct Intersection;
 
 #include "camera.h"
 #include "envmap.h"
@@ -24,7 +23,7 @@ class RenderContext;
 #include "utils/numtypes.h"
 #include "utils/shared_vector.h"
 
-// TODO: I can't figure out how to split these into their own headers without running
+// I can't figure out how to split these into their own headers without running
 // into circular include hell...
 
 struct SceneAttribs {
@@ -37,70 +36,25 @@ struct SceneAttribs {
 class Mesh {
 public:
     Mesh(u32 indices_index, u32 pos_index, u32 material_id, i32 light_id,
-         RenderContext *rc)
+         RenderContext *rc, u32 num_indices, u32 num_vertices)
         : indices_index(indices_index), pos_index(pos_index), material_id(material_id),
-          light_id(light_id), rc(rc) {}
-    /*Mesh(SharedVector<u32> &&a_indices, SharedVector<vec3> &&a_pos, u32 materialId,
-         i32 light_id = -1)
-        : indices(std::move(a_indices)), pos(std::move(a_pos)), material_id(materialId),
-          light_id(light_id) {
-        assert(indices.len() % 3 == 0);
-    }
+          light_id(light_id), rc(rc), num_indices(num_indices),
+          num_vertices(num_vertices) {}
 
-    Mesh(SharedVector<u32> &&a_indices, SharedVector<f32> &&a_pos, u32 a_material_id,
-         i32 light_id = -1)
-        : indices(std::move(a_indices)), material_id(a_material_id), light_id(light_id) {
-        assert(indices.len() % 3 == 0);
-        assert(a_pos.len() % 3 == 0);
-
-        pos = SharedVector<vec3>(a_pos.len() / 3);
-        for (int i = 0; i < a_pos.len(); i += 3) {
-            auto p = vec3(a_pos[i], a_pos[i + 1], a_pos[i + 2]);
-            pos.push(std::move(p));
-        }
-    }*/
-
-    // Mesh(Mesh const &) = delete;
-
-    // Mesh &operator=(Mesh const &) = delete;
-
-    Mesh(Mesh &&other) noexcept {
-        /*indices = std::move(other.indices);
-        pos = std::move(other.pos);*/
-        rc = other.rc;
-        indices_index = other.indices_index;
-        pos_index = other.pos_index;
-        material_id = other.material_id;
-        light_id = other.light_id;
-    };
-
-    Mesh &operator=(Mesh &&other) noexcept {
-        /*indices = std::move(other.indices);
-        pos = std::move(other.pos);*/
-        rc = other.rc;
-        indices_index = other.indices_index;
-        pos_index = other.pos_index;
-        material_id = other.material_id;
-        light_id = other.light_id;
-
-        return *this;
-    };
+    Mesh(Mesh &&other) noexcept = default;
+    Mesh &operator=(Mesh &&other) noexcept = default;
 
     __host__ __device__ const u32 *get_indices() const;
     __host__ __device__ const vec3 *get_pos() const;
-    __device__ u32 get_material_id() const { return material_id; }
     // TODO: use optional
     __device__ bool has_light() const { return light_id >= 0; }
-    __device__ i32 get_light_id() const { return light_id; }
 
-private:
-    // Indices into the global array in render_context...
+    //  Indices into the global array in render_context...
     RenderContext *rc;
     u32 indices_index;
+    u32 num_indices;
     u32 pos_index;
-    /*SharedVector<u32> indices;
-    /// Vertices positions
-    SharedVector<vec3> pos;*/
+    u32 num_vertices;
     u32 material_id;
     // TODO: use optional when available
     // Negative means no light
@@ -182,17 +136,14 @@ public:
     __host__ __device__ cuda::std::tuple<u32, u32, u32> get_indices();
     __host__ __device__ cuda::std::tuple<vec3, vec3, vec3> get_pos();
 
-    u32 get_mesh_id() { return mesh_id; };
     void set_mesh(Mesh *mesh);
     // TODO: use cuda::std::optional when available
-    /// Möller-Trumbore intersection algorithm
     __device__ bool intersect(Intersection &its, Ray &ray);
 
     __host__ AABB aabb();
 
     u32 get_id() const { return id; }
 
-private:
     union {
         Mesh *mesh;
         u32 mesh_id;
@@ -211,10 +162,14 @@ public:
                            u32 material_id, i32 light_id);
     __host__ u32 add_material(Material &&material);
     __host__ u32 add_light(Light &&light);
-    __host__ void set_envmap(Envmap &a_envmap) { envmap = std::move(a_envmap); };
+    __host__ void set_envmap(Envmap &a_envmap) {
+        envmap = std::move(a_envmap);
+        has_envmap = true;
+    };
     // TODO: use an optional when available
     __host__ __device__ const Envmap *get_envmap() { return &envmap; };
 
+    __host__ void fixup_geometry_pointers();
     __host__ void make_acceleration_structure();
     __device__ bool intersect_scene(Intersection &its, Ray &ray);
 
@@ -235,21 +190,20 @@ public:
     }
 
     cuda::atomic<u32> ray_counter{0};
+    bool has_envmap = false;
 
 private:
-    SharedVector<Mesh> meshes;
-    SharedVector<Triangle> triangles; // It's a triangle vector, but could be a general
-                                      // shape in the future...
+    SharedVector<Mesh> meshes = SharedVector<Mesh>(128);
+    SharedVector<Triangle> triangles = SharedVector<Triangle>(2048);
 
-    // TODO: Vertex data is duplicated for simplicity for now (for OptiX)...
-    SharedVector<u32> indices;
+    SharedVector<u32> indices = SharedVector<u32>();
     /// Vertex positions
-    SharedVector<vec3> pos;
+    SharedVector<vec3> pos = SharedVector<vec3>();
 
     BVH bvh;
 
-    SharedVector<Material> materials;
-    SharedVector<Light> lights;
+    SharedVector<Material> materials = SharedVector<Material>(128);
+    SharedVector<Light> lights = SharedVector<Light>(128);
 
     Envmap envmap;
 
@@ -266,7 +220,5 @@ private:
     const dim3 THREADS_DIM = dim3(THREADS_DIM_SIZE, THREADS_DIM_SIZE);
     dim3 blocks_dim;
 };
-
-#endif // PT_RENDER_CONTEXT_H
 
 #endif // PT_RENDER_CONTEXT_COMMON_H

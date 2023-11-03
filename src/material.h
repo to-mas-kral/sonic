@@ -6,13 +6,9 @@
 #include "utils/numtypes.h"
 #include "utils/rng.h"
 
-// TODO: Probably make into a std::variant or something ?
 class Material {
 public:
     explicit Material(const vec3 &reflectance) : reflectance(reflectance) {}
-
-    // TODO: currently only sample, pdf, eval functions are only for diffuse BRDFs
-    // now...
 
     __device__ vec3 sample(vec3 normal, vec3 view_dir, curandState *rand_state) const {
         vec3 sample_dir = sample_cosine_hemisphere(rand_state);

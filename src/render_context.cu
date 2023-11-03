@@ -5,10 +5,7 @@
 #include "geometry/ray.h"
 
 RenderContext::RenderContext(u32 num_samples, SceneAttribs &attribs)
-    : meshes(SharedVector<Mesh>(128)), triangles(SharedVector<Triangle>(2048)),
-      indices(SharedVector<u32>()), pos(SharedVector<vec3>()),
-      materials(SharedVector<Material>(128)), lights(SharedVector<Light>(128)),
-      num_samples(num_samples), image_x(attribs.resx), image_y(attribs.resy),
+    : num_samples(num_samples), image_x(attribs.resx), image_y(attribs.resy),
       attribs(attribs) {
 
     u32 blocks_x = (attribs.resx + THREADS_DIM_SIZE - 1U) / THREADS_DIM_SIZE;
@@ -21,7 +18,6 @@ RenderContext::RenderContext(u32 num_samples, SceneAttribs &attribs)
 }
 
 /*__device__ bool RenderContext::intersect_scene(Intersection &its, Ray &ray) {
-    // TODO: make some acceleration structure...
     bool its_found = false;
     f32 min_t = cuda::std::numeric_limits<f32>::max();
 
@@ -48,6 +44,9 @@ __host__ void RenderContext::add_mesh(SharedVector<u32> &&m_indices,
                                       SharedVector<vec3> &&m_pos, u32 material_id,
                                       i32 light_id) {
 
+    u32 num_indices = m_indices.len();
+    u32 num_vertices = m_pos.len();
+
     u32 indices_index = indices.len();
     for (int i = 0; i < m_indices.len(); i++) {
         indices.push(std::move(m_indices[i]));
@@ -59,7 +58,8 @@ __host__ void RenderContext::add_mesh(SharedVector<u32> &&m_indices,
     }
 
     auto mesh_id = meshes.len();
-    auto mesh = Mesh(indices_index, pos_index, material_id, light_id, this);
+    auto mesh = Mesh(indices_index, pos_index, material_id, light_id, this, num_indices,
+                     num_vertices);
     meshes.push(std::move(mesh));
 
     for (int i = 0; i < m_indices.len(); i += 3) {
@@ -68,13 +68,15 @@ __host__ void RenderContext::add_mesh(SharedVector<u32> &&m_indices,
     }
 }
 
-__host__ void RenderContext::make_acceleration_structure() {
+__host__ void RenderContext::fixup_geometry_pointers() {
     // Fixup the triangle-mesh pointers
     for (int i = 0; i < triangles.len(); i++) {
-        u32 mesh_id = triangles[i].get_mesh_id();
+        u32 mesh_id = triangles[i].mesh_id;
         triangles[i].set_mesh(&meshes[mesh_id]);
     }
+}
 
+__host__ void RenderContext::make_acceleration_structure() {
     const int MAX_PRIMS_IN_NODE = 8;
     bvh = BVH(&triangles, MAX_PRIMS_IN_NODE);
 }

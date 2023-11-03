@@ -1,6 +1,7 @@
 
 #include "../render_context_common.h"
 
+/// Möller-Trumbore intersection algorithm
 __device__ bool Triangle::intersect(Intersection &its, Ray &ray) {
     f32 eps = 0.0000001f;
 

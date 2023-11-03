@@ -1,7 +1,6 @@
 
 #include "framebuffer.h"
 
-// TODO: might be better to just copy some PCG implementation, this uses a lot of space...
 __global__ void init_rand_state(u32 pixels, u32 image_x, curandState *curand_state) {
     // This is the same as pixel_index() which can't be used because Framebuffer object
     // is still being created.
