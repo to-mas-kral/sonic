@@ -20,3 +20,9 @@ Notes in Czech can be found in [docs/main.pdf](/docs/main.pdf).
 - Environment map lighting.
 
 ![alt text](/docs/house_render.png)
+
+# Progress report 3
+- Ray-tracing is now done using OptiX (can utilize hardware ray-tracing cores).
+- Support for rendering with bitmap textures.
+
+![alt text](/docs/textures.png)
