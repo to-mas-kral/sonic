@@ -40,29 +40,46 @@ __device__ bool RenderContext::intersect_scene(Intersection &its, Ray &ray) {
     return bvh.intersect(its, ray, cuda::std::numeric_limits<f32>::max());
 }
 
-__host__ void RenderContext::add_mesh(SharedVector<u32> &&m_indices,
-                                      SharedVector<vec3> &&m_pos, u32 material_id,
-                                      i32 light_id) {
-
-    u32 num_indices = m_indices.len();
-    u32 num_vertices = m_pos.len();
+__host__ void RenderContext::add_mesh(MeshParams mp) {
+    u32 num_indices = mp.indices->len();
+    u32 num_vertices = mp.pos->len();
 
     u32 indices_index = indices.len();
-    for (int i = 0; i < m_indices.len(); i++) {
-        indices.push(std::move(m_indices[i]));
+    for (int i = 0; i < mp.indices->len(); i++) {
+        indices.push(std::move((*mp.indices)[i]));
     }
 
     u32 pos_index = pos.len();
-    for (int i = 0; i < m_pos.len(); i++) {
-        pos.push(std::move(m_pos[i]));
+    for (int i = 0; i < mp.pos->len(); i++) {
+        pos.push(std::move((*mp.pos)[i]));
+    }
+
+    cuda::std::optional<u32> normals_index = cuda::std::nullopt;
+    if (mp.normals != nullptr) {
+        normals_index = {normals.len()};
+        assert(mp.normals->len() == mp.pos->len());
+
+        for (int i = 0; i < mp.normals->len(); i++) {
+            normals.push(std::move((*mp.normals)[i]));
+        }
+    }
+
+    cuda::std::optional<u32> uvs_index = cuda::std::nullopt;
+    if (mp.uvs != nullptr) {
+        uvs_index = {uvs.len()};
+        assert(mp.uvs->len() == mp.pos->len());
+
+        for (int i = 0; i < mp.uvs->len(); i++) {
+            uvs.push(std::move((*mp.uvs)[i]));
+        }
     }
 
     auto mesh_id = meshes.len();
-    auto mesh = Mesh(indices_index, pos_index, material_id, light_id, this, num_indices,
-                     num_vertices);
+    auto mesh = Mesh(indices_index, pos_index, mp.material_id, mp.light_id, this,
+                     num_indices, num_vertices, normals_index, uvs_index);
     meshes.push(std::move(mesh));
 
-    for (int i = 0; i < m_indices.len(); i += 3) {
+    for (int i = 0; i < mp.indices->len(); i += 3) {
         Triangle triangle = Triangle(i / 3, mesh_id);
         triangles.push(std::move(triangle));
     }
@@ -91,4 +108,10 @@ __host__ u32 RenderContext::add_light(Light &&light) {
     u32 light_id = lights.len();
     lights.push(std::move(light));
     return light_id;
+}
+
+__host__ u32 RenderContext::add_texture(Texture &&texture) {
+    u32 texture_id = textures.len();
+    textures.push(std::move(texture));
+    return texture_id;
 }

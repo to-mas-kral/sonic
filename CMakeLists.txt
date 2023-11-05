@@ -21,6 +21,8 @@ add_executable(pt src/main.cu
         src/scene_loader.cu
         src/scene_loader.h
         src/envmap.h
+        src/texture.h
+        src/texture.cu
 
         src/utils/numtypes.h
         src/utils/shared_vector.h
@@ -75,6 +77,9 @@ target_link_libraries(pt PRIVATE glm::glm)
 
 find_package(tinyexr CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE unofficial::tinyexr::tinyexr)
+
+find_package(Stb REQUIRED)
+target_include_directories(pt PRIVATE ${Stb_INCLUDE_DIR})
 
 find_package(CLI11 CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE CLI11::CLI11)

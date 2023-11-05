@@ -122,6 +122,7 @@ int main(int argc, char **argv) {
         params.meshes = rc->get_meshes().get_ptr();
         params.materials = rc->get_materials().get_ptr();
         params.lights = rc->get_lights().get_ptr();
+        params.textures = rc->get_textures().get_ptr();
 
         // OptiX path-tracer
         for (u32 s = 0; s < num_samples; s++) {
@@ -134,6 +135,7 @@ int main(int argc, char **argv) {
                 CUDA_CHECK_LAST_ERROR();
             }
 
+            // TODO: replace with progress bar
             // Update the framebuffer when the number of samples doubles...
             if (std::popcount(s + 1) == 1) {
                 if (!silent) {

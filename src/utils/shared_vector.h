@@ -120,11 +120,6 @@ public:
         return mem[idx];
     }
 
-    /*
-    __host__ void push(T elem) {
-        push(std::move(elem));
-    }*/
-
     // TODO: refactor this std::move nonsense...
     __host__ void push(T &&elem) {
         if (cap == 0 || mem == nullptr) {
@@ -144,7 +139,7 @@ public:
 
     __host__ __device__ u64 len() const { return m_len; }
 
-    __host__ T *get_ptr() const { return mem; }
+    __host__ __device__ T *get_ptr() const { return mem; }
 
 private:
     __host__ void resize() {

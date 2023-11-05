@@ -18,7 +18,7 @@ void SceneLoader::load_scene(RenderContext *rc) {
         std::string filename = envmap_node.child("string").attribute("value").as_string();
         auto file_path = scene_base_path + "/" + filename;
         auto envmap = Envmap(file_path);
-        rc->set_envmap(envmap);
+        rc->set_envmap(std::move(envmap));
     }
 }
 
@@ -75,18 +75,40 @@ void SceneLoader::load_materials(pugi::xml_node scene, RenderContext *rc) {
             type = bsdf.attribute("type").as_string();
         }
 
+        Material mat = Material(vec3(0.5, 0.5, 0.5));
+
         if (type == "diffuse") {
-            auto rgb_node = bsdf.child("rgb");
-            vec3 rgb = parse_rgb(rgb_node.attribute("value").as_string());
-            auto mat = Material(rgb);
-            u32 mat_id = rc->add_material(std::move(mat));
-            materials.insert({id, mat_id});
+            auto reflectance_node = bsdf.find_child([](pugi::xml_node node) {
+                return node.find_attribute([](pugi::xml_attribute attr) {
+                    return strcmp(attr.name(), "name") == 0 &&
+                           (strcmp(attr.as_string(), "reflectance") == 0);
+                });
+            });
+
+            if (strcmp(reflectance_node.name(), "texture") == 0) {
+                auto filename_node = reflectance_node.find_child([](pugi::xml_node node) {
+                    return node.find_attribute([](pugi::xml_attribute attr) {
+                        return strcmp(attr.name(), "name") == 0 &&
+                               strcmp(attr.as_string(), "filename") == 0;
+                    });
+                });
+
+                auto file_path = filename_node.attribute("value").as_string();
+                auto texture = Texture(scene_base_path + "/" + file_path);
+
+                u32 tex_id = rc->add_texture(std::move(texture));
+                mat = Material(tex_id);
+            } else {
+                vec3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
+                mat = Material(rgb);
+            }
+
         } else {
             spdlog::debug("Unknown BSDF type: {}, defaulting to diffuse", type);
-            auto mat = Material(vec3(0.1, 0.1, 0.1));
-            u32 mat_id = rc->add_material(std::move(mat));
-            materials.insert({id, mat_id});
         }
+
+        u32 mat_id = rc->add_material(std::move(mat));
+        materials.insert({id, mat_id});
     }
 }
 
@@ -185,7 +207,14 @@ void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &t
         pos[i] = transform * vec4(pos[i], 1.);
     }
 
-    rc->add_mesh(std::move(indices), std::move(pos), mat_id, light_id);
+    MeshParams mp = {
+        .indices = &indices,
+        .pos = &pos,
+        .material_id = mat_id,
+        .light_id = light_id,
+    };
+
+    rc->add_mesh(mp);
 }
 
 void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
@@ -221,7 +250,14 @@ void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transf
         pos[i] = transform * vec4(pos[i], 1.);
     }
 
-    rc->add_mesh(std::move(indices), std::move(pos), mat_id, light_id);
+    MeshParams mp = {
+        .indices = &indices,
+        .pos = &pos,
+        .material_id = mat_id,
+        .light_id = light_id,
+    };
+
+    rc->add_mesh(mp);
 }
 
 void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
@@ -251,15 +287,51 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
 
     SharedVector<vec3> pos{};
     SharedVector<vec3> normals{};
+    SharedVector<vec2> uvs{};
     SharedVector<u32> indices{};
 
     assert(shapes.size() == 1);
     auto shape = &shapes[0];
 
+    /*    size_t index_offset = 0;
+        for (size_t f = 0; f < shape->mesh.num_face_vertices.size(); f++) {
+            auto fv = size_t(shape->mesh.num_face_vertices[f]);
+
+            // Loop over vertices in the face.
+            for (size_t v = 0; v < fv; v++) {
+                // access to vertex
+                tinyobj::index_t idx = shape->mesh.indices[index_offset + v];
+                tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
+                tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
+                tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
+
+                indices.push(idx.vertex_index);
+
+                // Check if `normal_index` is zero or positive. negative = no normal data
+                if (idx.normal_index >= 0) {
+                    tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
+                    tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
+                    tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
+                    normals.push(vec3(nx, ny, nz));
+                } else {
+                    throw;
+                    spdlog::error("OBJ mesh doesn't have normals");
+                }
+
+                // Check if `texcoord_index` is zero or positive. negative = no texcoord
+       data if (idx.texcoord_index >= 0) { tinyobj::real_t tx = attrib.texcoords[2 *
+       size_t(idx.texcoord_index) + 0]; tinyobj::real_t ty = attrib.texcoords[2 *
+       size_t(idx.texcoord_index) + 1]; uvs.push(vec2(tx, ty)); } else { throw;
+                    spdlog::error("OBJ mesh doesn't have texture coordinates");
+                }
+            }
+            index_offset += fv;
+        }*/
+
+    // Wavefront OBJ format is so cursed....
     // Load indices
     for (size_t f = 0; f < shape->mesh.num_face_vertices.size(); f++) {
         auto fv = size_t(shape->mesh.num_face_vertices[f]);
-
         // Triangulation should take care of this...
         assert(fv == 3);
 
@@ -270,6 +342,7 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         for (int i = 0; i < 3; i++) {
             auto ind = shape->mesh.indices[3 * f + i];
             assert(ind.vertex_index == ind.normal_index &&
+                   ind.vertex_index == ind.texcoord_index &&
                    ind.vertex_index == ind.texcoord_index);
         }
 
@@ -278,45 +351,50 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         indices.push(std::move(i2));
     }
 
+    size_t pos_size = attrib.vertices.size() / 3;
+    size_t normals_size = attrib.normals.size() / 3;
+    size_t uvs_size = attrib.texcoords.size() / 2;
+
+    assert(pos_size == normals_size && pos_size == uvs_size);
+
     // Copy vertices
-    for (int v = 0; v < attrib.vertices.size(); v += 3) {
-        tinyobj::real_t x = attrib.vertices[v];
-        tinyobj::real_t y = attrib.vertices[v + 1];
-        tinyobj::real_t z = attrib.vertices[v + 2];
+    for (int v = 0; v < pos_size; v++) {
+        tinyobj::real_t x = attrib.vertices[3 * v];
+        tinyobj::real_t y = attrib.vertices[3 * v + 1];
+        tinyobj::real_t z = attrib.vertices[3 * v + 2];
 
         vec3 vert_pos = vec3(x, y, z);
         pos.push(std::move(vert_pos));
 
-        // TODO: finish normal loading
-        tinyobj::real_t nx = attrib.normals[v];
-        tinyobj::real_t ny = attrib.normals[v + 1];
-        tinyobj::real_t nz = attrib.normals[v + 2];
+        tinyobj::real_t nx = attrib.normals[3 * v];
+        tinyobj::real_t ny = attrib.normals[3 * v + 1];
+        tinyobj::real_t nz = attrib.normals[3 * v + 2];
 
         vec3 vert_normal = vec3(nx, ny, nz);
         normals.push(std::move(vert_normal));
 
-        // Check if `normal_index` is zero or positive. negative = no normal data
-        /*if (idx.normal_index >= 0) {
-            tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
-            tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
-            tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-        }*/
+        tinyobj::real_t tx = attrib.texcoords[2 * v];
+        tinyobj::real_t ty = attrib.texcoords[2 * v + 1];
 
-        // Check if `texcoord_index` is zero or positive. negative = no texcoord
-        // data
-        // if (idx.texcoord_index >= 0) {
-        //    tinyobj::real_t tx =
-        //        attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
-        //    tinyobj::real_t ty =
-        //        attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
-        //}
+        vec2 uv = vec2(tx, ty);
+        uvs.push(std::move(uv));
     }
 
+    // TODO: correct normal transform
     for (int i = 0; i < pos.len(); i++) {
         pos[i] = transform * vec4(pos[i], 1.);
     }
 
-    rc->add_mesh(std::move(indices), std::move(pos), mat_id, light_id);
+    MeshParams mp = {
+        .indices = &indices,
+        .pos = &pos,
+        .normals = &normals,
+        .uvs = &uvs,
+        .material_id = mat_id,
+        .light_id = light_id,
+    };
+
+    rc->add_mesh(mp);
 }
 
 std::optional<SceneAttribs> SceneLoader::load_scene_attribs() {

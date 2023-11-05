@@ -11,16 +11,14 @@ public:
         const SharedVector<Mesh> &meshes = rc->get_meshes();
         num_meshes = meshes.len();
 
-        mesh_d_poses = std::vector<CUdeviceptr>(num_meshes);
-        mesh_d_indices = std::vector<CUdeviceptr>(num_meshes);
+        std::vector<CUdeviceptr> mesh_d_poses = std::vector<CUdeviceptr>(num_meshes);
+        std::vector<CUdeviceptr> mesh_d_indices = std::vector<CUdeviceptr>(num_meshes);
 
-        mesh_d_poses[0] = (CUdeviceptr)pos->get_ptr();
-        mesh_d_indices[0] = (CUdeviceptr)indices->get_ptr();
-
-        for (int i = 1; i < num_meshes; i++) {
-            auto &mesh = meshes[i - 1];
-            mesh_d_poses[i] = mesh_d_poses[i - 1] + mesh.num_vertices * sizeof(vec3);
-            mesh_d_indices[i] = mesh_d_indices[i - 1] + mesh.num_indices * sizeof(u32);
+        for (int i = 0; i < num_meshes; i++) {
+            auto &mesh = meshes[i];
+            mesh_d_poses[i] = (CUdeviceptr)pos->get_ptr() + mesh.pos_index * sizeof(vec3);
+            mesh_d_indices[i] =
+                (CUdeviceptr)indices->get_ptr() + mesh.indices_index * sizeof(u32);
         }
 
         std::vector<OptixBuildInput> triangle_inputs(num_meshes);
@@ -106,12 +104,8 @@ public:
         CUDA_CHECK(cudaFree(reinterpret_cast<void *>(d_temp_buffer_gas)));
     }
 
-    ~OptixAS() {
-        CUDA_CHECK(cudaFree(reinterpret_cast<void *>(d_gas_output_buffer)));
-    }
+    ~OptixAS() { CUDA_CHECK(cudaFree(reinterpret_cast<void *>(d_gas_output_buffer))); }
 
-    std::vector<CUdeviceptr> mesh_d_poses;
-    std::vector<CUdeviceptr> mesh_d_indices;
     OptixTraversableHandle gas_handle{};
     u32 num_meshes = 0;
 

@@ -9,6 +9,7 @@
 
 struct PtParams {
     Light *lights;
+    Texture *textures;
     Material *materials;
     Mesh *meshes;
     Framebuffer *fb;
@@ -24,6 +25,8 @@ struct PtHitGroupData {
     u32 mesh_id;
     CUdeviceptr pos;
     CUdeviceptr indices;
+    CUdeviceptr normals;
+    CUdeviceptr uvs;
 };
 
 typedef SbtRecord<PtRayGenData> PtRayGenSbtRecord;

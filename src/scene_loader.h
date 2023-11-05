@@ -14,6 +14,7 @@
 class RenderContext;
 #include "render_context_common.h"
 #include "envmap.h"
+#include "texture.h"
 
 /// Loader for Mitsuba's scene format:
 /// https://mitsuba.readthedocs.io/en/stable/src/key_topics/scene_format.html#scene-xml-file-format

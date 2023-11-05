@@ -43,7 +43,8 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
             f32 cos_theta = max(glm::dot(its.normal, sample_dir), 0.0001f);
 
             f32 pdf = material->pdf(cos_theta);
-            vec3 brdf = material->eval();
+            // FIXME: megakernel textures
+            vec3 brdf = material->eval(material, rc->get_textures().get_ptr(), vec2(0.));
 
             radiance += throughput * emission;
             throughput *= brdf * cos_theta * (1.f / pdf);

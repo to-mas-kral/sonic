@@ -8,7 +8,7 @@
 OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
                              OptixAS *optixAS)
     : optixAS(optixAS) {
-    auto pipeline_compile_options = make_optix_pipeline_compile_options(9, "params");
+    auto pipeline_compile_options = make_optix_pipeline_compile_options(13, "params");
     make_optix_module(context, &pipeline_compile_options, &module, "optix_pt.ptx");
 
     OptixProgramGroupOptions pg_options = {};
@@ -32,14 +32,32 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
         OPTIX_CHECK(optixSbtRecordPackHeader(miss_pg, &ms_sbt));
         miss_record.set(&ms_sbt);
 
+        auto pos = &rc->get_pos();
+        auto indices = &rc->get_indices();
+        auto normals = &rc->get_normals();
+        auto uvs = &rc->get_uvs();
+        const SharedVector<Mesh> &meshes = rc->get_meshes();
+
+        auto base_indices = (CUdeviceptr)indices->get_ptr();
+        auto base_pos = (CUdeviceptr)pos->get_ptr();
+        auto base_normals = (CUdeviceptr)normals->get_ptr();
+        auto base_uvs = (CUdeviceptr)uvs->get_ptr();
+
         std::vector<PtHitGroupSbtRecord> hitgroup_records(optixAS->num_meshes);
         for (int i = 0; i < optixAS->num_meshes; i++) {
             PtHitGroupSbtRecord hg_rec;
+            auto &mesh = meshes[i];
 
             OPTIX_CHECK(optixSbtRecordPackHeader(hitgroup_pg, &hg_rec));
             hg_rec.data.mesh_id = i;
-            hg_rec.data.pos = optixAS->mesh_d_poses[i];
-            hg_rec.data.indices = optixAS->mesh_d_indices[i];
+            // TODO: these should be Mesh methods...
+            hg_rec.data.pos = base_pos + mesh.pos_index * sizeof(vec3);
+            hg_rec.data.indices = base_indices + mesh.indices_index * sizeof(u32);
+
+            auto normals_index = mesh.normals_index.value_or(0);
+            hg_rec.data.normals = base_normals + normals_index * sizeof(vec3);
+            auto uvs_index = mesh.uvs_index.value_or(0);
+            hg_rec.data.uvs = base_uvs + uvs_index * sizeof(vec2);
             hitgroup_records[i] = hg_rec;
         }
 
