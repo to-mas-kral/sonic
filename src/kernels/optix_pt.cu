@@ -48,6 +48,10 @@ set_payload_hit(u32 prim_index, u32 mesh_id, float2 barycentrics, CUdeviceptr po
     optixSetPayload_12((static_cast<u64>(uvs) & 0xFFFF'FFFF'0000'0000U) >> 32U);
 }
 
+__device__ __forceinline__ CUdeviceptr unpack_ptr(u32 hi, u32 lo) {
+    return (static_cast<u64>(hi) << 32U) | static_cast<u64>(lo);
+}
+
 extern "C" __global__ void __raygen__rg() {
     const uint3 pixel = optixGetLaunchIndex();
     const uint3 dim = optixGetLaunchDimensions();
@@ -85,12 +89,10 @@ extern "C" __global__ void __raygen__rg() {
                    did_hit, prim_index, mesh_id, bar_y, bar_z, pos_lo, pos_hi, indices_lo,
                    indices_hi, normals_lo, normals_hi, uvs_lo, uvs_hi);
 
-        CUdeviceptr d_pos = (static_cast<u64>(pos_hi) << 32U) | static_cast<u64>(pos_lo);
-        CUdeviceptr d_indices =
-            (static_cast<u64>(indices_hi) << 32U) | static_cast<u64>(indices_lo);
-        CUdeviceptr d_normals =
-            (static_cast<u64>(normals_hi) << 32U) | static_cast<u64>(normals_lo);
-        CUdeviceptr d_uvs = (static_cast<u64>(uvs_hi) << 32U) | static_cast<u64>(uvs_lo);
+        CUdeviceptr d_pos = unpack_ptr(pos_hi, pos_lo);
+        CUdeviceptr d_indices = unpack_ptr(indices_hi, indices_lo);
+        CUdeviceptr d_normals = unpack_ptr(normals_hi, normals_lo);
+        CUdeviceptr d_uvs = unpack_ptr(uvs_hi, uvs_lo);
 
         if (did_hit) {
             f32 bar_y_f = __uint_as_float(bar_y);
@@ -142,8 +144,9 @@ extern "C" __global__ void __raygen__rg() {
             }
 
             vec3 emission = vec3(0.f);
-            if (mesh->has_light()) {
-                emission = params.lights[mesh->light_id].emission();
+            if (mesh->light_id.has_value()) {
+                auto light_id = mesh->light_id.value();
+                emission = params.lights[light_id].emission();
             }
 
             if (glm::dot(-ray.dir, normal) < 0.f) {
@@ -169,13 +172,13 @@ extern "C" __global__ void __raygen__rg() {
             radiance += throughput * emission;
             throughput *= brdf * cos_theta * (1.f / pdf);
 
-            auto [should_terminate, roulette_compensation] =
-                russian_roulette(depth, rand_state, throughput);
+            auto rr = russian_roulette(depth, rand_state, throughput);
 
-            if (should_terminate) {
+            if (!rr.has_value()) {
                 break;
             }
 
+            auto roulette_compensation = rr.value();
             throughput *= 1.f / roulette_compensation;
 
             Ray new_ray = spawn_ray(its, sample_dir);

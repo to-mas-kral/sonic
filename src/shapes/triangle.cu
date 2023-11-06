@@ -2,7 +2,7 @@
 #include "../render_context_common.h"
 
 /// Möller-Trumbore intersection algorithm
-__device__ bool Triangle::intersect(Intersection &its, Ray &ray) {
+__device__ cuda::std::optional<Intersection> Triangle::intersect(Ray &ray) {
     f32 eps = 0.0000001f;
 
     auto [p0, p1, p2] = get_pos();
@@ -14,20 +14,20 @@ __device__ bool Triangle::intersect(Intersection &its, Ray &ray) {
     f32 a = dot(e1, h);
 
     if (a > -eps && a < eps) {
-        return false;
+        return cuda::std::nullopt;
     }
 
     f32 f = 1.f / a;
     vec3 s = ray.o - p0;
     f32 u = f * dot(s, h);
     if (u < 0.f || u > 1.f) {
-        return false;
+        return cuda::std::nullopt;
     }
 
     vec3 q = cross(s, e1);
     f32 v = f * dot(ray.dir, q);
     if (v < 0.f || u + v > 1.f) {
-        return false;
+        return cuda::std::nullopt;
     }
 
     f32 t = f * dot(e2, q);
@@ -48,14 +48,15 @@ __device__ bool Triangle::intersect(Intersection &its, Ray &ray) {
         vec3 v1 = p2 - p0;
         vec3 normal = glm::normalize(cross(v0, v1));
 
+        Intersection its;
         its.pos = pos;
         its.normal = normal;
         its.t = t;
         its.mesh = mesh;
-        return true;
+        return {its};
     }
 
-    return false;
+    return cuda::std::nullopt;
 }
 
 __host__ __device__ cuda::std::tuple<vec3, vec3, vec3> Triangle::get_pos() {

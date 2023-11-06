@@ -43,9 +43,9 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
         }
 
         auto emitter_node = shape.child("emitter");
-        i32 light_id = -1;
+        cuda::std::optional<u32> light_id = cuda::std::nullopt;
         if (emitter_node) {
-            light_id = static_cast<i32>(load_emitter(emitter_node, rc));
+            light_id = {load_emitter(emitter_node, rc)};
         }
 
         if (type == "rectangle") {
@@ -185,7 +185,7 @@ u32 SceneLoader::load_emitter(pugi::xml_node emitter_node, RenderContext *rc) {
 }
 
 void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                                 i32 light_id, RenderContext *rc) {
+                                 cuda::std::optional<u32> light_id, RenderContext *rc) {
     // clang-format off
     SharedVector<vec3> pos = {vec3(-1.,  -1., 0.),
                                vec3( 1.,  -1., 0.),
@@ -218,7 +218,7 @@ void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &t
 }
 
 void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                            i32 light_id, RenderContext *rc) {
+                            cuda::std::optional<u32> light_id, RenderContext *rc) {
     // clang-format off
     SharedVector<vec3> pos = {vec3(-1.,  -1., -1.),
                               vec3( 1.,  -1., -1.),
@@ -261,7 +261,7 @@ void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transf
 }
 
 void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                           i32 light_id, RenderContext *rc) {
+                           cuda::std::optional<u32> light_id, RenderContext *rc) {
     std::string filename = shape_node.child("string").attribute("value").as_string();
     auto file_path = scene_base_path + "/" + filename;
 
@@ -292,41 +292,6 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
 
     assert(shapes.size() == 1);
     auto shape = &shapes[0];
-
-    /*    size_t index_offset = 0;
-        for (size_t f = 0; f < shape->mesh.num_face_vertices.size(); f++) {
-            auto fv = size_t(shape->mesh.num_face_vertices[f]);
-
-            // Loop over vertices in the face.
-            for (size_t v = 0; v < fv; v++) {
-                // access to vertex
-                tinyobj::index_t idx = shape->mesh.indices[index_offset + v];
-                tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
-                tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
-                tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
-
-                indices.push(idx.vertex_index);
-
-                // Check if `normal_index` is zero or positive. negative = no normal data
-                if (idx.normal_index >= 0) {
-                    tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
-                    tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
-                    tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-                    normals.push(vec3(nx, ny, nz));
-                } else {
-                    throw;
-                    spdlog::error("OBJ mesh doesn't have normals");
-                }
-
-                // Check if `texcoord_index` is zero or positive. negative = no texcoord
-       data if (idx.texcoord_index >= 0) { tinyobj::real_t tx = attrib.texcoords[2 *
-       size_t(idx.texcoord_index) + 0]; tinyobj::real_t ty = attrib.texcoords[2 *
-       size_t(idx.texcoord_index) + 1]; uvs.push(vec2(tx, ty)); } else { throw;
-                    spdlog::error("OBJ mesh doesn't have texture coordinates");
-                }
-            }
-            index_offset += fv;
-        }*/
 
     // Wavefront OBJ format is so cursed....
     // Load indices
@@ -380,9 +345,13 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         uvs.push(std::move(uv));
     }
 
-    // TODO: correct normal transform
     for (int i = 0; i < pos.len(); i++) {
         pos[i] = transform * vec4(pos[i], 1.);
+    }
+
+    auto inv_trans = glm::inverse(glm::transpose(transform));
+    for (int i = 0; i < normals.len(); i++) {
+        normals[i] = inv_trans * vec4(normals[i], 1.);
     }
 
     MeshParams mp = {

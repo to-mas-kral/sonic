@@ -1,4 +1,5 @@
 #include <bit>
+#include <chrono>
 
 #include <CLI/CLI.hpp>
 #include <fmt/core.h>
@@ -8,6 +9,7 @@
 #include <optix_stubs.h>
 #include <spdlog/spdlog.h>
 
+#include "io/progress_bar.h"
 #include "kernels/megakernel.h"
 #include "kernels/raygen.h"
 #include "optix_as.h"
@@ -124,8 +126,12 @@ int main(int argc, char **argv) {
         params.lights = rc->get_lights().get_ptr();
         params.textures = rc->get_textures().get_ptr();
 
+        ProgressBar pb;
+
+        const auto start{std::chrono::steady_clock::now()};
+
         // OptiX path-tracer
-        for (u32 s = 0; s < num_samples; s++) {
+        for (u32 s = 1; s <= num_samples; s++) {
             if (optix) {
                 optix_renderer.launch(params, attribs.resx, attribs.resy);
             } else {
@@ -135,18 +141,18 @@ int main(int argc, char **argv) {
                 CUDA_CHECK_LAST_ERROR();
             }
 
-            // TODO: replace with progress bar
+            const auto end{std::chrono::steady_clock::now()};
+            const std::chrono::duration<f64> elapsed{end - start};
+
             // Update the framebuffer when the number of samples doubles...
-            if (std::popcount(s + 1) == 1) {
-                if (!silent) {
-                    spdlog::info("Sample {} done.", s + 1);
-                    spdlog::info("Updating framebuffer");
-                }
-                ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s + 1);
+            if (std::popcount(s) == 1) {
+
+                ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s);
             }
+
+            pb.print(s, num_samples, elapsed);
         }
 
-        // TODO: add an options for statistics...
         // spdlog::info("Shot a total of {} rays", rc->ray_counter.fetch_add(0));
 
         /*

@@ -29,6 +29,7 @@ add_executable(pt src/main.cu
         src/utils/image_writer.h
         src/utils/cuda_err.h
         src/utils/rng.h
+        src/io/progress_bar.h
 
         src/kernels/megakernel.h
         src/kernels/megakernel.cu

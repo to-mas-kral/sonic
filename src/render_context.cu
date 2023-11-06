@@ -36,8 +36,8 @@ RenderContext::RenderContext(u32 num_samples, SceneAttribs &attribs)
     return its_found;
 }*/
 
-__device__ bool RenderContext::intersect_scene(Intersection &its, Ray &ray) {
-    return bvh.intersect(its, ray, cuda::std::numeric_limits<f32>::max());
+__device__ cuda::std::optional<Intersection> RenderContext::intersect_scene(Ray &ray) {
+    return bvh.intersect(ray, cuda::std::numeric_limits<f32>::max());
 }
 
 __host__ void RenderContext::add_mesh(MeshParams mp) {

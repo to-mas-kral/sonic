@@ -22,14 +22,16 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
     vec3 radiance = vec3(0.f);
 
     while (true) {
-        Intersection its;
         // rc->ray_counter.fetch_add(1);
-        if (rc->intersect_scene(its, ray)) {
+        auto pot_its = rc->intersect_scene(ray);
+        if (pot_its.has_value()) {
+            auto its = pot_its.value();
             auto material = &rc->get_materials()[its.mesh->material_id];
 
             vec3 emission = vec3(0.f);
-            if (its.mesh->has_light()) {
-                emission = rc->get_lights()[its.mesh->light_id].emission();
+            if (its.mesh->light_id.has_value()) {
+                auto light_id = its.mesh->light_id.value();
+                emission = rc->get_lights()[light_id].emission();
             }
 
             if (glm::dot(-ray.dir, its.normal) < 0.f) {
@@ -49,12 +51,12 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
             radiance += throughput * emission;
             throughput *= brdf * cos_theta * (1.f / pdf);
 
-            auto [should_terminate, roulette_compensation] =
-                russian_roulette(depth, rand_state, throughput);
+            auto rr = russian_roulette(depth, rand_state, throughput);
 
-            if (should_terminate) {
+            if (!rr.has_value()) {
                 return radiance;
             } else {
+                auto roulette_compensation = rr.value();
                 throughput *= 1.f / roulette_compensation;
             }
 

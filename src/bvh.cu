@@ -242,7 +242,7 @@ BVHBuildNode *BVH::buildRecursive(std::span<BVHPrimitive> bvh_primitives,
     return node;
 }
 
-__device__ bool BVH::intersect(Intersection &its, Ray &ray, f32 tmax) {
+__device__ cuda::std::optional<Intersection> BVH::intersect(Ray &ray, f32 tmax) {
     vec3 inv_dir = vec3(1.f) / ray.dir;
     bvec3 dir_is_neg = glm::lessThan(inv_dir, vec3(0.f));
 
@@ -263,12 +263,11 @@ __device__ bool BVH::intersect(Intersection &its, Ray &ray, f32 tmax) {
                     // Check for intersection with primitive in BVH node
                     auto prim = (*primitives)[node->primitives_offset + i];
 
-                    Intersection cur_its{};
+                    auto tri_its = prim.intersect(ray);
 
-                    bool does_its = prim.intersect(cur_its, ray);
-                    if (does_its && (cur_its.t < min_its.t)) {
-                        tmax = cur_its.t;
-                        min_its = cur_its;
+                    if (tri_its.has_value() && (tri_its.value().t < min_its.t)) {
+                        tmax = tri_its.value().t;
+                        min_its = tri_its.value();
                         its_found = true;
                     }
                 }
@@ -297,6 +296,9 @@ __device__ bool BVH::intersect(Intersection &its, Ray &ray, f32 tmax) {
         }
     }
 
-    its = min_its;
-    return its_found;
+    if (its_found) {
+        return {min_its};
+    } else {
+        return cuda::std::nullopt;
+    }
 }

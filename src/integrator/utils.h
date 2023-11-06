@@ -1,13 +1,14 @@
 #ifndef PT_UTILS_H
 #define PT_UTILS_H
 
+#include <cuda/std/optional>
+
 #include "../utils/numtypes.h"
 
 /// Randomly selects if a path should be terminated based on its throughput.
 /// Roulette is only applied after the first 3 bounces.
 /// Returns true if path should be terminated. If not, also returns roulette compensation.
-// TODO: use cuda::std::optional when available
-__device__ __forceinline__ cuda::std::tuple<bool, f32>
+__device__ __forceinline__ cuda::std::optional<f32>
 russian_roulette(u32 depth, curandState *rand_state, const vec3 &throughput) {
     if (depth > 3) {
         f32 u = rng(rand_state);
@@ -15,13 +16,13 @@ russian_roulette(u32 depth, curandState *rand_state, const vec3 &throughput) {
             1.f - max(glm::max(throughput.x, throughput.y, throughput.z), 0.05f);
 
         if (u < survival_prob) {
-            return {true, 0.f};
+            return cuda::std::nullopt;
         } else {
             f32 roulette_compensation = 1.f - survival_prob;
-            return {false, roulette_compensation};
+            return {roulette_compensation};
         }
     } else {
-        return {false, 1.f};
+        return {1.f};
     }
 }
 

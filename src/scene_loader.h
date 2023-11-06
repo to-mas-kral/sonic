@@ -12,8 +12,8 @@
 
 // Circular dependencies...
 class RenderContext;
-#include "render_context_common.h"
 #include "envmap.h"
+#include "render_context_common.h"
 #include "texture.h"
 
 /// Loader for Mitsuba's scene format:
@@ -41,11 +41,11 @@ public:
 
 private:
     static void load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                               i32 light_id, RenderContext *rc);
+                               cuda::std::optional<u32>, RenderContext *rc);
     static void load_cube(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                          i32 light_id, RenderContext *rc);
+                          cuda::std::optional<u32>, RenderContext *rc);
     void load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                  i32 light_id, RenderContext *rc);
+                  cuda::std::optional<u32>, RenderContext *rc);
     void load_materials(pugi::xml_node scene_node, RenderContext *rc);
     static vec3 parse_rgb(const std::string &str);
     static mat4 parse_transform(pugi::xml_node transform_node);

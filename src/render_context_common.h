@@ -40,14 +40,15 @@ struct MeshParams {
     SharedVector<vec3> *normals = nullptr; // may be null
     SharedVector<vec2> *uvs = nullptr;     // may be null
     u32 material_id;
-    i32 light_id = -1;
+    cuda::std::optional<u32> light_id = cuda::std::nullopt;
 };
 
 class Mesh {
 public:
-    Mesh(u32 indices_index, u32 pos_index, u32 material_id, i32 light_id,
-         RenderContext *rc, u32 num_indices, u32 num_vertices,
-         cuda::std::optional<u32> normals_index, cuda::std::optional<u32> uvs_index)
+    Mesh(u32 indices_index, u32 pos_index, u32 material_id,
+         cuda::std::optional<u32> light_id, RenderContext *rc, u32 num_indices,
+         u32 num_vertices, cuda::std::optional<u32> normals_index,
+         cuda::std::optional<u32> uvs_index)
         : indices_index(indices_index), pos_index(pos_index), material_id(material_id),
           light_id(light_id), rc(rc), num_indices(num_indices),
           num_vertices(num_vertices), normals_index(normals_index), uvs_index(uvs_index) {
@@ -55,11 +56,10 @@ public:
 
     __host__ __device__ const u32 *get_indices() const;
     __host__ __device__ const vec3 *get_pos() const;
-    // TODO: use optional
-    __device__ bool has_light() const { return light_id >= 0; }
 
-    //  Indices into the global array in render_context...
+    // Watch out for memory consumption...
     RenderContext *rc;
+
     u32 indices_index;
     u32 num_indices;
     u32 pos_index;
@@ -68,9 +68,7 @@ public:
     cuda::std::optional<u32> uvs_index;
 
     u32 material_id;
-    // TODO: use optional when available
-    // Negative means no light
-    i32 light_id;
+    cuda::std::optional<u32> light_id;
 };
 
 /*
@@ -126,8 +124,7 @@ class BVH {
 public:
     BVH() = default;
     BVH(SharedVector<Triangle> *primitives, int max_prims_in_node);
-    // TODO: use optional when available
-    __device__ bool intersect(Intersection &its, Ray &ray, f32 tmax);
+    __device__ cuda::std::optional<Intersection> intersect(Ray &ray, f32 tmax);
 
 private:
     int flattenBVH(BVHBuildNode *node, int *offset);
@@ -149,8 +146,7 @@ public:
     __host__ __device__ cuda::std::tuple<vec3, vec3, vec3> get_pos();
 
     void set_mesh(Mesh *mesh);
-    // TODO: use cuda::std::optional when available
-    __device__ bool intersect(Intersection &its, Ray &ray);
+    __device__ cuda::std::optional<Intersection> intersect(Ray &ray);
 
     __host__ AABB aabb();
 
@@ -178,12 +174,12 @@ public:
         envmap = std::move(a_envmap);
         has_envmap = true;
     };
-    // TODO: use an optional when available
+
     __host__ __device__ const Envmap *get_envmap() { return &envmap; };
 
     __host__ void fixup_geometry_pointers();
     __host__ void make_acceleration_structure();
-    __device__ bool intersect_scene(Intersection &its, Ray &ray);
+    __device__ cuda::std::optional<Intersection> intersect_scene(Ray &ray);
 
     __host__ __device__ const SharedVector<Material> &get_materials() const {
         return materials;
@@ -210,9 +206,9 @@ public:
     bool has_envmap = false;
 
 private:
-    SharedVector<Mesh> meshes = SharedVector<Mesh>(128);
-    SharedVector<Triangle> triangles = SharedVector<Triangle>(2048);
-    SharedVector<Texture> textures = SharedVector<Texture>(32);
+    SharedVector<Mesh> meshes = SharedVector<Mesh>();
+    SharedVector<Triangle> triangles = SharedVector<Triangle>();
+    SharedVector<Texture> textures = SharedVector<Texture>();
 
     SharedVector<u32> indices = SharedVector<u32>();
     /// Vertex positions
@@ -222,8 +218,8 @@ private:
 
     BVH bvh;
 
-    SharedVector<Material> materials = SharedVector<Material>(128);
-    SharedVector<Light> lights = SharedVector<Light>(128);
+    SharedVector<Material> materials = SharedVector<Material>();
+    SharedVector<Light> lights = SharedVector<Light>();
 
     Envmap envmap;
 
