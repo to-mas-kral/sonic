@@ -17,7 +17,7 @@ add_executable(pt src/main.cu
         src/camera.h
         src/material.h
         src/light.h
-        src/bvh.cu
+        src/geometry/bvh.cu
         src/scene_loader.cu
         src/scene_loader.h
         src/envmap.h
@@ -29,6 +29,9 @@ add_executable(pt src/main.cu
         src/utils/image_writer.h
         src/utils/cuda_err.h
         src/utils/rng.h
+        src/utils/blue_noise_sampler.h
+        src/utils/blue_noise_tiles.h
+        
         src/io/progress_bar.h
 
         src/kernels/megakernel.h
@@ -44,9 +47,6 @@ add_executable(pt src/main.cu
         src/math/vecmath.h
         src/math/math_utils.h
 
-        src/shapes/triangle.cu
-        src/shapes/mesh.cu
-
         src/optix_renderer.cu
         src/optix_renderer.h
         src/optix_common.h
@@ -54,6 +54,9 @@ add_executable(pt src/main.cu
         src/optix_common.cu
 
         src/integrator/utils.h
+        src/geometry/geometry.h
+        src/geometry/geometry.cu
+        src/geometry/bvh.h
 )
 
 link_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-6.5.0-linux64/lib64/)

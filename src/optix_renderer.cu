@@ -9,14 +9,26 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
                              OptixAS *optixAS)
     : optixAS(optixAS) {
     auto pipeline_compile_options = make_optix_pipeline_compile_options(13, "params");
-    make_optix_module(context, &pipeline_compile_options, &module, "optix_pt.ptx");
+
+    OptixModuleCompileOptions module_compile_options = {};
+    make_optix_module(context, &pipeline_compile_options, &module, "optix_pt.ptx",
+                      &module_compile_options);
+
+    OptixModule sphere_is_module{};
+    OptixModuleCompileOptions sphere_module_compile_options = {};
+    OptixBuiltinISOptions builtin_is_options = {};
+    builtin_is_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_SPHERE;
+    OPTIX_CHECK(optixBuiltinISModuleGet(context, &sphere_module_compile_options,
+                                        &pipeline_compile_options, &builtin_is_options,
+                                        &sphere_is_module));
 
     OptixProgramGroupOptions pg_options = {};
-    make_optix_program_groups(context, module, &pg_options, &raygen_pg, &miss_pg,
-                              &hitgroup_pg);
+    make_optix_program_groups(context, module, sphere_is_module, &pg_options, &raygen_pg,
+                              &miss_pg, &hitgroup_pg, &sphere_hitgroup_pg);
 
     const u32 max_trace_depth = 1;
-    std::array<OptixProgramGroup, 3> pgs = {raygen_pg, miss_pg, hitgroup_pg};
+    std::array<OptixProgramGroup, 4> pgs = {raygen_pg, miss_pg, hitgroup_pg,
+                                            sphere_hitgroup_pg};
     link_optix_pipeline(context, &pipeline_compile_options, max_trace_depth, pgs,
                         &pipeline);
 
@@ -32,33 +44,50 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
         OPTIX_CHECK(optixSbtRecordPackHeader(miss_pg, &ms_sbt));
         miss_record.set(&ms_sbt);
 
-        auto pos = &rc->get_pos();
-        auto indices = &rc->get_indices();
-        auto normals = &rc->get_normals();
-        auto uvs = &rc->get_uvs();
-        const SharedVector<Mesh> &meshes = rc->get_meshes();
+        auto pos = &rc->geometry.meshes.pos;
+        auto indices = &rc->geometry.meshes.indices;
+        auto normals = &rc->geometry.meshes.normals;
+        auto uvs = &rc->geometry.meshes.uvs;
+        const SharedVector<Mesh> &meshes = rc->geometry.meshes.meshes;
+
+        const Spheres &spheres = rc->geometry.spheres;
 
         auto base_indices = (CUdeviceptr)indices->get_ptr();
         auto base_pos = (CUdeviceptr)pos->get_ptr();
         auto base_normals = (CUdeviceptr)normals->get_ptr();
         auto base_uvs = (CUdeviceptr)uvs->get_ptr();
 
-        std::vector<PtHitGroupSbtRecord> hitgroup_records(optixAS->num_meshes);
+        std::vector<PtHitGroupSbtRecord> hitgroup_records{};
+        hitgroup_records.reserve(optixAS->num_meshes + optixAS->num_spheres);
+
         for (int i = 0; i < optixAS->num_meshes; i++) {
-            PtHitGroupSbtRecord hg_rec;
+            PtHitGroupSbtRecord hg_rec{};
             auto &mesh = meshes[i];
 
             OPTIX_CHECK(optixSbtRecordPackHeader(hitgroup_pg, &hg_rec));
-            hg_rec.data.mesh_id = i;
-            // TODO: these should be Mesh methods...
-            hg_rec.data.pos = base_pos + mesh.pos_index * sizeof(vec3);
-            hg_rec.data.indices = base_indices + mesh.indices_index * sizeof(u32);
 
-            auto normals_index = mesh.normals_index.value_or(0);
-            hg_rec.data.normals = base_normals + normals_index * sizeof(vec3);
-            auto uvs_index = mesh.uvs_index.value_or(0);
-            hg_rec.data.uvs = base_uvs + uvs_index * sizeof(vec2);
-            hitgroup_records[i] = hg_rec;
+            hg_rec.data.mesh.mesh_id = i;
+            // TODO: these should be Mesh methods...
+            hg_rec.data.mesh.pos = base_pos + mesh.pos_index * sizeof(vec3);
+            hg_rec.data.mesh.indices = base_indices + mesh.indices_index * sizeof(u32);
+
+            auto normals_index = mesh.normals_index;
+            hg_rec.data.mesh.normals = base_normals + normals_index * sizeof(vec3);
+            auto uvs_index = mesh.uvs_index;
+            hg_rec.data.mesh.uvs = base_uvs + uvs_index * sizeof(vec2);
+
+            hitgroup_records.emplace_back(hg_rec);
+        }
+
+        for (int i = 0; i < optixAS->num_spheres; i++) {
+            PtHitGroupSbtRecord hg_rec{};
+            OPTIX_CHECK(optixSbtRecordPackHeader(sphere_hitgroup_pg, &hg_rec));
+
+            hg_rec.data.sphere.material_id = spheres.material_ids[i];
+            hg_rec.data.sphere.light_id = spheres.light_ids[i];
+            hg_rec.data.sphere.has_light = spheres.has_light[i];
+
+            hitgroup_records.emplace_back(hg_rec);
         }
 
         size_t hitgroup_records_size =
@@ -85,6 +114,7 @@ OptixRenderer::~OptixRenderer() {
 
     OPTIX_CHECK(optixPipelineDestroy(pipeline));
     OPTIX_CHECK(optixProgramGroupDestroy(hitgroup_pg));
+    OPTIX_CHECK(optixProgramGroupDestroy(sphere_hitgroup_pg));
     OPTIX_CHECK(optixProgramGroupDestroy(miss_pg));
     OPTIX_CHECK(optixProgramGroupDestroy(raygen_pg));
     OPTIX_CHECK(optixModuleDestroy(module));

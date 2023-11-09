@@ -11,9 +11,8 @@ public:
     OptixRenderer(RenderContext *rc, OptixDeviceContext context, OptixAS *optixAS);
 
     void launch(PtParams params, u32 width, u32 height) {
-        params.gas_handle = optixAS->gas_handle;
+        params.gas_handle = optixAS->tlas_handle;
         launch_params.set(&params);
-
         OPTIX_CHECK(optixLaunch(pipeline, nullptr, launch_params.get_ptr(),
                                 sizeof(PtParams), &sbt, width, height, 1));
 
@@ -40,6 +39,7 @@ private:
     OptixProgramGroup raygen_pg{};
     OptixProgramGroup miss_pg{};
     OptixProgramGroup hitgroup_pg{};
+    OptixProgramGroup sphere_hitgroup_pg{};
 };
 
 #endif // PT_OPTIX_RENDERER_H

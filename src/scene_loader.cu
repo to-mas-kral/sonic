@@ -6,6 +6,9 @@
 #include <fmt/core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
+#include <glm/gtx/euler_angles.hpp>
+
+using str = std::string_view;
 
 void SceneLoader::load_scene(RenderContext *rc) {
     auto scene = doc.child("scene");
@@ -17,24 +20,34 @@ void SceneLoader::load_scene(RenderContext *rc) {
     if (envmap_node) {
         std::string filename = envmap_node.child("string").attribute("value").as_string();
         auto file_path = scene_base_path + "/" + filename;
-        auto envmap = Envmap(file_path);
+
+        auto to_world_transform = mat4(1.);
+        auto transform_node = envmap_node.child("transform");
+        to_world_transform = parse_transform(transform_node);
+
+        auto envmap = Envmap(file_path, to_world_transform);
         rc->set_envmap(std::move(envmap));
     }
 }
 
 void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
     for (pugi::xml_node shape : scene.children("shape")) {
-        std::string type = shape.attribute("type").as_string();
+        str type = shape.attribute("type").as_string();
+
+        u32 mat_id;
 
         auto ref_node = shape.child("ref");
-        if (!ref_node) {
-            // TODO: the bsdf can be specified inline
-            spdlog::error("Shape has no ref node");
+        auto bsdf_node = shape.child("bsdf");
+        if (ref_node) {
+            std::string bsdf_id = ref_node.attribute("id").as_string();
+            mat_id = materials.at(bsdf_id);
+        } else if (bsdf_node) {
+            auto mat = load_material(rc, bsdf_node);
+            mat_id = rc->add_material(std::move(mat));
+        } else {
+            spdlog::error("Shape has no material");
             throw;
         }
-
-        std::string bsdf_id = ref_node.attribute("id").as_string();
-        u32 mat_id = materials.at(bsdf_id);
 
         auto transform_node = shape.child("transform");
         mat4 transform = mat4(1.);
@@ -55,7 +68,7 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
         } else if (type == "obj") {
             load_obj(shape, mat_id, transform, light_id, rc);
         } else if (type == "sphere") {
-            spdlog::debug("Ingoring sphere shape");
+            load_sphere(shape, mat_id, transform, light_id, rc);
         } else {
             spdlog::error("Unknown shape type: {}", type);
             throw;
@@ -68,79 +81,111 @@ void SceneLoader::load_materials(pugi::xml_node scene, RenderContext *rc) {
 
     for (auto bsdf : bsdfs) {
         std::string id = bsdf.attribute("id").as_string();
-        std::string type = bsdf.attribute("type").as_string();
-
-        if (type == "twosided") {
-            bsdf = bsdf.child("bsdf");
-            type = bsdf.attribute("type").as_string();
-        }
-
-        Material mat = Material(vec3(0.5, 0.5, 0.5));
-
-        if (type == "diffuse") {
-            auto reflectance_node = bsdf.find_child([](pugi::xml_node node) {
-                return node.find_attribute([](pugi::xml_attribute attr) {
-                    return strcmp(attr.name(), "name") == 0 &&
-                           (strcmp(attr.as_string(), "reflectance") == 0);
-                });
-            });
-
-            if (strcmp(reflectance_node.name(), "texture") == 0) {
-                auto filename_node = reflectance_node.find_child([](pugi::xml_node node) {
-                    return node.find_attribute([](pugi::xml_attribute attr) {
-                        return strcmp(attr.name(), "name") == 0 &&
-                               strcmp(attr.as_string(), "filename") == 0;
-                    });
-                });
-
-                auto file_path = filename_node.attribute("value").as_string();
-                auto texture = Texture(scene_base_path + "/" + file_path);
-
-                u32 tex_id = rc->add_texture(std::move(texture));
-                mat = Material(tex_id);
-            } else {
-                vec3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
-                mat = Material(rgb);
-            }
-
-        } else {
-            spdlog::debug("Unknown BSDF type: {}, defaulting to diffuse", type);
-        }
+        auto mat = load_material(rc, bsdf);
 
         u32 mat_id = rc->add_material(std::move(mat));
         materials.insert({id, mat_id});
     }
 }
 
-mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
-    auto matrix = transform_node.child("matrix");
-    if (matrix) {
-        std::string matrix_str = matrix.attribute("value").as_string();
-        auto floats =
-            std::views::transform(std::views::split(matrix_str, ' '), [](auto v) {
-                auto c = v | std::views::common;
-                return std::stof(std::string(c.begin(), c.end()));
+Material SceneLoader::load_material(RenderContext *rc, pugi::xml_node &bsdf) {
+    str type = bsdf.attribute("type").as_string();
+
+    if (type == "twosided") {
+        bsdf = bsdf.child("bsdf");
+        type = bsdf.attribute("type").as_string();
+    }
+
+    // Default material - 50% reflectance
+    auto mat = Material(vec3(0.5, 0.5, 0.5));
+
+    if (type == "diffuse") {
+        auto reflectance_node = bsdf.find_child([](pugi::xml_node node) {
+            return node.find_attribute([](pugi::xml_attribute attr) {
+                return str(attr.name()) == "name" &&
+                       str(attr.as_string()) == "reflectance";
+            });
+        });
+
+        if (str(reflectance_node.name()) == "texture") {
+            auto filename_node = reflectance_node.find_child([](pugi::xml_node node) {
+                return node.find_attribute([](pugi::xml_attribute attr) {
+                    return str(attr.name()) == "name" &&
+                           str(attr.as_string()) == "filename";
+                });
             });
 
-        std::array<f32, 16> mat{};
-        int i = 0;
-        for (f32 f : floats) {
-            if (i > 15) {
-                spdlog::error("Wrong matrix element count");
-                throw;
+            auto file_path = filename_node.attribute("value").as_string();
+            auto texture = Texture(this->scene_base_path + "/" + file_path);
+
+            u32 tex_id = rc->add_texture(std::move(texture));
+            mat = Material(tex_id);
+        } else {
+            vec3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
+            mat = Material(rgb);
+        }
+    } else {
+        spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
+    }
+
+    return mat;
+}
+
+mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
+    mat4 cur_transform = mat4(1.);
+
+    for (auto child_node : transform_node.children()) {
+        // auto matrix = transform_node.child("matrix");
+        str name = child_node.name();
+
+        if (name == "matrix") {
+            str matrix_str = child_node.attribute("value").as_string();
+            auto floats =
+                std::views::transform(std::views::split(matrix_str, ' '), [](auto v) {
+                    auto c = v | std::views::common;
+                    return std::stof(std::string(c.begin(), c.end()));
+                });
+
+            std::array<f32, 16> mat{};
+            int i = 0;
+            for (f32 f : floats) {
+                if (i > 15) {
+                    spdlog::error("Wrong matrix element count");
+                    throw;
+                }
+
+                mat[i] = f;
+
+                i++;
             }
 
-            mat[i] = f;
+            // GLM stores matrices in column-majorm, but Mitsuba's format is row-major...
+            cur_transform = glm::transpose(glm::make_mat4(mat.data())) * cur_transform;
+        } else if (name == "rotate") {
+            auto angle_attr = child_node.attribute("angle");
+            if (angle_attr) {
+                f32 angle = to_rad(angle_attr.as_float());
 
-            i++;
+                mat4 trans = mat4(1.);
+                if (child_node.attribute("y")) {
+                    trans = glm::eulerAngleY(angle);
+                } else if (child_node.attribute("x")) {
+                    trans = glm::eulerAngleX(angle);
+                } else if (child_node.attribute("z")) {
+                    trans = glm::eulerAngleZ(angle);
+                }
+                cur_transform = trans * cur_transform;
+            } else {
+                spdlog::error("rotate along arbitrary axis not implemented");
+                throw;
+            }
+        } else {
+            spdlog::error("Unknown transform type");
+            throw;
         }
-
-        // GLM stores matrices in column-majorm, but Mitsuba's format is row-major...
-        return glm::transpose(glm::make_mat4(mat.data()));
-    } else {
-        spdlog::error("Unknown transform type");
-        throw;
     }
+
+    return cur_transform;
 }
 
 vec3 SceneLoader::parse_rgb(const std::string &str) {
@@ -166,7 +211,7 @@ vec3 SceneLoader::parse_rgb(const std::string &str) {
 }
 
 u32 SceneLoader::load_emitter(pugi::xml_node emitter_node, RenderContext *rc) {
-    std::string type = emitter_node.attribute("type").as_string();
+    str type = emitter_node.attribute("type").as_string();
     if (type != "area") {
         spdlog::error("Unknown emitter type");
         throw;
@@ -214,7 +259,7 @@ void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &t
         .light_id = light_id,
     };
 
-    rc->add_mesh(mp);
+    rc->geometry.add_mesh(mp);
 }
 
 void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
@@ -257,7 +302,32 @@ void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transf
         .light_id = light_id,
     };
 
-    rc->add_mesh(mp);
+    rc->geometry.add_mesh(mp);
+}
+
+void SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
+                              cuda::std::optional<u32> light_id, RenderContext *rc) {
+    auto radius_node = node.find_child([](pugi::xml_node node) {
+        return node.find_attribute([](pugi::xml_attribute attr) {
+            return str(attr.name()) == "name" && str(attr.as_string()) == "radius";
+        });
+    });
+
+    f32 radius = radius_node.attribute("value").as_float();
+
+    auto center_node = node.find_child([](pugi::xml_node node) {
+        return node.find_attribute([](pugi::xml_attribute attr) {
+            return str(attr.name()) == "name" && str(attr.as_string()) == "center";
+        });
+    });
+
+    f32 x = center_node.attribute("x").as_float();
+    f32 y = center_node.attribute("y").as_float();
+    f32 z = center_node.attribute("z").as_float();
+
+    vec3 center = vec3(x, y, z);
+    auto sphere = SphereParams{center, radius, mat_id, light_id};
+    rc->geometry.add_sphere(sphere);
 }
 
 void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
@@ -363,7 +433,7 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         .light_id = light_id,
     };
 
-    rc->add_mesh(mp);
+    rc->geometry.add_mesh(mp);
 }
 
 std::optional<SceneAttribs> SceneLoader::load_scene_attribs() {
@@ -371,7 +441,7 @@ std::optional<SceneAttribs> SceneLoader::load_scene_attribs() {
     auto scene = doc.child("scene");
 
     for (pugi::xml_node def : scene.children("default")) {
-        std::string name = def.attribute("name").as_string();
+        str name = def.attribute("name").as_string();
         if (name == "resx") {
             attribs.resx = def.attribute("value").as_int();
         } else if (name == "resy") {
@@ -381,7 +451,7 @@ std::optional<SceneAttribs> SceneLoader::load_scene_attribs() {
 
     auto sensor = scene.child("sensor");
     for (pugi::xml_node f : sensor.children("float")) {
-        std::string name = f.attribute("name").as_string();
+        str name = f.attribute("name").as_string();
         if (name == "fov") {
             attribs.fov = f.attribute("value").as_float();
         }

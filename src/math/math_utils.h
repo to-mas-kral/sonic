@@ -17,4 +17,6 @@ __device__ inline f32 safe_sqrt(f32 v) {
 
 template <typename T> __device__ f32 sqr(T v) { return v * v; }
 
+template <typename T> T to_rad(T v) { return v * M_PIf / 180.f; }
+
 #endif // PT_MATH_UTILS_H

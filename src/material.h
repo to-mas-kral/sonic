@@ -11,8 +11,8 @@ public:
     explicit Material(const vec3 &reflectance) : reflectance(reflectance) {}
     explicit Material(u32 reflectance_tex_id) : reflectance_tex_id(reflectance_tex_id) {}
 
-    __device__ vec3 sample(vec3 normal, vec3 view_dir, curandState *rand_state) const {
-        vec3 sample_dir = sample_cosine_hemisphere(rand_state);
+    __device__ vec3 sample(vec3 normal, vec3 view_dir, vec2 sample) const {
+        vec3 sample_dir = sample_cosine_hemisphere(sample);
         return orient_dir(sample_dir, normal);
     }
 

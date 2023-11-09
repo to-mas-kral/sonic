@@ -31,11 +31,8 @@ __device__ inline vec2 sample_uniform_disk_concentric(vec2 u) {
     return r * vec2(cos(theta), sin(theta));
 }
 
-__device__ inline vec3 sample_cosine_hemisphere(curandState *rand_state) {
-    f32 u = rng(rand_state);
-    f32 v = rng(rand_state);
-
-    vec2 d = sample_uniform_disk_concentric(vec2(u, v));
+__device__ inline vec3 sample_cosine_hemisphere(vec2 sample) {
+    vec2 d = sample_uniform_disk_concentric(sample);
     f32 z = safe_sqrt(1.f - d.x * d.x - d.y * d.y);
     return vec3(d.x, d.y, z);
 }

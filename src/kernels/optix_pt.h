@@ -7,7 +7,17 @@
 #include "../render_context_common.h"
 #include "../utils/numtypes.h"
 
+struct OpIntersection {
+    u32 material_id;
+    u32 light_id;
+    bool has_light;
+    vec3 normal;
+    vec3 pos;
+    vec2 uv;
+};
+
 struct PtParams {
+    u32 sample_index;
     Light *lights;
     Texture *textures;
     Material *materials;
@@ -21,12 +31,28 @@ struct PtRayGenData {};
 
 struct PtMissData {};
 
+enum class ShapeType {
+    Mesh = 0,
+    Sphere = 1,
+};
+
 struct PtHitGroupData {
-    u32 mesh_id;
-    CUdeviceptr pos;
-    CUdeviceptr indices;
-    CUdeviceptr normals;
-    CUdeviceptr uvs;
+    // Shape type can be queried by optixGetPrimitiveType()
+    union {
+        struct {
+            u32 mesh_id;
+            CUdeviceptr pos;
+            CUdeviceptr indices;
+            CUdeviceptr normals;
+            CUdeviceptr uvs;
+        } mesh{};
+
+        struct {
+            u32 material_id;
+            u32 light_id;
+            bool has_light = false;
+        } sphere;
+    };
 };
 
 typedef SbtRecord<PtRayGenData> PtRayGenSbtRecord;

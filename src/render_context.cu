@@ -40,62 +40,9 @@ __device__ cuda::std::optional<Intersection> RenderContext::intersect_scene(Ray 
     return bvh.intersect(ray, cuda::std::numeric_limits<f32>::max());
 }
 
-__host__ void RenderContext::add_mesh(MeshParams mp) {
-    u32 num_indices = mp.indices->len();
-    u32 num_vertices = mp.pos->len();
-
-    u32 indices_index = indices.len();
-    for (int i = 0; i < mp.indices->len(); i++) {
-        indices.push(std::move((*mp.indices)[i]));
-    }
-
-    u32 pos_index = pos.len();
-    for (int i = 0; i < mp.pos->len(); i++) {
-        pos.push(std::move((*mp.pos)[i]));
-    }
-
-    cuda::std::optional<u32> normals_index = cuda::std::nullopt;
-    if (mp.normals != nullptr) {
-        normals_index = {normals.len()};
-        assert(mp.normals->len() == mp.pos->len());
-
-        for (int i = 0; i < mp.normals->len(); i++) {
-            normals.push(std::move((*mp.normals)[i]));
-        }
-    }
-
-    cuda::std::optional<u32> uvs_index = cuda::std::nullopt;
-    if (mp.uvs != nullptr) {
-        uvs_index = {uvs.len()};
-        assert(mp.uvs->len() == mp.pos->len());
-
-        for (int i = 0; i < mp.uvs->len(); i++) {
-            uvs.push(std::move((*mp.uvs)[i]));
-        }
-    }
-
-    auto mesh_id = meshes.len();
-    auto mesh = Mesh(indices_index, pos_index, mp.material_id, mp.light_id, this,
-                     num_indices, num_vertices, normals_index, uvs_index);
-    meshes.push(std::move(mesh));
-
-    for (int i = 0; i < mp.indices->len(); i += 3) {
-        Triangle triangle = Triangle(i / 3, mesh_id);
-        triangles.push(std::move(triangle));
-    }
-}
-
-__host__ void RenderContext::fixup_geometry_pointers() {
-    // Fixup the triangle-mesh pointers
-    for (int i = 0; i < triangles.len(); i++) {
-        u32 mesh_id = triangles[i].mesh_id;
-        triangles[i].set_mesh(&meshes[mesh_id]);
-    }
-}
-
 __host__ void RenderContext::make_acceleration_structure() {
     const int MAX_PRIMS_IN_NODE = 8;
-    bvh = BVH(&triangles, MAX_PRIMS_IN_NODE);
+    bvh = BVH(&geometry.meshes.triangles, MAX_PRIMS_IN_NODE);
 }
 
 __host__ u32 RenderContext::add_material(Material &&material) {

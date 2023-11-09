@@ -55,6 +55,9 @@ private:
     std::string scene_base_path;
     pugi::xml_document doc;
     std::unordered_map<std::string, u32> materials;
+    Material load_material(RenderContext *rc, pugi::xml_node &bsdf);
+    void load_sphere(pugi::xml_node node, u32 id, mat4 mat_1,
+                     cuda::std::optional<u32> an_optional, RenderContext *p_context);
 };
 
 #endif // PT_SCENE_LOADER_H

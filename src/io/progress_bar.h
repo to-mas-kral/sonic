@@ -46,7 +46,7 @@ public:
     std::string_view bar_filler_left = " ";
 
 private:
-    u32 bar_length = 50;
+    u32 bar_length = 40;
 };
 
 #endif // PT_PROGRESS_BAR_H

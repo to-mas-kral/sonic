@@ -46,6 +46,8 @@ int main(int argc, char **argv) {
 
         CLI11_PARSE(app, argc, argv);
 
+        spdlog::set_level(spdlog::level::info);
+
         if (silent) {
             spdlog::set_level(spdlog::level::err);
         }
@@ -85,12 +87,12 @@ int main(int argc, char **argv) {
         try {
             scene_loader.load_scene(rc);
         } catch (const std::exception &e) {
-            spdlog::error("Error while loading the scene");
+            spdlog::error("Error while loading the scene {}", e.what());
             return 1;
         }
         spdlog::info("Scene loaded");
 
-        rc->fixup_geometry_pointers();
+        rc->geometry.fixup_geometry_pointers();
 
         spdlog::info("Creating OptiX acceleration structure");
         auto optix_as = OptixAS(rc, optix_context);
@@ -101,8 +103,8 @@ int main(int argc, char **argv) {
          * Start rendering
          * */
 
-        dim3 blocks_dim = rc->get_blocks_dim();
-        dim3 threads_dim = rc->get_threads_dim();
+        dim3 blocks_dim = rc->blocks_dim;
+        dim3 threads_dim = rc->THREADS_DIM;
 
         spdlog::info("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
                      num_samples);
@@ -120,11 +122,11 @@ int main(int argc, char **argv) {
         // Pass straight to params due to performance reasons...
         // No need to traverse 1 extra pointer...
         params.rc = rc;
-        params.fb = &rc->get_framebuffer();
-        params.meshes = rc->get_meshes().get_ptr();
-        params.materials = rc->get_materials().get_ptr();
-        params.lights = rc->get_lights().get_ptr();
-        params.textures = rc->get_textures().get_ptr();
+        params.fb = &rc->fb;
+        params.meshes = rc->geometry.meshes.meshes.get_ptr();
+        params.materials = rc->materials.get_ptr();
+        params.lights = rc->lights.get_ptr();
+        params.textures = rc->textures.get_ptr();
 
         ProgressBar pb;
 
@@ -132,6 +134,7 @@ int main(int argc, char **argv) {
 
         // OptiX path-tracer
         for (u32 s = 1; s <= num_samples; s++) {
+            params.sample_index = s - 1;
             if (optix) {
                 optix_renderer.launch(params, attribs.resx, attribs.resy);
             } else {
@@ -147,7 +150,7 @@ int main(int argc, char **argv) {
             // Update the framebuffer when the number of samples doubles...
             if (std::popcount(s) == 1) {
 
-                ImageWriter::write_framebuffer("ptout.exr", rc->get_framebuffer(), s);
+                ImageWriter::write_framebuffer("ptout.exr", rc->fb, s);
             }
 
             pb.print(s, num_samples, elapsed);

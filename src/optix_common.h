@@ -28,7 +28,8 @@ OptixPipelineCompileOptions make_optix_pipeline_compile_options(int num_payload_
 
 void make_optix_module(OptixDeviceContext context,
                        const OptixPipelineCompileOptions *pipeline_compile_options,
-                       OptixModule *module, const char *filepath);
+                       OptixModule *module, const char *filepath,
+                       OptixModuleCompileOptions *module_compile_options);
 
 template <size_t N>
 void link_optix_pipeline(OptixDeviceContext context,
@@ -59,13 +60,15 @@ void link_optix_pipeline(OptixDeviceContext context,
     OPTIX_CHECK(optixPipelineSetStackSize(
         *pipeline, direct_callable_stack_size_from_traversal,
         direct_callable_stack_size_from_state, continuation_stack_size,
-        1 // maxTraversableDepth
+        2 // maxTraversableDepth
         ));
 }
 
 void make_optix_program_groups(OptixDeviceContext context, OptixModule module,
+                               OptixModule sphere_is_module,
                                const OptixProgramGroupOptions *pg_options,
                                OptixProgramGroup *raygen_pg, OptixProgramGroup *miss_pg,
-                               OptixProgramGroup *hitgroup_pg);
+                               OptixProgramGroup *hitgroup_pg,
+                               OptixProgramGroup *sphere_hitgroup_pg);
 
 #endif // PT_OPTIX_COMMON_H

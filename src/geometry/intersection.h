@@ -2,11 +2,11 @@
 #define PT_INTERSECTION_H
 
 #include "../geometry/ray.h"
-#include "../render_context_common.h"
+struct Mesh;
 #include "../utils/numtypes.h"
+#include "geometry.h"
 
-class Intersection {
-public:
+struct Intersection {
     /// Position
     vec3 pos;
     vec3 normal;

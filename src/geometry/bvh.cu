@@ -3,7 +3,7 @@
 
 #include <cuda/std/array>
 
-#include "render_context_common.h"
+#include "bvh.h"
 
 /*
  * EVERYTHING here was taken from PBRTv4 !

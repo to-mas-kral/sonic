@@ -1,5 +1,6 @@
 
 #include "optix_common.h"
+#include "optix_types.h"
 #include <spdlog/spdlog.h>
 
 auto read_file(std::string_view path) -> std::string {
@@ -21,7 +22,7 @@ auto read_file(std::string_view path) -> std::string {
 }
 
 void context_log_cb(unsigned int level, const char *tag, const char *message, void *) {
-    spdlog::debug("{} {} {}", (int)level, tag, message);
+    spdlog::warn("{} {} {}", (int)level, tag, message);
 }
 
 OptixDeviceContext init_optix() {
@@ -47,13 +48,11 @@ OptixPipelineCompileOptions make_optix_pipeline_compile_options(int num_payload_
     OptixPipelineCompileOptions pipeline_compile_options = {};
     pipeline_compile_options.usesMotionBlur = false;
 
-    // This option is important to ensure we compile code which is optimal
-    // for our scene hierarchy. We use a single GAS – no instancing or
-    // multi-level hierarchies
     pipeline_compile_options.traversableGraphFlags =
-        OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_GAS;
+        OPTIX_TRAVERSABLE_GRAPH_FLAG_ALLOW_SINGLE_LEVEL_INSTANCING;
 
-    pipeline_compile_options.usesPrimitiveTypeFlags = OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
+    pipeline_compile_options.usesPrimitiveTypeFlags =
+        OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE | OPTIX_PRIMITIVE_TYPE_FLAGS_SPHERE;
 
     pipeline_compile_options.numPayloadValues = num_payload_values;
     pipeline_compile_options.pipelineLaunchParamsVariableName = params_name;
@@ -63,24 +62,26 @@ OptixPipelineCompileOptions make_optix_pipeline_compile_options(int num_payload_
 
 void make_optix_module(OptixDeviceContext context,
                        const OptixPipelineCompileOptions *pipeline_compile_options,
-                       OptixModule *module, const char *filepath) {
-    OptixModuleCompileOptions module_compile_options = {};
+                       OptixModule *module, const char *filepath,
+                       OptixModuleCompileOptions *module_compile_options) {
 #ifndef NDEBUG
-    module_compile_options.debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
-    module_compile_options.optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
+    module_compile_options->debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
+    module_compile_options->optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
 #endif
 
     const std::string ptx = read_file(filepath);
 
-    OPTIX_CHECK_LOG(optixModuleCreate(context, &module_compile_options,
+    OPTIX_CHECK_LOG(optixModuleCreate(context, module_compile_options,
                                       pipeline_compile_options, ptx.c_str(), ptx.size(),
                                       LOG, &LOG_SIZE, module));
 }
 
 void make_optix_program_groups(OptixDeviceContext context, OptixModule module,
+                               OptixModule sphere_is_module,
                                const OptixProgramGroupOptions *pg_options,
                                OptixProgramGroup *raygen_pg, OptixProgramGroup *miss_pg,
-                               OptixProgramGroup *hitgroup_pg) {
+                               OptixProgramGroup *hitgroup_pg,
+                               OptixProgramGroup *sphere_hitgroup_pg) {
     OptixProgramGroupDesc raygen_prog_group_desc = {};
     raygen_prog_group_desc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     raygen_prog_group_desc.raygen.module = module;
@@ -104,4 +105,15 @@ void make_optix_program_groups(OptixDeviceContext context, OptixModule module,
     OPTIX_CHECK_LOG(optixProgramGroupCreate(context, &hitgroup_prog_group_desc,
                                             1, // num program groups
                                             pg_options, LOG, &LOG_SIZE, hitgroup_pg));
+
+    OptixProgramGroupDesc sphere_hitgroup_prog_group_desc = {};
+    sphere_hitgroup_prog_group_desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+    sphere_hitgroup_prog_group_desc.hitgroup.moduleIS = sphere_is_module;
+    sphere_hitgroup_prog_group_desc.hitgroup.entryFunctionNameIS = nullptr;
+    sphere_hitgroup_prog_group_desc.hitgroup.moduleCH = module;
+    sphere_hitgroup_prog_group_desc.hitgroup.entryFunctionNameCH = "__closesthit__ch";
+    OPTIX_CHECK_LOG(optixProgramGroupCreate(context, &sphere_hitgroup_prog_group_desc,
+                                            1, // num program groups
+                                            pg_options, LOG, &LOG_SIZE,
+                                            sphere_hitgroup_pg));
 }
