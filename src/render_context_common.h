@@ -53,6 +53,7 @@ public:
     bool has_envmap = false;
     Camera cam;
 
+    //SharedVector<Sampler> samplers;
     Framebuffer fb;
     SceneAttribs attribs;
 

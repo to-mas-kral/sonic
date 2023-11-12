@@ -9,14 +9,14 @@
 // (s, t) are coords in screen space
 __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
     auto pixel_index = rc->fb.pixel_index(x, y);
-    curandState *rand_state = &rc->fb.get_rand_state()[pixel_index];
+    auto sampler = &rc->fb.get_rand_state()[pixel_index];
 
     u32 resx = rc->fb.get_image_x();
     u32 resy = rc->fb.get_image_y();
 
-    auto cam_sample = vec2(rng(rand_state), rng(rand_state));
-    auto bsdf_sample = vec2(rng(rand_state), rng(rand_state));
-    auto rr_sample = rng(rand_state);
+    auto cam_sample = vec2(sampler->sample(), sampler->sample());
+    auto bsdf_sample = vec2(sampler->sample(), sampler->sample());
+    auto rr_sample = sampler->sample();
     Ray ray = gen_ray(x, y, resx, resy, cam_sample, rc);
 
     /*

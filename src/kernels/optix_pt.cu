@@ -6,8 +6,8 @@
 
 #include "../geometry/intersection.h"
 #include "../integrator/utils.h"
-#include "../utils/blue_noise_sampler.h"
 #include "../utils/numtypes.h"
+#include "../utils/sampler.h"
 #include "raygen.h"
 
 extern "C" {
@@ -18,7 +18,6 @@ const u32 NO_HIT = 0;
 const u32 HIT_TRIANGLE = 1;
 const u32 HIT_SPHERE = 2;
 
-OpIntersection get_sphere_its(u32 index, u32 id, u32 id_1, u32 light, Spheres &spheres);
 static __forceinline__ __device__ void set_payload_miss() { optixSetPayload_0(NO_HIT); }
 
 static __forceinline__ __device__ void
@@ -159,14 +158,9 @@ extern "C" __global__ void __raygen__rg() {
     auto rc = params.rc;
     auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
-    // auto sampler = BlueNoiseSampler();
+    auto sampler = &params.fb->get_rand_state()[pixel_index];
 
-    auto rand_state = &params.fb->get_rand_state()[pixel_index];
-
-    /*auto [cam_s, cam_t] =
-        sampler.create_samples<2>(pixel.x, pixel.y, (i32)params.sample_index);*/
-
-    auto cam_sample = vec2(rng(rand_state), rng(rand_state));
+    auto cam_sample = vec2(sampler->sample(), sampler->sample());
 
     auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc);
 
@@ -186,10 +180,8 @@ extern "C" __global__ void __raygen__rg() {
         u32 did_hit = p0;
 
         if (did_hit) {
-            /* auto [brdf_u, brdf_v, rr_sample] =
-                sampler.create_samples<3>(pixel.x, pixel.y, (i32)params.sample_index); */
-            auto bsdf_sample = vec2(rng(rand_state), rng(rand_state));
-            f32 rr_sample = rng(rand_state);
+            auto bsdf_sample = vec2(sampler->sample(), sampler->sample());
+            auto rr_sample = sampler->sample();
 
             OpIntersection its;
             if (did_hit == HIT_TRIANGLE) {

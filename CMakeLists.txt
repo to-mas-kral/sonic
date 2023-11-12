@@ -29,9 +29,9 @@ add_executable(pt src/main.cu
         src/utils/image_writer.h
         src/utils/cuda_err.h
         src/utils/rng.h
-        src/utils/blue_noise_sampler.h
-        src/utils/blue_noise_tiles.h
-        
+        src/utils/sampler.h
+
+
         src/io/progress_bar.h
 
         src/kernels/megakernel.h
@@ -54,6 +54,8 @@ add_executable(pt src/main.cu
         src/optix_common.cu
 
         src/integrator/utils.h
+
+        src/geometry/intersection.h
         src/geometry/geometry.h
         src/geometry/geometry.cu
         src/geometry/bvh.h
@@ -98,8 +100,6 @@ target_link_libraries(pt PRIVATE spdlog::spdlog)
 
 add_library(optix_pt OBJECT
         src/kernels/optix_pt.cu
-        src/utils/numtypes.h
-        src/geometry/intersection.h
 )
 
 target_link_libraries(optix_pt PRIVATE fmt::fmt)

@@ -5,6 +5,7 @@
 #include <curand_kernel.h>
 
 #include "utils/numtypes.h"
+#include "utils/sampler.h"
 #include "utils/shared_vector.h"
 
 class Framebuffer {
@@ -25,11 +26,11 @@ public:
     __host__ __device__ u32 get_image_y() const { return image_y; }
 
     __host__ __device__ SharedVector<vec3> &get_pixels() { return pixels; }
-    __device__ SharedVector<curandState> &get_rand_state() { return rand_state; }
+    __device__ SharedVector<Sampler> &get_rand_state() { return samplers; }
 
 private:
     SharedVector<vec3> pixels;
-    SharedVector<curandState> rand_state;
+    SharedVector<Sampler> samplers;
 
     u32 image_x;
     u32 image_y;
