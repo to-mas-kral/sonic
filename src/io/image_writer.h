@@ -7,13 +7,13 @@
 #include <tinyexr.h>
 
 #include "../framebuffer.h"
-#include "numtypes.h"
+#include "../utils/numtypes.h"
 
 namespace ImageWriter {
 
 void write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples) {
-    auto width = fb.get_image_x();
-    auto height = fb.get_image_y();
+    auto width = fb.get_res_x();
+    auto height = fb.get_res_y();
 
     SharedVector<vec3> &rgb = fb.get_pixels();
 

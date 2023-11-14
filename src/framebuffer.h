@@ -22,8 +22,8 @@ public:
     __device__ u64 pixel_index(dim3 block_dim, dim3 block_idx, dim3 thread_idx) const;
 
     __host__ __device__ u32 num_pixels() const { return image_x * image_y; }
-    __host__ __device__ u32 get_image_x() const { return image_x; }
-    __host__ __device__ u32 get_image_y() const { return image_y; }
+    __host__ __device__ u32 get_res_x() const { return image_x; }
+    __host__ __device__ u32 get_res_y() const { return image_y; }
 
     __host__ __device__ SharedVector<vec3> &get_pixels() { return pixels; }
     __device__ SharedVector<Sampler> &get_rand_state() { return samplers; }

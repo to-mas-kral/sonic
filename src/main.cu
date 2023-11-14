@@ -9,7 +9,9 @@
 #include <optix_stubs.h>
 #include <spdlog/spdlog.h>
 
+#include "io/image_writer.h"
 #include "io/progress_bar.h"
+#include "io/window.h"
 #include "kernels/megakernel.h"
 #include "kernels/raygen.h"
 #include "optix_as.h"
@@ -18,8 +20,27 @@
 #include "render_context_common.h"
 #include "scene_loader.h"
 #include "utils/cuda_err.h"
-#include "utils/image_writer.h"
 #include "utils/shared_vector.h"
+
+// FIXME: there is a memory error in OptiX sphere acceleration creation, but seems to be
+// an issue in Nvidia's code. Try when new CUDA version is released...
+//==51801== Conditional jump or move depends on uninitialised value(s)
+//==51801==    at 0x261576F9: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
+//==51801==    by 0x2613C96D: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
+//==51801==    by 0x2614B415: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
+//==51801==    by 0x25F3B18D: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
+//==51801==    by 0x25F3CCAA: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
+//==51801==    by 0x225FA5CB: ??? (in /usr/lib/libnvoptix.so.545.29.02)
+//==51801==    by 0x225F82DE: ??? (in /usr/lib/libnvoptix.so.545.29.02)
+//==51801==    by 0x128B3F: optixAccelComputeMemoryUsage (optix_stubs.h:489)
+//==51801==    by 0x12BFF6: OptixAS::create_as(OptixDeviceContext_t*,
+//std::vector<OptixBuildInput, std::allocator<OptixBuildInput> > const&, unsigned long
+//long*) (optix_as.h:83)
+//==51801==    by 0x12CBC8: OptixAS::OptixAS(RenderContext*, OptixDeviceContext_t*)
+//(optix_as.h:175)
+//==51801==    by 0x125595: main (main.cu:104)
+//==51801==  Uninitialised value was created by a stack allocation
+//==51801==    at 0x2614B16B: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
 
 int main(int argc, char **argv) {
     auto optix_context = init_optix();
@@ -69,6 +90,11 @@ int main(int argc, char **argv) {
             return 1;
         }
         SceneAttribs attribs = attrib_result.value();
+
+        /*
+         * Window setup
+         * */
+        auto window = Window(attribs.resx, attribs.resy);
 
         /*
          * Set up render context
@@ -149,7 +175,7 @@ int main(int argc, char **argv) {
 
             // Update the framebuffer when the number of samples doubles...
             if (std::popcount(s) == 1) {
-
+                window.update(rc->fb, s);
                 ImageWriter::write_framebuffer("ptout.exr", rc->fb, s);
             }
 
@@ -161,6 +187,8 @@ int main(int argc, char **argv) {
         /*
          * Clean up and exit
          * */
+
+        window.close();
 
         cudaDeviceSynchronize();
 

@@ -11,8 +11,8 @@ __device__ vec3 render(RenderContext *rc, u32 x, u32 y) {
     auto pixel_index = rc->fb.pixel_index(x, y);
     auto sampler = &rc->fb.get_rand_state()[pixel_index];
 
-    u32 resx = rc->fb.get_image_x();
-    u32 resy = rc->fb.get_image_y();
+    u32 resx = rc->fb.get_res_x();
+    u32 resy = rc->fb.get_res_y();
 
     auto cam_sample = vec2(sampler->sample(), sampler->sample());
     auto bsdf_sample = vec2(sampler->sample(), sampler->sample());

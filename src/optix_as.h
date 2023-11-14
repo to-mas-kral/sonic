@@ -8,10 +8,9 @@ public:
     // Have to use 1 build input per material
     void add_sphere_inputs(const Spheres &spheres,
                            std::vector<OptixBuildInput> &build_inputs,
-                           const unsigned int *input_flags,
+                           const u32 *input_flags,
                            std::vector<CUdeviceptr> &spheres_d_centers,
                            std::vector<CUdeviceptr> &spheres_d_radiuses) {
-
         for (int i = 0; i < num_spheres; i++) {
             spheres_d_centers[i] = (CUdeviceptr)(spheres.centers.get_ptr() + i);
             spheres_d_radiuses[i] = (CUdeviceptr)(spheres.radiuses.get_ptr() + i);
@@ -21,7 +20,7 @@ public:
             OptixBuildInput bi{};
             bi.type = OPTIX_BUILD_INPUT_TYPE_SPHERES;
 
-            bi.sphereArray.numVertices = spheres.num_spheres;
+            bi.sphereArray.numVertices = 1;
             bi.sphereArray.vertexBuffers = &spheres_d_centers[i];
             bi.sphereArray.radiusBuffers = &spheres_d_radiuses[i];
 
@@ -73,13 +72,13 @@ public:
                                      CUdeviceptr *output_buffer) {
         OptixTraversableHandle gas_handle{};
 
-        OptixAccelBuildOptions accel_options = {};
+        OptixAccelBuildOptions accel_options{};
         accel_options.buildFlags =
             OPTIX_BUILD_FLAG_PREFER_FAST_TRACE | OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
         ;
         accel_options.operation = OPTIX_BUILD_OPERATION_BUILD;
 
-        OptixAccelBufferSizes gas_buffer_sizes;
+        OptixAccelBufferSizes gas_buffer_sizes{};
         OPTIX_CHECK(optixAccelComputeMemoryUsage(context, &accel_options,
                                                  build_inputs.data(), build_inputs.size(),
                                                  &gas_buffer_sizes));
@@ -98,7 +97,7 @@ public:
         CUDA_CHECK(
             cudaMalloc(reinterpret_cast<void **>((&d_compacted_size)), sizeof(u64)));
 
-        OptixAccelEmitDesc property = {};
+        OptixAccelEmitDesc property{};
         property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
         property.result = d_compacted_size;
 
@@ -143,7 +142,8 @@ public:
          * Create BLASes
          * */
 
-        const uint32_t input_flags[1] = {OPTIX_GEOMETRY_FLAG_NONE};
+        const uint32_t input_flags =
+            OPTIX_GEOMETRY_FLAG_NONE | OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
 
         const SharedVector<Mesh> &meshes = rc->geometry.meshes.meshes;
         num_meshes = meshes.len();
@@ -154,7 +154,7 @@ public:
         std::vector<CUdeviceptr> mesh_d_indices = std::vector<CUdeviceptr>(num_meshes);
 
         add_mesh_inputs(rc, meshes, triangle_build_inputs, mesh_d_poses, mesh_d_indices,
-                        input_flags);
+                        &input_flags);
         triangle_as_handle =
             create_as(context, triangle_build_inputs, &triangle_as_output_buffer);
 
@@ -169,7 +169,7 @@ public:
             std::vector<CUdeviceptr> spheres_d_radiuses =
                 std::vector<CUdeviceptr>(num_spheres);
 
-            add_sphere_inputs(spheres, sphere_build_inputs, input_flags,
+            add_sphere_inputs(spheres, sphere_build_inputs, &input_flags,
                               spheres_d_centers, spheres_d_radiuses);
 
             sphere_as_handle =

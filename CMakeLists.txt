@@ -26,13 +26,14 @@ add_executable(pt src/main.cu
 
         src/utils/numtypes.h
         src/utils/shared_vector.h
-        src/utils/image_writer.h
+        src/io/image_writer.h
         src/utils/cuda_err.h
         src/utils/rng.h
         src/utils/sampler.h
 
-
         src/io/progress_bar.h
+        src/io/window.cu
+        src/io/window.h
 
         src/kernels/megakernel.h
         src/kernels/megakernel.cu
@@ -95,6 +96,9 @@ target_link_libraries(pt PRIVATE pugixml::pugixml)
 
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE spdlog::spdlog)
+
+find_package(minifb CONFIG REQUIRED)
+target_link_libraries(pt PRIVATE minifb::minifb)
 
 #[[OptiX modules]]
 
