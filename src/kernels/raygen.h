@@ -1,10 +1,10 @@
 #ifndef PT_RAYGEN_H
 #define PT_RAYGEN_H
 
-#include "../render_context_common.h"
+#include "../render_context.h"
 
-__device__ __forceinline__ Ray gen_ray(u32 x, u32 y, u32 res_x, u32 res_y, vec2 sample,
-                                       RenderContext *rc) {
+__device__ __forceinline__ Ray gen_ray(u32 x, u32 y, u32 res_x, u32 res_y,
+                                       const vec2 &sample, RenderContext *rc) {
     f32 image_x = static_cast<f32>(res_x - 1U);
     f32 image_y = static_cast<f32>(res_y - 1U);
 

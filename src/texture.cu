@@ -6,7 +6,7 @@
 
 Texture::Texture(const std::string &texture_path) {
     cudaChannelFormatDesc channel_desc{};
-    size_t spitch = 0;
+    size_t spitch;
     cudaTextureReadMode read_mode;
 
     // Some duplicated code, but its probably better to keep duplicated...
@@ -25,12 +25,12 @@ Texture::Texture(const std::string &texture_path) {
         }
 
         channel_desc = cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
-        CUDA_CHECK(cudaMallocArray(&texture_storage_array, &channel_desc, width, height));
+        CUDA_CHECK(cudaMallocArray(&texture_storage_array, &channel_desc, width, height))
 
         spitch = width * num_channels * sizeof(f32);
         CUDA_CHECK(cudaMemcpy2DToArray(texture_storage_array, 0, 0, pixels, spitch,
                                        width * num_channels * sizeof(f32), height,
-                                       cudaMemcpyHostToDevice));
+                                       cudaMemcpyHostToDevice))
 
         free(pixels);
     } else {
@@ -77,12 +77,12 @@ Texture::Texture(const std::string &texture_path) {
         }
         }
 
-        CUDA_CHECK(cudaMallocArray(&texture_storage_array, &channel_desc, width, height));
+        CUDA_CHECK(cudaMallocArray(&texture_storage_array, &channel_desc, width, height))
 
         spitch = width * num_channels * sizeof(u8);
         CUDA_CHECK(cudaMemcpy2DToArray(texture_storage_array, 0, 0, pixels_to_load,
                                        spitch, width * num_channels * sizeof(u8), height,
-                                       cudaMemcpyHostToDevice));
+                                       cudaMemcpyHostToDevice))
 
         stbi_image_free(pixels);
     }
@@ -101,7 +101,7 @@ Texture::Texture(const std::string &texture_path) {
     tex_desc.normalizedCoords = 1;
     tex_desc.sRGB = 1;
 
-    CUDA_CHECK(cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, nullptr));
+    CUDA_CHECK(cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, nullptr))
 }
 
 Texture::Texture(Texture &&other) noexcept {

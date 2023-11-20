@@ -10,11 +10,11 @@
 
 using str = std::string_view;
 
-void SceneLoader::load_scene(RenderContext *rc) {
+void SceneLoader::load_scene(Scene *sc) {
     auto scene = doc.child("scene");
 
-    load_materials(scene, rc);
-    load_shapes(rc, scene);
+    load_materials(scene, sc);
+    load_shapes(sc, scene);
 
     auto envmap_node = scene.child("emitter");
     if (envmap_node) {
@@ -26,11 +26,11 @@ void SceneLoader::load_scene(RenderContext *rc) {
         to_world_transform = parse_transform(transform_node);
 
         auto envmap = Envmap(file_path, to_world_transform);
-        rc->set_envmap(std::move(envmap));
+        sc->set_envmap(std::move(envmap));
     }
 }
 
-void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
+void SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
     for (pugi::xml_node shape : scene.children("shape")) {
         str type = shape.attribute("type").as_string();
 
@@ -42,8 +42,8 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
             std::string bsdf_id = ref_node.attribute("id").as_string();
             mat_id = materials.at(bsdf_id);
         } else if (bsdf_node) {
-            auto mat = load_material(rc, bsdf_node);
-            mat_id = rc->add_material(std::move(mat));
+            auto mat = load_material(sc, bsdf_node);
+            mat_id = sc->add_material(std::move(mat));
         } else {
             spdlog::error("Shape has no material");
             throw;
@@ -56,19 +56,19 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
         }
 
         auto emitter_node = shape.child("emitter");
-        cuda::std::optional<u32> light_id = cuda::std::nullopt;
+        cuda::std::optional<Emitter> emitter = cuda::std::nullopt;
         if (emitter_node) {
-            light_id = {load_emitter(emitter_node, rc)};
+            emitter = load_emitter(emitter_node, sc);
         }
 
         if (type == "rectangle") {
-            load_rectangle(shape, mat_id, transform, light_id, rc);
+            load_rectangle(shape, mat_id, transform, emitter, sc);
         } else if (type == "cube") {
-            load_cube(shape, mat_id, transform, light_id, rc);
+            load_cube(shape, mat_id, transform, emitter, sc);
         } else if (type == "obj") {
-            load_obj(shape, mat_id, transform, light_id, rc);
+            load_obj(shape, mat_id, transform, emitter, sc);
         } else if (type == "sphere") {
-            load_sphere(shape, mat_id, transform, light_id, rc);
+            load_sphere(shape, mat_id, transform, emitter, sc);
         } else {
             spdlog::error("Unknown shape type: {}", type);
             throw;
@@ -76,19 +76,19 @@ void SceneLoader::load_shapes(RenderContext *rc, const pugi::xml_node &scene) {
     }
 }
 
-void SceneLoader::load_materials(pugi::xml_node scene, RenderContext *rc) {
+void SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
         std::string id = bsdf.attribute("id").as_string();
-        auto mat = load_material(rc, bsdf);
+        auto mat = load_material(sc, bsdf);
 
-        u32 mat_id = rc->add_material(std::move(mat));
+        u32 mat_id = sc->add_material(std::move(mat));
         materials.insert({id, mat_id});
     }
 }
 
-Material SceneLoader::load_material(RenderContext *rc, pugi::xml_node &bsdf) {
+Material SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
 
     if (type == "twosided") {
@@ -118,7 +118,7 @@ Material SceneLoader::load_material(RenderContext *rc, pugi::xml_node &bsdf) {
             auto file_path = filename_node.attribute("value").as_string();
             auto texture = Texture(this->scene_base_path + "/" + file_path);
 
-            u32 tex_id = rc->add_texture(std::move(texture));
+            u32 tex_id = sc->add_texture(std::move(texture));
             mat = Material(tex_id);
         } else {
             vec3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
@@ -140,6 +140,7 @@ mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
 
         if (name == "matrix") {
             str matrix_str = child_node.attribute("value").as_string();
+
             auto floats =
                 std::views::transform(std::views::split(matrix_str, ' '), [](auto v) {
                     auto c = v | std::views::common;
@@ -210,7 +211,7 @@ vec3 SceneLoader::parse_rgb(const std::string &str) {
     return rgb;
 }
 
-u32 SceneLoader::load_emitter(pugi::xml_node emitter_node, RenderContext *rc) {
+Emitter SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
     str type = emitter_node.attribute("type").as_string();
     if (type != "area") {
         spdlog::error("Unknown emitter type");
@@ -224,13 +225,11 @@ u32 SceneLoader::load_emitter(pugi::xml_node emitter_node, RenderContext *rc) {
     }
 
     vec3 emittance = parse_rgb(rgb_node.attribute("value").as_string());
-
-    u32 light_id = rc->add_light(Light(emittance));
-    return light_id;
+    return Emitter(emittance);
 }
 
 void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                                 cuda::std::optional<u32> light_id, RenderContext *rc) {
+                                 cuda::std::optional<Emitter> emitter, Scene *sc) {
     // clang-format off
     SharedVector<vec3> pos = {vec3(-1.,  -1., 0.),
                                vec3( 1.,  -1., 0.),
@@ -248,7 +247,7 @@ void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &t
     };
     // clang-format on
 
-    for (int i = 0; i < pos.len(); i++) {
+    for (int i = 0; i < pos.size(); i++) {
         pos[i] = transform * vec4(pos[i], 1.);
     }
 
@@ -256,24 +255,25 @@ void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &t
         .indices = &indices,
         .pos = &pos,
         .material_id = mat_id,
-        .light_id = light_id,
+        .emitter = emitter,
     };
 
-    rc->geometry.add_mesh(mp);
+    sc->add_mesh(mp);
 }
 
 void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                            cuda::std::optional<u32> light_id, RenderContext *rc) {
+                            cuda::std::optional<Emitter> emitter, Scene *sc) {
     // clang-format off
-    SharedVector<vec3> pos = {vec3(-1.,  -1., -1.),
-                              vec3( 1.,  -1., -1.),
-                              vec3( 1.,   1., -1.),
-                              vec3(-1.,   1., -1.),
-
+    SharedVector<vec3> pos = {
                               vec3(-1.,  -1.,  1.),
                               vec3( 1.,  -1.,  1.),
                               vec3( 1.,   1.,  1.),
                               vec3(-1.,   1.,  1.),
+
+                              vec3(-1.,  -1., -1.),
+                              vec3( 1.,  -1., -1.),
+                              vec3( 1.,   1., -1.),
+                              vec3(-1.,   1., -1.),
     };
 
     /* Front face     back face
@@ -291,7 +291,7 @@ void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transf
     };
     // clang-format on
 
-    for (int i = 0; i < pos.len(); i++) {
+    for (int i = 0; i < pos.size(); i++) {
         pos[i] = transform * vec4(pos[i], 1.);
     }
 
@@ -299,14 +299,14 @@ void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transf
         .indices = &indices,
         .pos = &pos,
         .material_id = mat_id,
-        .light_id = light_id,
+        .emitter = emitter,
     };
 
-    rc->geometry.add_mesh(mp);
+    sc->add_mesh(mp);
 }
 
 void SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
-                              cuda::std::optional<u32> light_id, RenderContext *rc) {
+                              cuda::std::optional<Emitter> emitter, Scene *sc) {
     auto radius_node = node.find_child([](pugi::xml_node node) {
         return node.find_attribute([](pugi::xml_attribute attr) {
             return str(attr.name()) == "name" && str(attr.as_string()) == "radius";
@@ -326,12 +326,12 @@ void SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
     f32 z = center_node.attribute("z").as_float();
 
     vec3 center = vec3(x, y, z);
-    auto sphere = SphereParams{center, radius, mat_id, light_id};
-    rc->geometry.add_sphere(sphere);
+    auto sphere = SphereParams{center, radius, mat_id, emitter};
+    sc->add_sphere(sphere);
 }
 
 void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                           cuda::std::optional<u32> light_id, RenderContext *rc) {
+                           cuda::std::optional<Emitter> emitter, Scene *sc) {
     std::string filename = shape_node.child("string").attribute("value").as_string();
     auto file_path = scene_base_path + "/" + filename;
 
@@ -390,6 +390,7 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
     size_t normals_size = attrib.normals.size() / 3;
     size_t uvs_size = attrib.texcoords.size() / 2;
 
+    assert(pos_size >= 3);
     assert(pos_size == normals_size && pos_size == uvs_size);
 
     // Copy vertices
@@ -415,12 +416,12 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         uvs.push(std::move(uv));
     }
 
-    for (int i = 0; i < pos.len(); i++) {
+    for (int i = 0; i < pos.size(); i++) {
         pos[i] = transform * vec4(pos[i], 1.);
     }
 
     auto inv_trans = glm::inverse(glm::transpose(transform));
-    for (int i = 0; i < normals.len(); i++) {
+    for (int i = 0; i < normals.size(); i++) {
         normals[i] = inv_trans * vec4(normals[i], 1.);
     }
 
@@ -430,10 +431,10 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
         .normals = &normals,
         .uvs = &uvs,
         .material_id = mat_id,
-        .light_id = light_id,
+        .emitter = emitter,
     };
 
-    rc->geometry.add_mesh(mp);
+    sc->add_mesh(mp);
 }
 
 std::optional<SceneAttribs> SceneLoader::load_scene_attribs() {

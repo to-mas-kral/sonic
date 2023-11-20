@@ -3,10 +3,8 @@
 
 #include "optix_common.h"
 #include "optix_renderer.h"
-#include "utils/cuda_box.h"
 
-OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
-                             OptixAS *optixAS)
+OptixRenderer::OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *optixAS)
     : optixAS(optixAS) {
     auto pipeline_compile_options = make_optix_pipeline_compile_options(13, "params");
 
@@ -44,13 +42,13 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
         OPTIX_CHECK(optixSbtRecordPackHeader(miss_pg, &ms_sbt));
         miss_record.set(&ms_sbt);
 
-        auto pos = &rc->geometry.meshes.pos;
-        auto indices = &rc->geometry.meshes.indices;
-        auto normals = &rc->geometry.meshes.normals;
-        auto uvs = &rc->geometry.meshes.uvs;
-        const SharedVector<Mesh> &meshes = rc->geometry.meshes.meshes;
+        auto pos = &sc->geometry.meshes.pos;
+        auto indices = &sc->geometry.meshes.indices;
+        auto normals = &sc->geometry.meshes.normals;
+        auto uvs = &sc->geometry.meshes.uvs;
+        const SharedVector<Mesh> &meshes = sc->geometry.meshes.meshes;
 
-        const Spheres &spheres = rc->geometry.spheres;
+        const Spheres &spheres = sc->geometry.spheres;
 
         auto base_indices = (CUdeviceptr)indices->get_ptr();
         auto base_pos = (CUdeviceptr)pos->get_ptr();
@@ -58,7 +56,7 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
         auto base_uvs = (CUdeviceptr)uvs->get_ptr();
 
         std::vector<PtHitGroupSbtRecord> hitgroup_records{};
-        hitgroup_records.reserve(optixAS->num_meshes + optixAS->num_spheres);
+        hitgroup_records.reserve(2 * (optixAS->num_meshes + optixAS->num_spheres));
 
         for (int i = 0; i < optixAS->num_meshes; i++) {
             PtHitGroupSbtRecord hg_rec{};
@@ -93,11 +91,11 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
         size_t hitgroup_records_size =
             hitgroup_records.size() * sizeof(PtHitGroupSbtRecord);
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_hitgroup_records),
-                              hitgroup_records_size));
+                              hitgroup_records_size))
 
         CUDA_CHECK(cudaMemcpy(reinterpret_cast<void *>(d_hitgroup_records),
                               hitgroup_records.data(), hitgroup_records_size,
-                              cudaMemcpyHostToDevice));
+                              cudaMemcpyHostToDevice))
 
         sbt.raygenRecord = raygen_record.get_ptr();
         sbt.missRecordBase = miss_record.get_ptr();
@@ -110,7 +108,7 @@ OptixRenderer::OptixRenderer(RenderContext *rc, OptixDeviceContext context,
 }
 
 OptixRenderer::~OptixRenderer() {
-    CUDA_CHECK(cudaFree(reinterpret_cast<void *>(sbt.hitgroupRecordBase)));
+    CUDA_CHECK(cudaFree(reinterpret_cast<void *>(sbt.hitgroupRecordBase)))
 
     OPTIX_CHECK(optixPipelineDestroy(pipeline));
     OPTIX_CHECK(optixProgramGroupDestroy(hitgroup_pg));

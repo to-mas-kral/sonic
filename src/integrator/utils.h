@@ -25,4 +25,57 @@ russian_roulette(u32 depth, f32 u, const vec3 &throughput) {
     }
 }
 
+struct Intersection {
+    u32 material_id;
+    u32 light_id;
+    bool has_light;
+    vec3 normal;
+    vec3 pos;
+    vec2 uv;
+};
+
+__device__ __forceinline__ Ray spawn_ray(Intersection &its, const vec3 &dir) {
+    // TODO: more robust floating-point error handling when spawning rays
+    vec3 ray_orig = its.pos + (0.0001f * its.normal);
+    return Ray(ray_orig, dir);
+}
+
+struct ShadingGeometry {
+    f32 cos_theta;
+    /// Dot product between normal and w_o.
+    f32 nowo;
+    /// Dot product between normal and halfway vector.
+    f32 noh;
+    /// Dot product between halfway vector and w_o.
+    f32 howo;
+    /// Halfway vector
+    vec3 h;
+};
+
+///  Following PBRT, w_i is incident direction and w_o is outgoing direction.
+///  w_o goes "towards the viewer" and w_i "towards the light"
+__device__ __forceinline__ ShadingGeometry get_shading_geom(const vec3 &normal,
+                                                            const vec3 &w_i,
+                                                            const vec3 &w_o) {
+    // TODO: what to do when cos_theta is 0 ? this minimum value is a band-aid
+    f32 cos_theta = max(glm::dot(normal, w_i), 0.0001f);
+    vec3 h = glm::normalize(w_i + w_o);
+    f32 noh = glm::dot(normal, h);
+    f32 nowo = glm::dot(normal, w_o);
+    f32 howo = glm::dot(h, w_o);
+
+    return ShadingGeometry{
+        .cos_theta = cos_theta,
+        .nowo = nowo,
+        .noh = noh,
+        .howo = howo,
+        .h = h,
+    };
+}
+
+/// Specific case where 1 sample is taken from each distribution.
+__device__ __forceinline__ f32 mis_power_heuristic(f32 fpdf, f32 gpdf) {
+    return sqr(fpdf) / (sqr(fpdf) + sqr(gpdf));
+}
+
 #endif // PT_UTILS_H

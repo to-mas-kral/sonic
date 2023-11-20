@@ -12,12 +12,11 @@
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
 #include "io/window.h"
-#include "kernels/megakernel.h"
 #include "kernels/raygen.h"
 #include "optix_as.h"
 #include "optix_common.h"
 #include "optix_renderer.h"
-#include "render_context_common.h"
+#include "render_context.h"
 #include "scene_loader.h"
 #include "utils/cuda_err.h"
 #include "utils/shared_vector.h"
@@ -34,8 +33,8 @@
 //==51801==    by 0x225F82DE: ??? (in /usr/lib/libnvoptix.so.545.29.02)
 //==51801==    by 0x128B3F: optixAccelComputeMemoryUsage (optix_stubs.h:489)
 //==51801==    by 0x12BFF6: OptixAS::create_as(OptixDeviceContext_t*,
-//std::vector<OptixBuildInput, std::allocator<OptixBuildInput> > const&, unsigned long
-//long*) (optix_as.h:83)
+// std::vector<OptixBuildInput, std::allocator<OptixBuildInput> > const&, unsigned long
+// long*) (optix_as.h:83)
 //==51801==    by 0x12CBC8: OptixAS::OptixAS(RenderContext*, OptixDeviceContext_t*)
 //(optix_as.h:175)
 //==51801==    by 0x125595: main (main.cu:104)
@@ -54,7 +53,6 @@ int main(int argc, char **argv) {
 
         u32 num_samples = 32;
         bool silent = false;
-        bool optix = true;
         std::string scene_path{};
 
         CLI::App app{"A CUDA path-tracer project for PGRF3 by Tomáš Král, 2023."};
@@ -63,7 +61,6 @@ int main(int argc, char **argv) {
         app.add_option("--samples", num_samples, "Number of samples.");
         app.add_option("-s,--scene", scene_path, "Path to the scene file.");
         app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
-        app.add_flag("--optix,!--no-optix", optix, "Use OptiX.")->default_val(true);
 
         CLI11_PARSE(app, argc, argv);
 
@@ -103,7 +100,7 @@ int main(int argc, char **argv) {
         // TODO: could probably make some template class for this...
         RenderContext *rc;
         CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)));
-        auto rcx = new (rc) RenderContext(num_samples, attribs);
+        auto rcx = new (rc) RenderContext(attribs);
 
         /*
          * Load the scene
@@ -111,64 +108,41 @@ int main(int argc, char **argv) {
 
         spdlog::info("Loading the scene");
         try {
-            scene_loader.load_scene(rc);
+            scene_loader.load_scene(&rc->scene);
         } catch (const std::exception &e) {
             spdlog::error("Error while loading the scene {}", e.what());
             return 1;
         }
         spdlog::info("Scene loaded");
 
-        rc->geometry.fixup_geometry_pointers();
+        rc->scene.init_light_sampler();
 
         spdlog::info("Creating OptiX acceleration structure");
-        auto optix_as = OptixAS(rc, optix_context);
+        auto optix_as = OptixAS(&rc->scene, optix_context);
         spdlog::info("OptiX acceleration structure initialized");
-        auto optix_renderer = OptixRenderer(rc, optix_context, &optix_as);
+        auto optix_renderer = OptixRenderer(&rc->scene, optix_context, &optix_as);
 
         /*
          * Start rendering
          * */
 
-        dim3 blocks_dim = rc->blocks_dim;
-        dim3 threads_dim = rc->THREADS_DIM;
-
         spdlog::info("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
                      num_samples);
 
-        if (!optix) {
-            spdlog::info("Creating BVH acceleration structure");
-            rc->make_acceleration_structure();
-            spdlog::info("BVH acceleration structure created");
-
-            spdlog::info("Pixel grid split into {} blocks with {} threads each.",
-                         blocks_dim.x * blocks_dim.y, threads_dim.x * threads_dim.y);
-        }
-
         PtParams params{};
-        // Pass straight to params due to performance reasons...
-        // No need to traverse 1 extra pointer...
         params.rc = rc;
         params.fb = &rc->fb;
-        params.meshes = rc->geometry.meshes.meshes.get_ptr();
-        params.materials = rc->materials.get_ptr();
-        params.lights = rc->lights.get_ptr();
-        params.textures = rc->textures.get_ptr();
+        params.meshes = rc->scene.geometry.meshes.meshes.get_ptr();
+        params.materials = rc->scene.materials.get_ptr();
+        params.lights = rc->scene.lights.get_ptr();
+        params.textures = rc->scene.textures.get_ptr();
 
         ProgressBar pb;
 
         const auto start{std::chrono::steady_clock::now()};
 
-        // OptiX path-tracer
         for (u32 s = 1; s <= num_samples; s++) {
-            params.sample_index = s - 1;
-            if (optix) {
-                optix_renderer.launch(params, attribs.resx, attribs.resy);
-            } else {
-                render_megakernel<<<blocks_dim, threads_dim>>>(rc);
-
-                cudaDeviceSynchronize();
-                CUDA_CHECK_LAST_ERROR();
-            }
+            optix_renderer.launch(params, attribs.resx, attribs.resy);
 
             const auto end{std::chrono::steady_clock::now()};
             const std::chrono::duration<f64> elapsed{end - start};

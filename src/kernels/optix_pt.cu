@@ -1,10 +1,10 @@
 #include "optix_pt.h"
 
 #include <cuda_runtime.h>
+#include <glm/gtx/norm.hpp>
 #include <optix.h>
 #include <optix_device.h>
 
-#include "../geometry/intersection.h"
 #include "../integrator/utils.h"
 #include "../utils/numtypes.h"
 #include "../utils/sampler.h"
@@ -54,9 +54,9 @@ static __forceinline__ __device__ void set_payload_hit_sphere(u32 prim_index,
     optixSetPayload_5(__float_as_uint(t));
 }
 
-static __forceinline__ __device__ OpIntersection get_triangle_its(
-    u32 bar_y, u32 bar_z, u32 prim_index, u32 mesh_id, Ray &ray, CUdeviceptr d_pos,
-    CUdeviceptr d_indices, CUdeviceptr d_normals, CUdeviceptr d_uvs) {
+static __forceinline__ __device__ Intersection
+get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id, CUdeviceptr d_pos,
+                 CUdeviceptr d_indices, CUdeviceptr d_normals, CUdeviceptr d_uvs) {
 
     f32 bar_y_f = __uint_as_float(bar_y);
     f32 bar_z_f = __uint_as_float(bar_z);
@@ -64,57 +64,29 @@ static __forceinline__ __device__ OpIntersection get_triangle_its(
 
     auto mesh_o = &params.meshes[mesh_id];
 
-    auto has_normals = mesh_o->has_normals;
-    auto has_uvs = mesh_o->has_uvs;
-    auto has_light = mesh_o->has_light;
-    auto light_id = mesh_o->light_id;
-    auto material_id = mesh_o->material_id;
-
     vec3 *positions = (vec3 *)d_pos;
     u32 *indices = (u32 *)d_indices;
     vec3 *normals = (vec3 *)d_normals;
     vec2 *uvs = (vec2 *)d_uvs;
 
-    u32 i0 = indices[3 * prim_index];
-    u32 i1 = indices[3 * prim_index + 1];
-    u32 i2 = indices[3 * prim_index + 2];
+    u32 i0 = indices[3 * triangle_index];
+    u32 i1 = indices[3 * triangle_index + 1];
+    u32 i2 = indices[3 * triangle_index + 2];
 
     vec3 p0 = positions[i0];
     vec3 p1 = positions[i1];
     vec3 p2 = positions[i2];
 
-    // TODO: function for barycentric interpolation
-    vec3 pos = bar.x * p0 + bar.y * p1 + bar.z * p2;
+    vec3 pos = barycentric_interp(bar, p0, p1, p2);
 
-    vec3 normal;
-    if (has_normals) {
-        vec3 n0 = normals[i0];
-        vec3 n1 = normals[i1];
-        vec3 n2 = normals[i2];
-        normal = glm::normalize(bar.x * n0 + bar.y * n1 + bar.z * n2);
-    } else {
-        vec3 v0 = p1 - p0;
-        vec3 v1 = p2 - p0;
-        normal = glm::normalize(cross(v0, v1));
-        if (glm::any(glm::isnan(normal))) {
-            // Degenerate triangle...
-            // TODO: HACK
-            normal = glm::normalize(-ray.dir);
-        }
-    }
+    vec3 normal =
+        Meshes::calc_normal(mesh_o->has_normals, i0, i1, i2, normals, bar, p0, p1, p2);
+    vec2 uv = Meshes::calc_uvs(mesh_o->has_uvs, i0, i1, i2, uvs, bar);
 
-    vec2 uv = vec2(0.);
-    if (has_uvs) {
-        vec2 uv0 = uvs[i0];
-        vec2 uv1 = uvs[i1];
-        vec2 uv2 = uvs[i2];
-        uv = bar.x * uv0 + bar.y * uv1 + bar.z * uv2;
-    }
-
-    return OpIntersection{
-        .material_id = material_id,
-        .light_id = light_id,
-        .has_light = has_light,
+    return Intersection{
+        .material_id = mesh_o->material_id,
+        .light_id = mesh_o->lights_start_id + triangle_index,
+        .has_light = mesh_o->has_light,
         .normal = normal,
         .pos = pos,
         .uv = uv,
@@ -125,23 +97,16 @@ __device__ __forceinline__ CUdeviceptr unpack_ptr(u32 hi, u32 lo) {
     return (static_cast<u64>(hi) << 32U) | static_cast<u64>(lo);
 }
 
-__device__ __forceinline__ OpIntersection get_sphere_its(u32 sphere_index,
+__device__ __forceinline__ Intersection get_sphere_its(u32 sphere_index,
                                                          u32 material_id, u32 light_id,
                                                          u32 has_light, Spheres &spheres,
-                                                         vec3 pos) {
+                                                         const vec3 &pos) {
     vec3 center = spheres.centers[sphere_index];
-    f32 radius = spheres.radiuses[sphere_index];
 
-    vec3 normal = glm::normalize(pos - center);
+    vec3 normal = Spheres::calc_normal(pos, center);
+    vec2 uv = Spheres::calc_uvs(normal);
 
-    // TODO: Sphere UV mapping could be wrong, test...
-    // (1 / 2pi, 1 / pi)
-    const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
-    vec2 uv = vec2(atan2(-normal.z, -normal.x), asin(normal.y));
-    uv *= pi_reciprocals;
-    uv += 0.5;
-
-    return OpIntersection{
+    return Intersection{
         .material_id = material_id,
         .light_id = light_id,
         .has_light = bool(has_light),
@@ -151,11 +116,100 @@ __device__ __forceinline__ OpIntersection get_sphere_its(u32 sphere_index,
     };
 }
 
+__device__ __forceinline__ Intersection get_its(Scene *sc, u32 p1, u32 p2, u32 p3,
+                                                  u32 p4, u32 p5, u32 p6, u32 p7, u32 p8,
+                                                  u32 p9, u32 p10, u32 p11, u32 p12,
+                                                  u32 did_hit, Ray &ray) {
+    if (did_hit == HIT_TRIANGLE) {
+        u32 prim_index = p1;
+        u32 mesh_id = p2;
+        u32 bar_y = p3;
+        u32 bar_z = p4;
+        u32 pos_lo = p5;
+        u32 pos_hi = p6;
+        u32 indices_lo = p7;
+        u32 indices_hi = p8;
+        u32 normals_lo = p9;
+        u32 normals_hi = p10;
+        u32 uvs_lo = p11;
+        u32 uvs_hi = p12;
+
+        CUdeviceptr d_pos = unpack_ptr(pos_hi, pos_lo);
+        CUdeviceptr d_indices = unpack_ptr(indices_hi, indices_lo);
+        CUdeviceptr d_normals = unpack_ptr(normals_hi, normals_lo);
+        CUdeviceptr d_uvs = unpack_ptr(uvs_hi, uvs_lo);
+
+        return get_triangle_its(bar_y, bar_z, prim_index, mesh_id, d_pos, d_indices,
+                                d_normals, d_uvs);
+    } else {
+        // Sphere
+        u32 sphere_index = p1;
+        u32 material_id = p2;
+        u32 light_id = p3;
+        u32 has_light = p4;
+        f32 t = __uint_as_float(p5);
+
+        Spheres &spheres = sc->geometry.spheres;
+        vec3 pos = ray.o + ray.dir * t;
+
+        return get_sphere_its(sphere_index, material_id, light_id, has_light, spheres,
+                              pos);
+    }
+}
+
+// Multisple Importance Sampling for lights
+__device__ __forceinline__ void
+light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
+          const LightSample &light_sample, const ShapeSample &shape_sample,
+          const Material *material, vec3 *radiance, const vec3 &throughput) {
+    vec3 light_pos = shape_sample.pos;
+    vec3 pl_norm = glm::normalize(light_pos - its.pos);
+    f32 pl_mag_sq = glm::length2(light_pos - its.pos);
+    f32 cos_light = max(glm::dot(shape_sample.normal, -pl_norm), 0.000001f);
+
+    auto sgeom_light = get_shading_geom(its.normal, pl_norm, -traced_ray.dir);
+
+    // Quickly precheck if light is reachable
+    if (sgeom_light.cos_theta > 0.f && cos_light > 0.f) {
+        f32 pl_mag = glm::length(light_pos - its.pos);
+
+        // Use the origin of the BXDF ray, which is already offset from the surface so
+        // that it doesn't self-intersect.
+        vec3 lrd = glm::normalize(light_pos - bxdf_ray.o);
+        float3 raydir = make_float3(lrd.x, lrd.y, lrd.z);
+        float3 rayorig = make_float3(bxdf_ray.o.x, bxdf_ray.o.y, bxdf_ray.o.z);
+        u32 did_hit = 1;
+        // TODO: didn!t get much of a speedup, investigate
+        // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
+        optixTrace(params.gas_handle, rayorig, raydir, 0.0001f, pl_mag - 0.001f, 0.0f,
+                   OptixVisibilityMask(255),
+                   OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT |
+                       OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
+                   0, 1, 0, did_hit);
+
+        if (!did_hit) {
+            // Probability of sampling this light in terms of solid angle from the
+            // probability distribution of the lights. Formula from
+            // https://www.pbr-book.org/4ed/Radiometry,_Spectra,_and_Color/Working_with_Radiometric_Integrals#IntegralsoverArea
+            f32 pdf_light = shape_sample.pdf * light_sample.pdf * (pl_mag_sq / cos_light);
+
+            vec3 bxdf_light = material->eval(params.textures, its.uv);
+            f32 weight_light = mis_power_heuristic(pdf_light, material->pdf(sgeom_light));
+
+            vec3 light_emission = light_sample.light.emitter.emission();
+
+            *radiance += bxdf_light * sgeom_light.cos_theta * (1.f / pdf_light) *
+                         light_emission * weight_light * throughput;
+        }
+    }
+}
+
 extern "C" __global__ void __raygen__rg() {
     const uint3 pixel = optixGetLaunchIndex();
     const uint3 dim = optixGetLaunchDimensions();
 
     auto rc = params.rc;
+    auto sc = &rc->scene;
     auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
     auto sampler = &params.fb->get_rand_state()[pixel_index];
@@ -168,6 +222,9 @@ extern "C" __global__ void __raygen__rg() {
     vec3 throughput = vec3(1.f);
     vec3 radiance = vec3(0.f);
 
+    vec3 last_hit_pos = vec3(0.f);
+    f32 last_pdf_bxdf = 0.f;
+
     while (true) {
         float3 raydir = make_float3(ray.dir.x, ray.dir.y, ray.dir.z);
         float3 rayorig = make_float3(ray.o.x, ray.o.y, ray.o.z);
@@ -178,78 +235,69 @@ extern "C" __global__ void __raygen__rg() {
                    p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
 
         u32 did_hit = p0;
-
         if (did_hit) {
             auto bsdf_sample = vec2(sampler->sample(), sampler->sample());
             auto rr_sample = sampler->sample();
-
-            OpIntersection its;
-            if (did_hit == HIT_TRIANGLE) {
-                u32 prim_index = p1;
-                u32 mesh_id = p2;
-                u32 bar_y = p3;
-                u32 bar_z = p4;
-                u32 pos_lo = p5;
-                u32 pos_hi = p6;
-                u32 indices_lo = p7;
-                u32 indices_hi = p8;
-                u32 normals_lo = p9;
-                u32 normals_hi = p10;
-                u32 uvs_lo = p11;
-                u32 uvs_hi = p12;
-
-                CUdeviceptr d_pos = unpack_ptr(pos_hi, pos_lo);
-                CUdeviceptr d_indices = unpack_ptr(indices_hi, indices_lo);
-                CUdeviceptr d_normals = unpack_ptr(normals_hi, normals_lo);
-                CUdeviceptr d_uvs = unpack_ptr(uvs_hi, uvs_lo);
-
-                its = get_triangle_its(bar_y, bar_z, prim_index, mesh_id, ray, d_pos,
-                                       d_indices, d_normals, d_uvs);
-            } else {
-                // Sphere
-                u32 sphere_index = p1;
-                u32 material_id = p2;
-                u32 light_id = p3;
-                u32 has_light = p4;
-                f32 t = __uint_as_float(p5);
-
-                Spheres &spheres = rc->geometry.spheres;
-                vec3 pos = ray.o + ray.dir * t;
-
-                its = get_sphere_its(sphere_index, material_id, light_id, has_light,
-                                     spheres, pos);
-            }
+            Intersection its = get_its(sc, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11,
+                                         p12, did_hit, ray);
 
             auto material = &params.materials[its.material_id];
+            bool is_frontfacing = glm::dot(-ray.dir, its.normal) > 0.f;
 
-            vec3 emission = vec3(0.f);
-            if (its.has_light) {
-                emission = params.lights[its.light_id].emission();
+            if (its.has_light && is_frontfacing) {
+                vec3 emission = params.lights[its.light_id].emitter.emission();
+
+                if (depth == 1) {
+                    // Primary ray hit, can apply MIS...
+                    radiance += throughput * emission;
+                } else {
+                    vec3 pl_norm = glm::normalize(its.pos - last_hit_pos);
+                    f32 pl_mag_sq = glm::length2(its.pos - last_hit_pos);
+                    f32 cos_light = glm::dot(its.normal, -pl_norm);
+
+                    // last_pdf_bxdf is the probability of this light having been sampled
+                    // from the probability distribution of the BXDF of the *preceding*
+                    // hit.
+
+                    // TODO: currently calculating the shape PDF by assuming pdf = 1. /
+                    // area will have to change with non-uniform sampling !
+                    f32 light_area =
+                        sc->geometry.shape_area(sc->lights[its.light_id].shape);
+
+                    // pdf_light is the probability of this light being sampled from the
+                    // probability distribution of the lights.
+                    f32 pdf_light = sc->light_sampler.light_sample_pdf(its.light_id) *
+                                    pl_mag_sq / (light_area * cos_light);
+
+                    f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_light);
+                    radiance += throughput * bxdf_weight * emission;
+                }
             }
 
-            if (glm::dot(-ray.dir, its.normal) < 0.f) {
+            if (!is_frontfacing) {
                 its.normal = -its.normal;
-                emission = vec3(0.f);
             }
-
-            // TODO: refactor this...
-            Intersection old_its{
-                .pos = its.pos,
-                .normal = its.normal,
-                .t = -1.f,       // TODO: t used for anything ?
-                .mesh = nullptr, // TODO: own Intersection struct for OptiX pt...
-            };
 
             vec3 sample_dir = material->sample(its.normal, -ray.dir, bsdf_sample);
-            // TODO: what to do when cos_theta is 0 ? this minimum value is a band-aid
-            // solution...
-            f32 cos_theta = max(glm::dot(its.normal, sample_dir), 0.0001f);
+            auto sgeom_bxdf = get_shading_geom(its.normal, sample_dir, -ray.dir);
 
-            f32 pdf = material->pdf(cos_theta);
-            vec3 brdf = material->eval(material, params.textures, its.uv);
+            Ray bxdf_ray = spawn_ray(its, sample_dir);
 
-            radiance += throughput * emission;
-            throughput *= brdf * cos_theta * (1.f / pdf);
+            f32 pdf = material->pdf(sgeom_bxdf);
+            vec3 bxdf = material->eval(params.textures, its.uv);
+
+            f32 light_sample = sampler->sample();
+            auto sampled_light = sc->sample_lights(light_sample);
+            if (sampled_light.has_value()) {
+                // TODO: create a template for creating these vector samples...
+                vec3 shape_rng =
+                    vec3(sampler->sample(), sampler->sample(), sampler->sample());
+                auto shape_sample = sc->geometry.sample_shape(
+                    sampled_light.value().light.shape, its.pos, shape_rng);
+
+                light_mis(its, ray, bxdf_ray, sampled_light.value(), shape_sample,
+                          material, &radiance, throughput);
+            }
 
             auto rr = russian_roulette(depth, rr_sample, throughput);
             if (!rr.has_value()) {
@@ -257,18 +305,21 @@ extern "C" __global__ void __raygen__rg() {
             }
 
             auto roulette_compensation = rr.value();
-            throughput *= 1.f / roulette_compensation;
 
-            Ray new_ray = spawn_ray(old_its, sample_dir);
-            ray = new_ray;
+            throughput *=
+                bxdf * sgeom_bxdf.cos_theta * (1.f / (pdf * roulette_compensation));
+
+            ray = bxdf_ray;
+            last_hit_pos = its.pos;
+            last_pdf_bxdf = pdf;
             depth++;
         } else {
             // TODO: move into miss program to reduce divergence ?
             // Ray has escaped the scene
-            if (!rc->has_envmap) {
+            if (!sc->has_envmap) {
                 break;
             } else {
-                const Envmap *envmap = &rc->envmap;
+                const Envmap *envmap = &sc->envmap;
                 vec3 envrad = envmap->sample(ray);
                 radiance += throughput * envrad;
                 break;
@@ -289,8 +340,7 @@ extern "C" __global__ void __miss__ms() { set_payload_miss(); }
  * geometry they expect."
  * */
 extern "C" __global__ void __closesthit__ch() {
-    PtHitGroupData *hit_data =
-        reinterpret_cast<PtHitGroupData *>(optixGetSbtDataPointer());
+    auto *hit_data = reinterpret_cast<PtHitGroupData *>(optixGetSbtDataPointer());
 
     auto type = optixGetPrimitiveType();
 

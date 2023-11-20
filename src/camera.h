@@ -5,7 +5,7 @@
 
 class Camera {
 public:
-    Camera() {}
+    Camera() = default;
 
     __host__ Camera(float fov, float aspect) {
         viewport_height = 2.f;
@@ -33,8 +33,8 @@ public:
 
     vec3 origin;
     vec3 bottom_left;
-    f32 viewport_width;
-    f32 viewport_height;
+    f32 viewport_width{};
+    f32 viewport_height{};
 };
 
 #endif

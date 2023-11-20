@@ -22,7 +22,7 @@ public:
     // from multiple threads (is that even allowed tho ?)
 
     __host__ explicit SharedVector(u64 capacity) : m_len(0), cap(capacity), mem(nullptr) {
-        CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+        CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
         cudaDeviceSynchronize();
     }
@@ -30,7 +30,7 @@ public:
     __host__ explicit SharedVector(T elem, u64 count)
         : m_len(count), cap(count), mem(nullptr) {
         if (count != 0) {
-            CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+            CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
             cudaDeviceSynchronize();
 
@@ -45,7 +45,7 @@ public:
         assert(l.size() > 0);
 
         cap = l.size();
-        CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+        CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
         cudaDeviceSynchronize();
 
@@ -57,7 +57,7 @@ public:
     __host__ ~SharedVector() {
         if (mem != nullptr) {
             cudaDeviceSynchronize();
-            CUDA_CHECK(cudaFree(mem));
+            CUDA_CHECK(cudaFree(mem))
         }
     }
 
@@ -125,7 +125,7 @@ public:
         if (cap == 0 || mem == nullptr) {
             // TODO: could select better default size based on T's size...
             cap = 8;
-            CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)));
+            CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
             cudaDeviceSynchronize();
         }
@@ -137,7 +137,7 @@ public:
         m_len++;
     }
 
-    __host__ __device__ u64 len() const { return m_len; }
+    __host__ __device__ u64 size() const { return m_len; }
 
     __host__ __device__ T *get_ptr() const { return mem; }
 
@@ -146,12 +146,12 @@ private:
         u64 new_cap = cap * 2;
 
         T *new_mem = nullptr;
-        CUDA_CHECK(cudaMallocManaged((void **)&new_mem, new_cap * sizeof(T)));
+        CUDA_CHECK(cudaMallocManaged((void **)&new_mem, new_cap * sizeof(T)))
 
         cudaDeviceSynchronize();
 
         std::memcpy(new_mem, mem, m_len * sizeof(T));
-        CUDA_CHECK(cudaFree(mem));
+        CUDA_CHECK(cudaFree(mem))
         mem = new_mem;
         cap = new_cap;
     }

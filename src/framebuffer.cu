@@ -27,11 +27,3 @@ Framebuffer::Framebuffer(u32 image_x, u32 image_y, dim3 blocks_dim, dim3 threads
 
     samplers.assume_all_init();
 }
-
-__device__ cuda::std::tuple<u64, u64>
-Framebuffer::pixel_coords(dim3 block_dim, dim3 block_idx, dim3 thread_idx) const {
-    auto x = (block_idx.x * block_dim.x) + thread_idx.x;
-    auto y = (block_idx.y * block_dim.y) + thread_idx.y;
-
-    return {x, y};
-}

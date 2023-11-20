@@ -8,7 +8,7 @@ class Sampler {
 public:
     Sampler() = default;
 
-    Sampler(curandState rand_state) : rand_state(rand_state) {}
+    explicit Sampler(curandState rand_state) : rand_state(rand_state) {}
 
     __device__ __forceinline__ f32 sample() { return rng_curand(&rand_state); }
     __device__ __forceinline__ curandState *get_rand_state() { return &rand_state; }

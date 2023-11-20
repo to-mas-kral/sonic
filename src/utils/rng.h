@@ -4,12 +4,20 @@
 #include <curand_kernel.h>
 
 __device__ inline f32 rng_curand(curandState *rand_state) {
-    // curand_uniform exlcudes 0 but includes 1, so invert.
-    return 1.f - curand_uniform(rand_state);
+    // curand_uniform returns (0, 1], but we need [0, 1)
+    // Simply 1 - curand_uniform doesn't work !
+    f32 uniform = curand_uniform(rand_state);
+    // IDK if this is a good solution, but it works better than 1 - curand_uniform...
+    f32 sample = nextafter(uniform, 0.f);
+
+    assert(sample < 1.f && sample >= 0.f);
+
+    return sample;
 }
 
 // This apparently isn't faster than curand ?!
-/*// Converts unsigned integer into float int range <0; 1) by using 23 most significant bits
+/*// Converts unsigned integer into float int range <0; 1) by using 23 most significant
+bits
 // for mantissa Taken from: MARRS, Adam, Peter SHIRLEY a Ingo WALD, ed. Ray Tracing Gems
 // II: Next Generation Real-Time Rendering with DXR, Vulkan, and OptiX
 __device__ __forceinline__ f32 rand_u32_to_f32(u32 x) {

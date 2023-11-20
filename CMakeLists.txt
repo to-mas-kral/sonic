@@ -10,14 +10,13 @@ set(CMAKE_CUDA_ARCHITECTURES 75)
 #[[Main executable]]
 
 add_executable(pt src/main.cu
-        src/render_context_common.h
+        src/render_context.h
         src/render_context.cu
         src/framebuffer.cu
         src/framebuffer.h
         src/camera.h
         src/material.h
-        src/light.h
-        src/geometry/bvh.cu
+        src/emitter.h
         src/scene_loader.cu
         src/scene_loader.h
         src/envmap.h
@@ -35,14 +34,8 @@ add_executable(pt src/main.cu
         src/io/window.cu
         src/io/window.h
 
-        src/kernels/megakernel.h
-        src/kernels/megakernel.cu
         src/kernels/raygen.h
         src/kernels/optix_pt.h
-
-        src/geometry/intersection.h
-        src/geometry/axis.h
-        src/geometry/aabb.h
 
         src/math/sampling.h
         src/math/vecmath.h
@@ -56,10 +49,13 @@ add_executable(pt src/main.cu
 
         src/integrator/utils.h
 
-        src/geometry/intersection.h
         src/geometry/geometry.h
         src/geometry/geometry.cu
-        src/geometry/bvh.h
+        src/scene.cu
+        src/scene.h
+        src/integrator/light_sampler.cu
+        src/integrator/light_sampler.h
+        src/scene/light.h
 )
 
 link_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-6.5.0-linux64/lib64/)

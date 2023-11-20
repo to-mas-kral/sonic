@@ -1,7 +1,7 @@
 #ifndef PT_OPTIX_AS_H
 #define PT_OPTIX_AS_H
 
-#include "render_context_common.h"
+#include "scene.h"
 
 class OptixAS {
 public:
@@ -10,7 +10,7 @@ public:
                            std::vector<OptixBuildInput> &build_inputs,
                            const u32 *input_flags,
                            std::vector<CUdeviceptr> &spheres_d_centers,
-                           std::vector<CUdeviceptr> &spheres_d_radiuses) {
+                           std::vector<CUdeviceptr> &spheres_d_radiuses) const {
         for (int i = 0; i < num_spheres; i++) {
             spheres_d_centers[i] = (CUdeviceptr)(spheres.centers.get_ptr() + i);
             spheres_d_radiuses[i] = (CUdeviceptr)(spheres.radiuses.get_ptr() + i);
@@ -31,13 +31,13 @@ public:
         }
     }
 
-    void add_mesh_inputs(const RenderContext *rc, const SharedVector<Mesh> &meshes,
+    void add_mesh_inputs(const Scene *sc, const SharedVector<Mesh> &meshes,
                          std::vector<OptixBuildInput> &build_inputs,
                          std::vector<CUdeviceptr> &mesh_d_poses,
                          std::vector<CUdeviceptr> &mesh_d_indices,
                          const u32 *triangle_input_flags) const {
-        auto pos = &rc->geometry.meshes.pos;
-        auto indices = &rc->geometry.meshes.indices;
+        auto pos = &sc->geometry.meshes.pos;
+        auto indices = &sc->geometry.meshes.indices;
 
         for (int i = 0; i < num_meshes; i++) {
             auto &mesh = meshes[i];
@@ -67,15 +67,16 @@ public:
         }
     }
 
-    OptixTraversableHandle create_as(OptixDeviceContext context,
-                                     const std::vector<OptixBuildInput> &build_inputs,
-                                     CUdeviceptr *output_buffer) {
+    static OptixTraversableHandle
+    create_as(OptixDeviceContext context,
+              const std::vector<OptixBuildInput> &build_inputs,
+              CUdeviceptr *output_buffer) {
         OptixTraversableHandle gas_handle{};
 
         OptixAccelBuildOptions accel_options{};
         accel_options.buildFlags =
             OPTIX_BUILD_FLAG_PREFER_FAST_TRACE | OPTIX_BUILD_FLAG_ALLOW_COMPACTION;
-        ;
+
         accel_options.operation = OPTIX_BUILD_OPERATION_BUILD;
 
         OptixAccelBufferSizes gas_buffer_sizes{};
@@ -89,13 +90,13 @@ public:
 
         CUdeviceptr d_temp_buffer_gas;
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_temp_buffer_gas),
-                              gas_buffer_sizes.tempSizeInBytes));
+                              gas_buffer_sizes.tempSizeInBytes))
         CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(output_buffer),
-                              gas_buffer_sizes.outputSizeInBytes));
+                              gas_buffer_sizes.outputSizeInBytes))
 
         CUdeviceptr d_compacted_size;
         CUDA_CHECK(
-            cudaMalloc(reinterpret_cast<void **>((&d_compacted_size)), sizeof(u64)));
+            cudaMalloc(reinterpret_cast<void **>((&d_compacted_size)), sizeof(u64)))
 
         OptixAccelEmitDesc property{};
         property.type = OPTIX_PROPERTY_TYPE_COMPACTED_SIZE;
@@ -110,7 +111,7 @@ public:
 
         size_t compacted_size;
         CUDA_CHECK(cudaMemcpy(&compacted_size, reinterpret_cast<void *>(d_compacted_size),
-                              sizeof(size_t), cudaMemcpyDeviceToHost));
+                              sizeof(size_t), cudaMemcpyDeviceToHost))
 
         f64 mbs2 = compacted_size / 1024. / 1024.;
         spdlog::info("OptiX acceleration structure size after compaction is {} MBs",
@@ -120,24 +121,24 @@ public:
             spdlog::info("Compacting OptiX acceleration structure");
             CUdeviceptr d_compacted_output_buffer;
             CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_compacted_output_buffer),
-                                  compacted_size));
+                                  compacted_size))
 
             OPTIX_CHECK(optixAccelCompact(context, nullptr, gas_handle,
                                           d_compacted_output_buffer, compacted_size,
                                           &gas_handle));
 
-            CUDA_CHECK(cudaFree(reinterpret_cast<void *>(*output_buffer)));
+            CUDA_CHECK(cudaFree(reinterpret_cast<void *>(*output_buffer)))
             *output_buffer = d_compacted_output_buffer;
 
             spdlog::info("OptiX acceleration structure compacted");
         }
 
-        CUDA_CHECK(cudaFree(reinterpret_cast<void *>(d_temp_buffer_gas)));
+        CUDA_CHECK(cudaFree(reinterpret_cast<void *>(d_temp_buffer_gas)))
 
         return gas_handle;
     }
 
-    OptixAS(RenderContext *rc, OptixDeviceContext context) {
+    OptixAS(Scene *sc, OptixDeviceContext context) {
         /*
          * Create BLASes
          * */
@@ -145,20 +146,20 @@ public:
         const uint32_t input_flags =
             OPTIX_GEOMETRY_FLAG_NONE | OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
 
-        const SharedVector<Mesh> &meshes = rc->geometry.meshes.meshes;
-        num_meshes = meshes.len();
+        const SharedVector<Mesh> &meshes = sc->geometry.meshes.meshes;
+        num_meshes = meshes.size();
         std::vector<OptixBuildInput> triangle_build_inputs{};
         triangle_build_inputs.reserve(num_meshes);
 
         std::vector<CUdeviceptr> mesh_d_poses = std::vector<CUdeviceptr>(num_meshes);
         std::vector<CUdeviceptr> mesh_d_indices = std::vector<CUdeviceptr>(num_meshes);
 
-        add_mesh_inputs(rc, meshes, triangle_build_inputs, mesh_d_poses, mesh_d_indices,
+        add_mesh_inputs(sc, meshes, triangle_build_inputs, mesh_d_poses, mesh_d_indices,
                         &input_flags);
         triangle_as_handle =
             create_as(context, triangle_build_inputs, &triangle_as_output_buffer);
 
-        const Spheres &spheres = rc->geometry.spheres;
+        const Spheres &spheres = sc->geometry.spheres;
         num_spheres = spheres.num_spheres;
         if (num_spheres > 0) {
             std::vector<OptixBuildInput> sphere_build_inputs{};
@@ -203,9 +204,9 @@ public:
 
         void *d_instances;
         auto instances_size = sizeof(OptixInstance) * num_instances;
-        CUDA_CHECK(cudaMalloc(&d_instances, instances_size));
+        CUDA_CHECK(cudaMalloc(&d_instances, instances_size))
         CUDA_CHECK(cudaMemcpy(d_instances, instances.data(), instances_size,
-                              cudaMemcpyHostToDevice));
+                              cudaMemcpyHostToDevice))
 
         std::vector<OptixBuildInput> tlas_build_input(1);
         tlas_build_input[0].type = OPTIX_BUILD_INPUT_TYPE_INSTANCES;

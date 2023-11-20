@@ -3,12 +3,12 @@
 
 #include "kernels/optix_pt.h"
 #include "optix_as.h"
-#include "render_context_common.h"
+#include "scene.h"
 #include "utils/cuda_box.h"
 
 class OptixRenderer {
 public:
-    OptixRenderer(RenderContext *rc, OptixDeviceContext context, OptixAS *optixAS);
+    OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *optixAS);
 
     void launch(PtParams params, u32 width, u32 height) {
         params.gas_handle = optixAS->tlas_handle;
