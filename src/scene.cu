@@ -1,25 +1,31 @@
 #include "scene.h"
 
-__host__ u32 Scene::add_material(Material &&material) {
+__host__ u32
+Scene::add_material(Material &&material) {
     u32 mat_id = materials.size();
     materials.push(std::move(material));
     return mat_id;
 }
 
-__host__ u32 Scene::add_texture(Texture &&texture) {
+__host__ u32
+Scene::add_texture(Texture &&texture) {
     u32 texture_id = textures.size();
     textures.push(std::move(texture));
     return texture_id;
 }
 
-__host__ void Scene::init_light_sampler() { light_sampler = LightSampler(lights); }
+__host__ void
+Scene::init_light_sampler() {
+    light_sampler = LightSampler(lights);
+}
 
-__host__ void Scene::add_mesh(MeshParams mp) {
+__host__ void
+Scene::add_mesh(MeshParams mp) {
     u32 next_mesh_id = geometry.get_next_shape_index(ShapeType::Mesh);
-    cuda::std::optional<u32> lights_start_id = cuda::std::nullopt;
+    COption<u32> lights_start_id = {};
 
     if (mp.emitter.has_value()) {
-        lights_start_id = cuda::std::optional(lights.size());
+        lights_start_id = COption<u32>(lights.size());
 
         for (u32 i = 0; i < mp.indices->size() / 3; i++) {
             auto si = ShapeIndex{
@@ -32,12 +38,13 @@ __host__ void Scene::add_mesh(MeshParams mp) {
     geometry.add_mesh(mp, lights_start_id);
 }
 
-__host__ void Scene::add_sphere(SphereParams sp) {
+__host__ void
+Scene::add_sphere(SphereParams sp) {
     u32 next_sphere_id = geometry.get_next_shape_index(ShapeType::Sphere);
-    cuda::std::optional<u32> light_id = cuda::std::nullopt;
+    COption<u32> light_id = {};
 
     if (sp.emitter.has_value()) {
-        light_id = cuda::std::optional(lights.size());
+        light_id = COption<u32>(lights.size());
         auto si = ShapeIndex{.type = ShapeType::Sphere, .index = next_sphere_id};
 
         lights.push(Light{.shape = si, .emitter = sp.emitter.value()});

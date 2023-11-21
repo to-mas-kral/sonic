@@ -10,7 +10,8 @@ class OptixRenderer {
 public:
     OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *optixAS);
 
-    void launch(PtParams params, u32 width, u32 height) {
+    void
+    launch(PtParams params, u32 width, u32 height) {
         params.gas_handle = optixAS->tlas_handle;
         launch_params.set(&params);
         OPTIX_CHECK(optixLaunch(pipeline, nullptr, launch_params.get_ptr(),

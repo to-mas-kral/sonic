@@ -6,7 +6,7 @@
 #include <optix_device.h>
 
 #include "../integrator/utils.h"
-#include "../utils/numtypes.h"
+#include "../utils/basic_types.h"
 #include "../utils/sampler.h"
 #include "raygen.h"
 
@@ -18,7 +18,10 @@ const u32 NO_HIT = 0;
 const u32 HIT_TRIANGLE = 1;
 const u32 HIT_SPHERE = 2;
 
-static __forceinline__ __device__ void set_payload_miss() { optixSetPayload_0(NO_HIT); }
+static __forceinline__ __device__ void
+set_payload_miss() {
+    optixSetPayload_0(NO_HIT);
+}
 
 static __forceinline__ __device__ void
 set_payload_hit_triangle(u32 prim_index, u32 mesh_id, float2 barycentrics,
@@ -42,10 +45,9 @@ set_payload_hit_triangle(u32 prim_index, u32 mesh_id, float2 barycentrics,
     optixSetPayload_12((static_cast<u64>(uvs) & 0xFFFF'FFFF'0000'0000U) >> 32U);
 }
 
-static __forceinline__ __device__ void set_payload_hit_sphere(u32 prim_index,
-                                                              u32 material_id,
-                                                              u32 light_id,
-                                                              bool has_light, f32 t) {
+static __forceinline__ __device__ void
+set_payload_hit_sphere(u32 prim_index, u32 material_id, u32 light_id, bool has_light,
+                       f32 t) {
     optixSetPayload_0(HIT_SPHERE);
     optixSetPayload_1(prim_index);
     optixSetPayload_2(material_id);
@@ -93,14 +95,14 @@ get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id, CUdevice
     };
 }
 
-__device__ __forceinline__ CUdeviceptr unpack_ptr(u32 hi, u32 lo) {
+__device__ __forceinline__ CUdeviceptr
+unpack_ptr(u32 hi, u32 lo) {
     return (static_cast<u64>(hi) << 32U) | static_cast<u64>(lo);
 }
 
-__device__ __forceinline__ Intersection get_sphere_its(u32 sphere_index,
-                                                         u32 material_id, u32 light_id,
-                                                         u32 has_light, Spheres &spheres,
-                                                         const vec3 &pos) {
+__device__ __forceinline__ Intersection
+get_sphere_its(u32 sphere_index, u32 material_id, u32 light_id, u32 has_light,
+               Spheres &spheres, const vec3 &pos) {
     vec3 center = spheres.centers[sphere_index];
 
     vec3 normal = Spheres::calc_normal(pos, center);
@@ -116,10 +118,9 @@ __device__ __forceinline__ Intersection get_sphere_its(u32 sphere_index,
     };
 }
 
-__device__ __forceinline__ Intersection get_its(Scene *sc, u32 p1, u32 p2, u32 p3,
-                                                  u32 p4, u32 p5, u32 p6, u32 p7, u32 p8,
-                                                  u32 p9, u32 p10, u32 p11, u32 p12,
-                                                  u32 did_hit, Ray &ray) {
+__device__ __forceinline__ Intersection
+get_its(Scene *sc, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 p7, u32 p8, u32 p9,
+        u32 p10, u32 p11, u32 p12, u32 did_hit, Ray &ray) {
     if (did_hit == HIT_TRIANGLE) {
         u32 prim_index = p1;
         u32 mesh_id = p2;
@@ -176,13 +177,11 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
         // Use the origin of the BXDF ray, which is already offset from the surface so
         // that it doesn't self-intersect.
         vec3 lrd = glm::normalize(light_pos - bxdf_ray.o);
-        float3 raydir = make_float3(lrd.x, lrd.y, lrd.z);
-        float3 rayorig = make_float3(bxdf_ray.o.x, bxdf_ray.o.y, bxdf_ray.o.z);
         u32 did_hit = 1;
-        // TODO: didn!t get much of a speedup, investigate
+        // TODO: didn't get much of a speedup, investigate
         // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
-        optixTrace(params.gas_handle, rayorig, raydir, 0.0001f, pl_mag - 0.001f, 0.0f,
-                   OptixVisibilityMask(255),
+        optixTrace(params.gas_handle, vec_to_float3(bxdf_ray.o), vec_to_float3(lrd),
+                   0.0001f, pl_mag - 0.001f, 0.0f, OptixVisibilityMask(255),
                    OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT |
                        OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
                    0, 1, 0, did_hit);
@@ -204,7 +203,8 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
     }
 }
 
-extern "C" __global__ void __raygen__rg() {
+extern "C" __global__ void
+__raygen__rg() {
     const uint3 pixel = optixGetLaunchIndex();
     const uint3 dim = optixGetLaunchDimensions();
 
@@ -226,20 +226,17 @@ extern "C" __global__ void __raygen__rg() {
     f32 last_pdf_bxdf = 0.f;
 
     while (true) {
-        float3 raydir = make_float3(ray.dir.x, ray.dir.y, ray.dir.z);
-        float3 rayorig = make_float3(ray.o.x, ray.o.y, ray.o.z);
-
         u32 p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12;
-        optixTrace(params.gas_handle, rayorig, raydir, 0.0f, 1e16f, 0.0f,
-                   OptixVisibilityMask(255), OPTIX_RAY_FLAG_DISABLE_ANYHIT, 0, 1, 0, p0,
-                   p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
+        optixTrace(params.gas_handle, vec_to_float3(ray.o), vec_to_float3(ray.dir), 0.0f,
+                   1e16f, 0.0f, OptixVisibilityMask(255), OPTIX_RAY_FLAG_DISABLE_ANYHIT,
+                   0, 1, 0, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
 
         u32 did_hit = p0;
         if (did_hit) {
             auto bsdf_sample = vec2(sampler->sample(), sampler->sample());
             auto rr_sample = sampler->sample();
             Intersection its = get_its(sc, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11,
-                                         p12, did_hit, ray);
+                                       p12, did_hit, ray);
 
             auto material = &params.materials[its.material_id];
             bool is_frontfacing = glm::dot(-ray.dir, its.normal) > 0.f;
@@ -330,7 +327,10 @@ extern "C" __global__ void __raygen__rg() {
     params.fb->get_pixels()[pixel_index] += radiance;
 }
 
-extern "C" __global__ void __miss__ms() { set_payload_miss(); }
+extern "C" __global__ void
+__miss__ms() {
+    set_payload_miss();
+}
 
 /*
  * From Nvidia docs:
@@ -339,7 +339,8 @@ extern "C" __global__ void __miss__ms() { set_payload_miss(); }
  * hit shaders that implement the same ray behavior but differ only in the type of
  * geometry they expect."
  * */
-extern "C" __global__ void __closesthit__ch() {
+extern "C" __global__ void
+__closesthit__ch() {
     auto *hit_data = reinterpret_cast<PtHitGroupData *>(optixGetSbtDataPointer());
 
     auto type = optixGetPrimitiveType();

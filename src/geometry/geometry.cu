@@ -1,8 +1,10 @@
 
 #include "geometry.h"
 
-__host__ void Geometry::add_mesh(const MeshParams &mp,
-                                 cuda::std::optional<u32> lights_start_id) {
+#include "../utils/basic_types.h"
+
+__host__ void
+Geometry::add_mesh(const MeshParams &mp, COption<u32> lights_start_id) {
     u32 num_indices = mp.indices->size();
     u32 num_vertices = mp.pos->size();
 
@@ -16,7 +18,7 @@ __host__ void Geometry::add_mesh(const MeshParams &mp,
         meshes.pos.push(std::move((*mp.pos)[i]));
     }
 
-    cuda::std::optional<u32> normals_index = cuda::std::nullopt;
+    COption<u32> normals_index = {};
     if (mp.normals != nullptr) {
         normals_index = {meshes.normals.size()};
         assert(mp.normals->size() == mp.pos->size());
@@ -26,7 +28,7 @@ __host__ void Geometry::add_mesh(const MeshParams &mp,
         }
     }
 
-    cuda::std::optional<u32> uvs_index = cuda::std::nullopt;
+    COption<u32> uvs_index = {};
     if (mp.uvs != nullptr) {
         uvs_index = {meshes.uvs.size()};
         assert(mp.uvs->size() == mp.pos->size());
@@ -41,7 +43,8 @@ __host__ void Geometry::add_mesh(const MeshParams &mp,
     meshes.meshes.push(std::move(mesh));
 }
 
-__host__ void Geometry::add_sphere(SphereParams sp, cuda::std::optional<u32> light_id) {
+__host__ void
+Geometry::add_sphere(SphereParams sp, COption<u32> light_id) {
     spheres.centers.push(std::move(sp.center));
     spheres.radiuses.push(std::move(sp.radius));
     spheres.material_ids.push(std::move(sp.material_id));
@@ -56,8 +59,8 @@ __host__ void Geometry::add_sphere(SphereParams sp, cuda::std::optional<u32> lig
 }
 
 Mesh::Mesh(u32 indices_index, u32 pos_index, u32 material_id,
-           cuda::std::optional<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
-           cuda::std::optional<u32> p_normals_index, cuda::std::optional<u32> p_uvs_index)
+           COption<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
+           COption<u32> p_normals_index, COption<u32> p_uvs_index)
     : indices_index(indices_index), pos_index(pos_index), material_id(material_id),
       num_indices(num_indices), num_vertices(num_vertices) {
 

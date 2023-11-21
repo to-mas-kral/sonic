@@ -10,8 +10,8 @@
 
 #include "geometry/ray.h"
 #include "texture.h"
+#include "utils/basic_types.h"
 #include "utils/cuda_err.h"
-#include "utils/numtypes.h"
 #include "utils/shared_vector.h"
 
 class Envmap : Texture {
@@ -21,7 +21,8 @@ public:
     explicit Envmap(const std::string &texture_path, const mat4 &to_world_transform)
         : Texture(texture_path), to_world_transform(glm::inverse(to_world_transform)){};
 
-    __device__ __forceinline__ vec3 sample(Ray &ray) const {
+    __device__ __forceinline__ vec3
+    sample(Ray &ray) const {
         // FIXME: correct coordinates for environment mapping...
         /*Ray tray = Ray(ray);
         tray.dir = glm::normalize(tray.dir);

@@ -3,7 +3,8 @@
 
 #include <curand_kernel.h>
 
-__device__ inline f32 rng_curand(curandState *rand_state) {
+__device__ inline f32
+rng_curand(curandState *rand_state) {
     // curand_uniform returns (0, 1], but we need [0, 1)
     // Simply 1 - curand_uniform doesn't work !
     f32 uniform = curand_uniform(rand_state);

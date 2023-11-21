@@ -20,7 +20,7 @@ public:
     explicit LightSampler(const SharedVector<Light> &lights);
 
     /// Sample lights according to power
-    __device__ __forceinline__ cuda::std::optional<LightSample>
+    __device__ __forceinline__ COption<LightSample>
     sample(const SharedVector<Light> &lights, f32 sample) const {
         if (!has_lights) {
             return cuda::std::nullopt;
@@ -38,7 +38,8 @@ public:
     }
 
     /// The pdf of a light being sampled
-    __device__ __forceinline__ f32 light_sample_pdf(u32 light_id) {
+    __device__ __forceinline__ f32
+    light_sample_pdf(u32 light_id) {
         return pmf[light_id];
     }
 

@@ -41,7 +41,8 @@
 //==51801==  Uninitialised value was created by a stack allocation
 //==51801==    at 0x2614B16B: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
     auto optix_context = init_optix();
 
     // TODO: wrap this in some class... need to have a block so that OptixRenderer

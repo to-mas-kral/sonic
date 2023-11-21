@@ -3,7 +3,8 @@
 #include "optix_types.h"
 #include <spdlog/spdlog.h>
 
-auto read_file(std::string_view path) -> std::string {
+auto
+read_file(std::string_view path) -> std::string {
     constexpr auto read_size = std::size_t(4096);
     auto stream = std::ifstream(path.data(), std::ios::binary);
     stream.exceptions(std::ios_base::badbit);
@@ -21,11 +22,13 @@ auto read_file(std::string_view path) -> std::string {
     return out;
 }
 
-void context_log_cb(unsigned int level, const char *tag, const char *message, void *) {
+void
+context_log_cb(unsigned int level, const char *tag, const char *message, void *) {
     spdlog::warn("{} {} {}", (int)level, tag, message);
 }
 
-OptixDeviceContext init_optix() {
+OptixDeviceContext
+init_optix() {
     OptixDeviceContext context = nullptr;
 
     cudaFree(nullptr);
@@ -41,8 +44,8 @@ OptixDeviceContext init_optix() {
     return context;
 }
 
-OptixPipelineCompileOptions make_optix_pipeline_compile_options(int num_payload_values,
-                                                                const char *params_name) {
+OptixPipelineCompileOptions
+make_optix_pipeline_compile_options(int num_payload_values, const char *params_name) {
     // Pipeline options must be consistent for all modules used in a
     // single pipeline
     OptixPipelineCompileOptions pipeline_compile_options = {};
@@ -60,10 +63,11 @@ OptixPipelineCompileOptions make_optix_pipeline_compile_options(int num_payload_
     return pipeline_compile_options;
 }
 
-void make_optix_module(OptixDeviceContext context,
-                       const OptixPipelineCompileOptions *pipeline_compile_options,
-                       OptixModule *module, const char *filepath,
-                       OptixModuleCompileOptions *module_compile_options) {
+void
+make_optix_module(OptixDeviceContext context,
+                  const OptixPipelineCompileOptions *pipeline_compile_options,
+                  OptixModule *module, const char *filepath,
+                  OptixModuleCompileOptions *module_compile_options) {
 #ifndef NDEBUG
     module_compile_options->debugLevel = OPTIX_COMPILE_DEBUG_LEVEL_FULL;
     module_compile_options->optLevel = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;
@@ -76,12 +80,13 @@ void make_optix_module(OptixDeviceContext context,
                                       LOG, &LOG_SIZE, module));
 }
 
-void make_optix_program_groups(OptixDeviceContext context, OptixModule module,
-                               OptixModule sphere_is_module,
-                               const OptixProgramGroupOptions *pg_options,
-                               OptixProgramGroup *raygen_pg, OptixProgramGroup *miss_pg,
-                               OptixProgramGroup *hitgroup_pg,
-                               OptixProgramGroup *sphere_hitgroup_pg) {
+void
+make_optix_program_groups(OptixDeviceContext context, OptixModule module,
+                          OptixModule sphere_is_module,
+                          const OptixProgramGroupOptions *pg_options,
+                          OptixProgramGroup *raygen_pg, OptixProgramGroup *miss_pg,
+                          OptixProgramGroup *hitgroup_pg,
+                          OptixProgramGroup *sphere_hitgroup_pg) {
     OptixProgramGroupDesc raygen_prog_group_desc = {};
     raygen_prog_group_desc.kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     raygen_prog_group_desc.raygen.module = module;

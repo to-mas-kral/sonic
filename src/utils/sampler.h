@@ -1,7 +1,7 @@
 #ifndef PT_SAMPLER_H
 #define PT_SAMPLER_H
 
-#include "numtypes.h"
+#include "basic_types.h"
 #include "rng.h"
 
 class Sampler {
@@ -10,8 +10,14 @@ public:
 
     explicit Sampler(curandState rand_state) : rand_state(rand_state) {}
 
-    __device__ __forceinline__ f32 sample() { return rng_curand(&rand_state); }
-    __device__ __forceinline__ curandState *get_rand_state() { return &rand_state; }
+    __device__ __forceinline__ f32
+    sample() {
+        return rng_curand(&rand_state);
+    }
+    __device__ __forceinline__ curandState *
+    get_rand_state() {
+        return &rand_state;
+    }
 
 private:
     curandState rand_state;

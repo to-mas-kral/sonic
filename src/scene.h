@@ -10,20 +10,26 @@
 #include "texture.h"
 
 struct Scene {
-    __host__ void set_envmap(Envmap &&a_envmap) {
+    __host__ void
+    set_envmap(Envmap &&a_envmap) {
         envmap = std::move(a_envmap);
         has_envmap = true;
     };
 
-    __host__ void add_mesh(MeshParams mp);
-    __host__ void add_sphere(SphereParams sp);
+    __host__ void
+    add_mesh(MeshParams mp);
+    __host__ void
+    add_sphere(SphereParams sp);
 
-    __host__ u32 add_material(Material &&material);
-    __host__ u32 add_texture(Texture &&texture);
+    __host__ u32
+    add_material(Material &&material);
+    __host__ u32
+    add_texture(Texture &&texture);
 
-    __host__ void init_light_sampler();
-    
-    __device__ __forceinline__ cuda::std::optional<LightSample>
+    __host__ void
+    init_light_sampler();
+
+    __device__ __forceinline__ COption<LightSample>
     sample_lights(f32 sample) const {
         return light_sampler.sample(lights, sample);
     }

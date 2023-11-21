@@ -116,7 +116,8 @@ Texture::Texture(Texture &&other) noexcept {
     other.height = 0;
 }
 
-Texture &Texture::operator=(Texture &&other) noexcept {
+Texture &
+Texture::operator=(Texture &&other) noexcept {
     width = other.width;
     height = other.height;
     tex_obj = other.tex_obj;

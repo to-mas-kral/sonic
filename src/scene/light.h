@@ -2,7 +2,7 @@
 #define PT_LIGHT_H
 
 #include "../geometry/geometry.h"
-#include "../utils/numtypes.h"
+#include "../utils/basic_types.h"
 
 struct Light {
     ShapeIndex shape;

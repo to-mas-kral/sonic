@@ -7,11 +7,12 @@
 #include <tinyexr.h>
 
 #include "../framebuffer.h"
-#include "../utils/numtypes.h"
+#include "../utils/basic_types.h"
 
 namespace ImageWriter {
 
-void write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples) {
+void
+write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples) {
     auto width = fb.get_res_x();
     auto height = fb.get_res_y();
 

@@ -4,8 +4,8 @@
 #include <cstring>
 #include <cuda/std/cassert>
 
+#include "basic_types.h"
 #include "cuda_err.h"
-#include "numtypes.h"
 
 /// A "vector" data structure using Unified Memory.
 /// It is designed in a way that the amount of elements can only be modified in host code.
@@ -15,7 +15,9 @@
 // TODO: implement iterator for SharedVector ?
 template <class T> class SharedVector {
 public:
-    __host__ SharedVector() : m_len(0), cap(0), mem(nullptr) {}
+    __host__
+    SharedVector()
+        : m_len(0), cap(0), mem(nullptr) {}
 
     // Do I need synchronizations here ? I don't think so execept for destructor...
     // but could be problematic if multi-threading is used and kernels would be launched
@@ -41,7 +43,8 @@ public:
         }
     }
 
-    __host__ SharedVector(std::initializer_list<T> l) {
+    __host__
+    SharedVector(std::initializer_list<T> l) {
         assert(l.size() > 0);
 
         cap = l.size();
@@ -63,7 +66,8 @@ public:
 
     SharedVector(SharedVector const &) = delete;
 
-    SharedVector &operator=(SharedVector const &) = delete;
+    SharedVector &
+    operator=(SharedVector const &) = delete;
 
     SharedVector(SharedVector &&other) noexcept {
         cap = other.cap;
@@ -75,7 +79,8 @@ public:
         other.mem = nullptr;
     };
 
-    SharedVector &operator=(SharedVector &&other) noexcept {
+    SharedVector &
+    operator=(SharedVector &&other) noexcept {
         mem = other.mem;
         cap = other.cap;
         m_len = other.m_len;
@@ -87,7 +92,8 @@ public:
         return *this;
     };
 
-    void swap(SharedVector *other) {
+    void
+    swap(SharedVector *other) {
         auto other_mem = other->mem;
         auto other_cap = other->cap;
         auto other_m_len = other->m_len;
@@ -101,27 +107,37 @@ public:
         m_len = other_m_len;
     }
 
-    __host__ __device__ T &last() const {
+    __host__ __device__ T &
+    last() const {
         assert(m_len > 0);
         return mem[m_len - 1];
     }
 
-    __host__ __device__ T &get_unchecked(u64 idx) const { return mem[idx]; }
+    __host__ __device__ T &
+    get_unchecked(u64 idx) const {
+        return mem[idx];
+    }
 
-    __host__ void assume_all_init() { m_len = cap; }
+    __host__ void
+    assume_all_init() {
+        m_len = cap;
+    }
 
-    __host__ __device__ T &operator[](u64 idx) {
+    __host__ __device__ T &
+    operator[](u64 idx) {
         assert(idx < m_len);
         return mem[idx];
     }
 
-    __host__ __device__ const T &operator[](u64 idx) const {
+    __host__ __device__ const T &
+    operator[](u64 idx) const {
         assert(idx < m_len);
         return mem[idx];
     }
 
     // TODO: refactor this std::move nonsense...
-    __host__ void push(T &&elem) {
+    __host__ void
+    push(T &&elem) {
         if (cap == 0 || mem == nullptr) {
             // TODO: could select better default size based on T's size...
             cap = 8;
@@ -137,12 +153,19 @@ public:
         m_len++;
     }
 
-    __host__ __device__ u64 size() const { return m_len; }
+    __host__ __device__ u64
+    size() const {
+        return m_len;
+    }
 
-    __host__ __device__ T *get_ptr() const { return mem; }
+    __host__ __device__ T *
+    get_ptr() const {
+        return mem;
+    }
 
 private:
-    __host__ void resize() {
+    __host__ void
+    resize() {
         u64 new_cap = cap * 2;
 
         T *new_mem = nullptr;

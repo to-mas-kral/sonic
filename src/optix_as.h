@@ -6,11 +6,10 @@
 class OptixAS {
 public:
     // Have to use 1 build input per material
-    void add_sphere_inputs(const Spheres &spheres,
-                           std::vector<OptixBuildInput> &build_inputs,
-                           const u32 *input_flags,
-                           std::vector<CUdeviceptr> &spheres_d_centers,
-                           std::vector<CUdeviceptr> &spheres_d_radiuses) const {
+    void
+    add_sphere_inputs(const Spheres &spheres, std::vector<OptixBuildInput> &build_inputs,
+                      const u32 *input_flags, std::vector<CUdeviceptr> &spheres_d_centers,
+                      std::vector<CUdeviceptr> &spheres_d_radiuses) const {
         for (int i = 0; i < num_spheres; i++) {
             spheres_d_centers[i] = (CUdeviceptr)(spheres.centers.get_ptr() + i);
             spheres_d_radiuses[i] = (CUdeviceptr)(spheres.radiuses.get_ptr() + i);
@@ -31,11 +30,12 @@ public:
         }
     }
 
-    void add_mesh_inputs(const Scene *sc, const SharedVector<Mesh> &meshes,
-                         std::vector<OptixBuildInput> &build_inputs,
-                         std::vector<CUdeviceptr> &mesh_d_poses,
-                         std::vector<CUdeviceptr> &mesh_d_indices,
-                         const u32 *triangle_input_flags) const {
+    void
+    add_mesh_inputs(const Scene *sc, const SharedVector<Mesh> &meshes,
+                    std::vector<OptixBuildInput> &build_inputs,
+                    std::vector<CUdeviceptr> &mesh_d_poses,
+                    std::vector<CUdeviceptr> &mesh_d_indices,
+                    const u32 *triangle_input_flags) const {
         auto pos = &sc->geometry.meshes.pos;
         auto indices = &sc->geometry.meshes.indices;
 

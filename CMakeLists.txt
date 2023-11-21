@@ -23,7 +23,7 @@ add_executable(pt src/main.cu
         src/texture.h
         src/texture.cu
 
-        src/utils/numtypes.h
+        src/utils/basic_types.h
         src/utils/shared_vector.h
         src/io/image_writer.h
         src/utils/cuda_err.h

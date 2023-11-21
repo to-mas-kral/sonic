@@ -5,7 +5,7 @@
 
 #include "../optix_common.h"
 #include "../render_context.h"
-#include "../utils/numtypes.h"
+#include "../utils/basic_types.h"
 
 struct PtParams {
     Light *lights;

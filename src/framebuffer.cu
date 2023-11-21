@@ -1,7 +1,8 @@
 
 #include "framebuffer.h"
 
-__global__ void init_rand_state(u32 pixels, u32 image_x, Sampler *samplers) {
+__global__ void
+init_rand_state(u32 pixels, u32 image_x, Sampler *samplers) {
     // This is the same as pixel_index() which can't be used because Framebuffer object
     // is still being created.
     auto x = (blockIdx.x * blockDim.x) + threadIdx.x;

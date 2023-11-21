@@ -7,7 +7,7 @@
 
 #include "../emitter.h"
 #include "../math/sampling.h"
-#include "../utils/numtypes.h"
+#include "../utils/basic_types.h"
 #include "../utils/shared_vector.h"
 
 enum class ShapeType : u8 {
@@ -32,10 +32,11 @@ struct ShapeSample {
 // TODO: could apply SOA layout to this astruct as well...
 struct Mesh {
     Mesh(u32 indices_index, u32 pos_index, u32 material_id,
-         cuda::std::optional<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
-         cuda::std::optional<u32> p_normals_index, cuda::std::optional<u32> p_uvs_index);
+         COption<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
+         COption<u32> p_normals_index, COption<u32> p_uvs_index);
 
-    __host__ __device__ __forceinline__ u32 num_triangles() const {
+    __host__ __device__ __forceinline__ u32
+    num_triangles() const {
         return num_indices / 3;
     };
 
@@ -63,7 +64,7 @@ struct MeshParams {
     SharedVector<vec3> *normals = nullptr; // may be null
     SharedVector<vec2> *uvs = nullptr;     // may be null
     u32 material_id;
-    cuda::std::optional<Emitter> emitter = cuda::std::nullopt;
+    COption<Emitter> emitter = {};
 };
 
 // OptiX requires SOA layout
@@ -75,8 +76,8 @@ struct Meshes {
     SharedVector<vec3> normals = SharedVector<vec3>();
     SharedVector<vec2> uvs = SharedVector<vec2>();
 
-    __host__ __device__ __forceinline__ uvec3 get_tri_indices(u32 mesh_indices_index,
-                                                              u32 triangle) const {
+    __host__ __device__ __forceinline__ uvec3
+    get_tri_indices(u32 mesh_indices_index, u32 triangle) const {
         u32 index = triangle * 3;
         u32 i0 = indices[mesh_indices_index + index];
         u32 i1 = indices[mesh_indices_index + index + 1];
@@ -92,9 +93,8 @@ struct Meshes {
         return {p0, p1, p2};
     };
 
-    __host__ __device__ __forceinline__ f32 calc_tri_area(u32 mesh_indices_index,
-                                                          u32 mesh_pos_index,
-                                                          u32 triangle) const {
+    __host__ __device__ __forceinline__ f32
+    calc_tri_area(u32 mesh_indices_index, u32 mesh_pos_index, u32 triangle) const {
         uvec3 tri_indices = get_tri_indices(mesh_indices_index, triangle);
         const auto [p0, p1, p2] = get_tri_pos(mesh_pos_index, tri_indices);
         vec3 v1 = p1 - p0;
@@ -103,10 +103,9 @@ struct Meshes {
         return glm::length(cross) / 2.f;
     };
 
-    __device__ __forceinline__ static vec3 calc_normal(bool has_normals, u32 i0, u32 i1,
-                                                       u32 i2, const vec3 *normals,
-                                                       const vec3 &bar, const vec3 &p0,
-                                                       const vec3 &p1, const vec3 &p2) {
+    __device__ __forceinline__ static vec3
+    calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, const vec3 *normals,
+                const vec3 &bar, const vec3 &p0, const vec3 &p1, const vec3 &p2) {
         if (has_normals) {
             vec3 n0 = normals[i0];
             vec3 n1 = normals[i1];
@@ -125,8 +124,8 @@ struct Meshes {
         }
     }
 
-    __device__ __forceinline__ static vec2 calc_uvs(bool has_uvs, u32 i0, u32 i1, u32 i2,
-                                                    const vec2 *uvs, const vec3 &bar) {
+    __device__ __forceinline__ static vec2
+    calc_uvs(bool has_uvs, u32 i0, u32 i1, u32 i2, const vec2 *uvs, const vec3 &bar) {
         // Idk what's suppossed to happen here without explicit UVs..
         vec2 uv = vec2(0.);
         if (has_uvs) {
@@ -139,8 +138,8 @@ struct Meshes {
         return uv;
     }
 
-    __device__ __forceinline__ ShapeSample sample(ShapeIndex si,
-                                                  const vec3 &sample) const {
+    __device__ __forceinline__ ShapeSample
+    sample(ShapeIndex si, const vec3 &sample) const {
         auto &mesh = meshes[si.index];
 
         const vec3 bar = sample_uniform_triangle(vec2(sample.y, sample.z));
@@ -168,7 +167,7 @@ struct SphereParams {
     vec3 center;
     f32 radius;
     u32 material_id;
-    cuda::std::optional<Emitter> emitter = cuda::std::nullopt;
+    COption<Emitter> emitter = {};
 };
 
 // OptiX requires SOA layout
@@ -180,8 +179,8 @@ struct Spheres {
     SharedVector<u32> light_ids = SharedVector<u32>();
     u32 num_spheres = 0;
 
-    __device__ __forceinline__ ShapeSample sample(u32 index, const vec3 &illuminated_pos,
-                                                  const vec3 &sample) const {
+    __device__ __forceinline__ ShapeSample
+    sample(u32 index, const vec3 &illuminated_pos, const vec3 &sample) const {
         vec3 sample_dir = sample_uniform_sphere(sample);
         vec3 center = centers[index];
         f32 radius = radiuses[index];
@@ -196,21 +195,24 @@ struct Spheres {
         };
     }
 
-    __device__ __forceinline__ static f32 calc_sphere_area(f32 radius) {
+    __device__ __forceinline__ static f32
+    calc_sphere_area(f32 radius) {
         return 4.f * M_PIf * sqr(radius);
     }
 
-    __host__ __device__ f32 calc_sphere_area(u32 sphere_id) const {
+    __host__ __device__ f32
+    calc_sphere_area(u32 sphere_id) const {
         f32 radius = radiuses[sphere_id];
         return 4.f * M_PIf * sqr(radius);
     }
 
-    __device__ __forceinline__ static vec3 calc_normal(const vec3 &pos,
-                                                       const vec3 &center) {
+    __device__ __forceinline__ static vec3
+    calc_normal(const vec3 &pos, const vec3 &center) {
         return glm::normalize(pos - center);
     }
 
-    __device__ __forceinline__ static vec2 calc_uvs(const vec3 &normal) {
+    __device__ __forceinline__ static vec2
+    calc_uvs(const vec3 &normal) {
         // TODO: Sphere UV mapping could be wrong, test...
         // (1 / 2pi, 1 / pi)
         const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
@@ -225,11 +227,14 @@ struct Geometry {
     Meshes meshes{};
     Spheres spheres{};
 
-    __host__ void add_mesh(const MeshParams& mp, cuda::std::optional<u32> lights_start_id);
-    __host__ void add_sphere(SphereParams sp, cuda::std::optional<u32> light_id);
+    __host__ void
+    add_mesh(const MeshParams &mp, COption<u32> lights_start_id);
+    __host__ void
+    add_sphere(SphereParams sp, COption<u32> light_id);
 
     /// Based on the shape type, returns the  index of the *next* shape in that category.
-    __host__ u32 get_next_shape_index(ShapeType type) const {
+    __host__ u32
+    get_next_shape_index(ShapeType type) const {
         switch (type) {
         case ShapeType::Mesh:
             return meshes.meshes.size();
@@ -240,8 +245,8 @@ struct Geometry {
         }
     }
 
-    __device__ __forceinline__ ShapeSample sample_shape(ShapeIndex si, const vec3 &pos,
-                                                        const vec3 &sample) const {
+    __device__ __forceinline__ ShapeSample
+    sample_shape(ShapeIndex si, const vec3 &pos, const vec3 &sample) const {
         switch (si.type) {
         case ShapeType::Mesh:
             return meshes.sample(si, sample);
@@ -252,7 +257,8 @@ struct Geometry {
         }
     }
 
-    __host__ __device__ __forceinline__ f32 shape_area(ShapeIndex si) const {
+    __host__ __device__ __forceinline__ f32
+    shape_area(ShapeIndex si) const {
         switch (si.type) {
         case ShapeType::Mesh: {
             auto &mesh = meshes.meshes[si.index];

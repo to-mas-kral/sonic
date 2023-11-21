@@ -9,8 +9,8 @@
 #include <tinyexr.h>
 
 #include "geometry/ray.h"
+#include "utils/basic_types.h"
 #include "utils/cuda_err.h"
-#include "utils/numtypes.h"
 #include "utils/shared_vector.h"
 
 class Texture {
@@ -19,14 +19,16 @@ public:
 
     explicit Texture(const std::string &texture_path);
 
-    __device__ __forceinline__ vec3 sample(const vec2& uv) const {
+    __device__ __forceinline__ vec3
+    sample(const vec2 &uv) const {
         auto ret = tex2D<float4>(tex_obj, uv.x, 1.f - uv.y);
         return vec3(ret.x, ret.y, ret.z);
     };
 
     // Do I even need these ?
     Texture(Texture &&other) noexcept;
-    Texture &operator=(Texture &&other) noexcept;
+    Texture &
+    operator=(Texture &&other) noexcept;
 
     ~Texture();
 

@@ -7,15 +7,18 @@ public:
 
     explicit CudaBox(T *item) : CudaBox() { set(item); }
 
-    void set(T *item) {
+    void
+    set(T *item) {
         assert(ptr != 0);
         CUDA_CHECK(cudaMemcpy(reinterpret_cast<void *>(ptr), item, sizeof(T),
                               cudaMemcpyHostToDevice))
     }
 
-    ~CudaBox() { CUDA_CHECK(cudaFree(reinterpret_cast<void *>(ptr))) }
+    ~CudaBox(){CUDA_CHECK(cudaFree(reinterpret_cast<void *>(ptr)))}
 
-    CUdeviceptr get_ptr() const { return ptr; }
+    CUdeviceptr get_ptr() const {
+        return ptr;
+    }
 
 private:
     CUdeviceptr ptr{};

@@ -1,7 +1,9 @@
-#ifndef PT_NUMTYPES_H
-#define PT_NUMTYPES_H
+#ifndef PT_BASIC_TYPES_H
+#define PT_BASIC_TYPES_H
 
 #include <cuda/std/cstdint>
+#include <cuda/std/optional>
+#include <cuda/std/span>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
@@ -42,4 +44,16 @@ using bvec4 = glm::bvec4;
 using mat3 = glm::mat3;
 using mat4 = glm::mat4;
 
-#endif // PT_NUMTYPES_H
+template <class T> using COption = cuda::std::optional<T>;
+template <class T> using CSpan = cuda::std::span<T>;
+
+__device__ __forceinline__ vec3
+float3_to_vec(float3 f) {
+    return vec3(f.x, f.y, f.z);
+}
+__device__ __forceinline__ float3
+vec_to_float3(const vec3 &v) {
+    return make_float3(v.x, v.y, v.z);
+}
+
+#endif // PT_BASIC_TYPES_H

@@ -8,7 +8,8 @@
 
 #define CUDA_CHECK(ans)                                                                  \
     { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
+inline void
+gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) {
     if (code != cudaSuccess) {
         fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
         if (abort)
@@ -17,7 +18,8 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 }
 
 #define CUDA_CHECK_LAST_ERROR() checkLast(__FILE__, __LINE__)
-inline void checkLast(const char *const file, const int line) {
+inline void
+checkLast(const char *const file, const int line) {
     cudaError_t err{cudaGetLastError()};
     if (err != cudaSuccess) {
         std::cerr << "CUDA Runtime Error at: " << file << ":" << line << std::endl;
@@ -28,8 +30,8 @@ inline void checkLast(const char *const file, const int line) {
 
 #define OPTIX_CHECK(call) optixCheck(call, #call, __FILE__, __LINE__)
 
-inline void optixCheck(OptixResult res, const char *call, const char *file,
-                       unsigned int line) {
+inline void
+optixCheck(OptixResult res, const char *call, const char *file, unsigned int line) {
     if (res != OPTIX_SUCCESS) {
         std::cerr << "Optix call '" << call << "' failed: " << file << ':' << line
                   << ")\n";
@@ -41,13 +43,13 @@ inline void optixCheck(OptixResult res, const char *call, const char *file,
     do {                                                                                 \
         char LOG[2048];                                                                  \
         size_t LOG_SIZE = sizeof(LOG);                                                   \
-        optixCheckLog(call, LOG, sizeof(LOG), LOG_SIZE, #call, __FILE__,        \
-                               __LINE__);                                                \
+        optixCheckLog(call, LOG, sizeof(LOG), LOG_SIZE, #call, __FILE__, __LINE__);      \
     } while (false)
 
-inline void optixCheckLog(OptixResult res, const char *log, size_t sizeof_log,
-                          size_t sizeof_log_returned, const char *call, const char *file,
-                          unsigned int line) {
+inline void
+optixCheckLog(OptixResult res, const char *log, size_t sizeof_log,
+              size_t sizeof_log_returned, const char *call, const char *file,
+              unsigned int line) {
     if (res != OPTIX_SUCCESS) {
         std::cerr << "Optix call '" << call << "' failed: " << file << ':' << line
                   << ")\nLog:\n"

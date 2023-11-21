@@ -15,9 +15,13 @@ Window::Window(int resx, int resy) {
     }
 }
 
-vec3 reinhard(const vec3 &v) { return v / (1.0f + v); }
+vec3
+reinhard(const vec3 &v) {
+    return v / (1.0f + v);
+}
 
-void Window::update(Framebuffer &fb, int samples) {
+void
+Window::update(Framebuffer &fb, int samples) {
     // TODO: better tonemapping
     for (int pi = 0; pi < fb.num_pixels(); pi++) {
         vec3 rgb = fb.get_pixels()[pi];
@@ -40,4 +44,7 @@ void Window::update(Framebuffer &fb, int samples) {
     }
 }
 
-void Window::close() { mfb_close(window); }
+void
+Window::close() {
+    mfb_close(window);
+}

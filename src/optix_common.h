@@ -8,35 +8,39 @@
 
 #include <fmt/core.h>
 
+#include "utils/basic_types.h"
 #include "utils/cuda_err.h"
-#include "utils/numtypes.h"
 
-auto read_file(std::string_view path) -> std::string;
+auto
+read_file(std::string_view path) -> std::string;
 
 template <typename T> struct SbtRecord {
     __align__(OPTIX_SBT_RECORD_ALIGNMENT) char header[OPTIX_SBT_RECORD_HEADER_SIZE];
     T data;
 };
 
-static void context_log_cb(unsigned int level, const char *tag, const char *message,
-                           void *);
+static void
+context_log_cb(unsigned int level, const char *tag, const char *message, void *);
 
-OptixDeviceContext init_optix();
+OptixDeviceContext
+init_optix();
 
-OptixPipelineCompileOptions make_optix_pipeline_compile_options(int num_payload_values,
-                                                                const char *params_name);
+OptixPipelineCompileOptions
+make_optix_pipeline_compile_options(int num_payload_values, const char *params_name);
 
-void make_optix_module(OptixDeviceContext context,
-                       const OptixPipelineCompileOptions *pipeline_compile_options,
-                       OptixModule *module, const char *filepath,
-                       OptixModuleCompileOptions *module_compile_options);
+void
+make_optix_module(OptixDeviceContext context,
+                  const OptixPipelineCompileOptions *pipeline_compile_options,
+                  OptixModule *module, const char *filepath,
+                  OptixModuleCompileOptions *module_compile_options);
 
 template <size_t N>
-void link_optix_pipeline(OptixDeviceContext context,
-                         const OptixPipelineCompileOptions *pipeline_compile_options,
-                         u32 max_trace_depth,
-                         const std::array<OptixProgramGroup, N> &program_groups,
-                         OptixPipeline *pipeline) {
+void
+link_optix_pipeline(OptixDeviceContext context,
+                    const OptixPipelineCompileOptions *pipeline_compile_options,
+                    u32 max_trace_depth,
+                    const std::array<OptixProgramGroup, N> &program_groups,
+                    OptixPipeline *pipeline) {
     OptixPipelineLinkOptions pipeline_link_options = {};
     pipeline_link_options.maxTraceDepth = max_trace_depth;
     OPTIX_CHECK_LOG(optixPipelineCreate(context, pipeline_compile_options,
@@ -64,11 +68,12 @@ void link_optix_pipeline(OptixDeviceContext context,
         ));
 }
 
-void make_optix_program_groups(OptixDeviceContext context, OptixModule module,
-                               OptixModule sphere_is_module,
-                               const OptixProgramGroupOptions *pg_options,
-                               OptixProgramGroup *raygen_pg, OptixProgramGroup *miss_pg,
-                               OptixProgramGroup *hitgroup_pg,
-                               OptixProgramGroup *sphere_hitgroup_pg);
+void
+make_optix_program_groups(OptixDeviceContext context, OptixModule module,
+                          OptixModule sphere_is_module,
+                          const OptixProgramGroupOptions *pg_options,
+                          OptixProgramGroup *raygen_pg, OptixProgramGroup *miss_pg,
+                          OptixProgramGroup *hitgroup_pg,
+                          OptixProgramGroup *sphere_hitgroup_pg);
 
 #endif // PT_OPTIX_COMMON_H

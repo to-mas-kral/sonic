@@ -4,15 +4,17 @@
 #include <MiniFB_cpp.h>
 
 #include "../framebuffer.h"
-#include "../utils/numtypes.h"
+#include "../utils/basic_types.h"
 
 class Window {
 public:
     Window(int resx, int resy);
 
-    void close();
+    void
+    close();
 
-    void update(Framebuffer &fb, int samples);
+    void
+    update(Framebuffer &fb, int samples);
 
 private:
     std::vector<u32> framebuffer;

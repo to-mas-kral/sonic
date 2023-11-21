@@ -7,10 +7,12 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 #include <glm/gtx/euler_angles.hpp>
+#include <utility>
 
 using str = std::string_view;
 
-void SceneLoader::load_scene(Scene *sc) {
+void
+SceneLoader::load_scene(Scene *sc) {
     auto scene = doc.child("scene");
 
     load_materials(scene, sc);
@@ -30,7 +32,8 @@ void SceneLoader::load_scene(Scene *sc) {
     }
 }
 
-void SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
+void
+SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
     for (pugi::xml_node shape : scene.children("shape")) {
         str type = shape.attribute("type").as_string();
 
@@ -56,7 +59,7 @@ void SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
         }
 
         auto emitter_node = shape.child("emitter");
-        cuda::std::optional<Emitter> emitter = cuda::std::nullopt;
+        COption<Emitter> emitter = {};
         if (emitter_node) {
             emitter = load_emitter(emitter_node, sc);
         }
@@ -76,7 +79,8 @@ void SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
     }
 }
 
-void SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
+void
+SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
@@ -88,7 +92,8 @@ void SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
     }
 }
 
-Material SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
+Material
+SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
 
     if (type == "twosided") {
@@ -131,7 +136,8 @@ Material SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     return mat;
 }
 
-mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
+mat4
+SceneLoader::parse_transform(pugi::xml_node transform_node) {
     mat4 cur_transform = mat4(1.);
 
     for (auto child_node : transform_node.children()) {
@@ -189,7 +195,8 @@ mat4 SceneLoader::parse_transform(pugi::xml_node transform_node) {
     return cur_transform;
 }
 
-vec3 SceneLoader::parse_rgb(const std::string &str) {
+vec3
+SceneLoader::parse_rgb(const std::string &str) {
     auto floats = std::views::transform(std::views::split(str, ' '), [](auto v) {
         auto c = v | std::views::common;
         return std::stof(std::string(c.begin(), c.end()));
@@ -211,7 +218,8 @@ vec3 SceneLoader::parse_rgb(const std::string &str) {
     return rgb;
 }
 
-Emitter SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
+Emitter
+SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
     str type = emitter_node.attribute("type").as_string();
     if (type != "area") {
         spdlog::error("Unknown emitter type");
@@ -228,8 +236,9 @@ Emitter SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
     return Emitter(emittance);
 }
 
-void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                                 cuda::std::optional<Emitter> emitter, Scene *sc) {
+void
+SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
+                            COption<Emitter> emitter, Scene *sc) {
     // clang-format off
     SharedVector<vec3> pos = {vec3(-1.,  -1., 0.),
                                vec3( 1.,  -1., 0.),
@@ -255,14 +264,15 @@ void SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &t
         .indices = &indices,
         .pos = &pos,
         .material_id = mat_id,
-        .emitter = emitter,
+        .emitter = std::move(emitter),
     };
 
     sc->add_mesh(mp);
 }
 
-void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                            cuda::std::optional<Emitter> emitter, Scene *sc) {
+void
+SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
+                       COption<Emitter> emitter, Scene *sc) {
     // clang-format off
     SharedVector<vec3> pos = {
                               vec3(-1.,  -1.,  1.),
@@ -305,8 +315,9 @@ void SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transf
     sc->add_mesh(mp);
 }
 
-void SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
-                              cuda::std::optional<Emitter> emitter, Scene *sc) {
+void
+SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
+                         COption<Emitter> emitter, Scene *sc) {
     auto radius_node = node.find_child([](pugi::xml_node node) {
         return node.find_attribute([](pugi::xml_attribute attr) {
             return str(attr.name()) == "name" && str(attr.as_string()) == "radius";
@@ -330,8 +341,9 @@ void SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
     sc->add_sphere(sphere);
 }
 
-void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                           cuda::std::optional<Emitter> emitter, Scene *sc) {
+void
+SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
+                      COption<Emitter> emitter, Scene *sc) {
     std::string filename = shape_node.child("string").attribute("value").as_string();
     auto file_path = scene_base_path + "/" + filename;
 
@@ -437,7 +449,8 @@ void SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &tr
     sc->add_mesh(mp);
 }
 
-std::optional<SceneAttribs> SceneLoader::load_scene_attribs() {
+std::optional<SceneAttribs>
+SceneLoader::load_scene_attribs() {
     SceneAttribs attribs;
     auto scene = doc.child("scene");
 
