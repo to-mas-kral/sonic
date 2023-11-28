@@ -29,6 +29,7 @@ All shown scenes were taken from [Benedikt Bitterli's Rendering Resources](https
   - Overall a nice API to work with.
   - Can utilize hardware ray-tracing (although I don't have an Nvidia GPU with RTX to try it out...).
 - Support for multiple shapes: triangles and spheres.
+- Currently only perfectly diffuse BRDFs and perfectly specular BRDFs are supported.
 - Support for bitmap textures using CUDA's texture machinery.
 - Environment map lighting.
   - Tried to apply MIS to environment lighting as well, but would need some help to get it to work properly.
