@@ -6,7 +6,7 @@
 
 OptixRenderer::OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *optixAS)
     : optixAS(optixAS) {
-    auto pipeline_compile_options = make_optix_pipeline_compile_options(13, "params");
+    auto pipeline_compile_options = make_optix_pipeline_compile_options(5, "params");
 
     OptixModuleCompileOptions module_compile_options = {};
     make_optix_module(context, &pipeline_compile_options, &module, "optix_pt.ptx",
@@ -65,14 +65,6 @@ OptixRenderer::OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *opt
             OPTIX_CHECK(optixSbtRecordPackHeader(hitgroup_pg, &hg_rec));
 
             hg_rec.data.mesh.mesh_id = i;
-            // TODO: these should be Mesh methods...
-            hg_rec.data.mesh.pos = base_pos + mesh.pos_index * sizeof(vec3);
-            hg_rec.data.mesh.indices = base_indices + mesh.indices_index * sizeof(u32);
-
-            auto normals_index = mesh.normals_index;
-            hg_rec.data.mesh.normals = base_normals + normals_index * sizeof(vec3);
-            auto uvs_index = mesh.uvs_index;
-            hg_rec.data.mesh.uvs = base_uvs + uvs_index * sizeof(vec2);
 
             hitgroup_records.emplace_back(hg_rec);
         }
@@ -80,10 +72,6 @@ OptixRenderer::OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *opt
         for (int i = 0; i < optixAS->num_spheres; i++) {
             PtHitGroupSbtRecord hg_rec{};
             OPTIX_CHECK(optixSbtRecordPackHeader(sphere_hitgroup_pg, &hg_rec));
-
-            hg_rec.data.sphere.material_id = spheres.material_ids[i];
-            hg_rec.data.sphere.light_id = spheres.light_ids[i];
-            hg_rec.data.sphere.has_light = spheres.has_light[i];
 
             hitgroup_records.emplace_back(hg_rec);
         }

@@ -24,52 +24,36 @@ set_payload_miss() {
 }
 
 static __forceinline__ __device__ void
-set_payload_hit_triangle(u32 prim_index, u32 mesh_id, float2 barycentrics,
-                         CUdeviceptr pos, CUdeviceptr indices, CUdeviceptr normals,
-                         CUdeviceptr uvs) {
-    // TODO: could pack hit/miss into the prim_index...
+set_payload_hit_triangle(u32 prim_index, u32 mesh_id, float2 barycentrics) {
+    // TODO: could pack hit type into the sign bits of the barycentrics
     optixSetPayload_0(HIT_TRIANGLE);
     optixSetPayload_1(prim_index);
     optixSetPayload_2(mesh_id);
 
     optixSetPayload_3(__float_as_uint(barycentrics.x));
     optixSetPayload_4(__float_as_uint(barycentrics.y));
-
-    optixSetPayload_5(static_cast<u32>(pos));
-    optixSetPayload_6((static_cast<u64>(pos) & 0xFFFF'FFFF'0000'0000U) >> 32U);
-    optixSetPayload_7(static_cast<u32>(indices));
-    optixSetPayload_8((static_cast<u64>(indices) & 0xFFFF'FFFF'0000'0000U) >> 32U);
-    optixSetPayload_9(static_cast<u32>(normals));
-    optixSetPayload_10((static_cast<u64>(normals) & 0xFFFF'FFFF'0000'0000U) >> 32U);
-    optixSetPayload_11(static_cast<u32>(uvs));
-    optixSetPayload_12((static_cast<u64>(uvs) & 0xFFFF'FFFF'0000'0000U) >> 32U);
 }
 
 static __forceinline__ __device__ void
-set_payload_hit_sphere(u32 prim_index, u32 material_id, u32 light_id, bool has_light,
-                       f32 t) {
+set_payload_hit_sphere(u32 prim_index, f32 t) {
     optixSetPayload_0(HIT_SPHERE);
     optixSetPayload_1(prim_index);
-    optixSetPayload_2(material_id);
-    optixSetPayload_3(light_id);
-    optixSetPayload_4(has_light);
-    optixSetPayload_5(__float_as_uint(t));
+    optixSetPayload_2(__float_as_uint(t));
 }
 
 static __forceinline__ __device__ Intersection
-get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id, CUdeviceptr d_pos,
-                 CUdeviceptr d_indices, CUdeviceptr d_normals, CUdeviceptr d_uvs) {
-
+get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id) {
     f32 bar_y_f = __uint_as_float(bar_y);
     f32 bar_z_f = __uint_as_float(bar_z);
     vec3 bar = vec3(1.f - bar_y_f - bar_z_f, bar_y_f, bar_z_f);
 
     auto mesh_o = &params.meshes[mesh_id];
 
-    vec3 *positions = (vec3 *)d_pos;
-    u32 *indices = (u32 *)d_indices;
-    vec3 *normals = (vec3 *)d_normals;
-    vec2 *uvs = (vec2 *)d_uvs;
+    auto geometry = &params.rc->scene.geometry;
+    vec3 *positions = &geometry->meshes.pos[mesh_o->pos_index];
+    u32 *indices = &geometry->meshes.indices[mesh_o->indices_index];
+    vec3 *normals = &geometry->meshes.normals[mesh_o->normals_index];
+    vec2 *uvs = &geometry->meshes.uvs[mesh_o->uvs_index];
 
     u32 i0 = indices[3 * triangle_index];
     u32 i1 = indices[3 * triangle_index + 1];
@@ -83,6 +67,8 @@ get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id, CUdevice
 
     vec3 normal =
         Meshes::calc_normal(mesh_o->has_normals, i0, i1, i2, normals, bar, p0, p1, p2);
+    vec3 geometric_normal = Meshes::calc_normal(mesh_o->has_normals, i0, i1, i2, normals,
+                                                bar, p0, p1, p2, true);
     vec2 uv = Meshes::calc_uvs(mesh_o->has_uvs, i0, i1, i2, uvs, bar);
 
     return Intersection{
@@ -90,22 +76,21 @@ get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id, CUdevice
         .light_id = mesh_o->lights_start_id + triangle_index,
         .has_light = mesh_o->has_light,
         .normal = normal,
+        .geometric_normal = geometric_normal,
         .pos = pos,
         .uv = uv,
     };
 }
 
-__device__ __forceinline__ CUdeviceptr
-unpack_ptr(u32 hi, u32 lo) {
-    return (static_cast<u64>(hi) << 32U) | static_cast<u64>(lo);
-}
-
 __device__ __forceinline__ Intersection
-get_sphere_its(u32 sphere_index, u32 material_id, u32 light_id, u32 has_light,
-               Spheres &spheres, const vec3 &pos) {
+get_sphere_its(u32 sphere_index, Spheres &spheres, const vec3 &pos) {
     vec3 center = spheres.centers[sphere_index];
+    u32 material_id = spheres.material_ids[sphere_index];
+    u32 light_id = spheres.light_ids[sphere_index];
+    bool has_light = spheres.has_light[sphere_index];
 
     vec3 normal = Spheres::calc_normal(pos, center);
+    vec3 geometric_normal = Spheres::calc_normal(pos, center, true);
     vec2 uv = Spheres::calc_uvs(normal);
 
     return Intersection{
@@ -113,48 +98,30 @@ get_sphere_its(u32 sphere_index, u32 material_id, u32 light_id, u32 has_light,
         .light_id = light_id,
         .has_light = bool(has_light),
         .normal = normal,
+        .geometric_normal = geometric_normal,
         .pos = pos,
         .uv = uv,
     };
 }
 
 __device__ __forceinline__ Intersection
-get_its(Scene *sc, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 p7, u32 p8, u32 p9,
-        u32 p10, u32 p11, u32 p12, u32 did_hit, Ray &ray) {
+get_its(Scene *sc, u32 p1, u32 p2, u32 p3, u32 p4, u32 did_hit, Ray &ray) {
     if (did_hit == HIT_TRIANGLE) {
         u32 prim_index = p1;
         u32 mesh_id = p2;
         u32 bar_y = p3;
         u32 bar_z = p4;
-        u32 pos_lo = p5;
-        u32 pos_hi = p6;
-        u32 indices_lo = p7;
-        u32 indices_hi = p8;
-        u32 normals_lo = p9;
-        u32 normals_hi = p10;
-        u32 uvs_lo = p11;
-        u32 uvs_hi = p12;
 
-        CUdeviceptr d_pos = unpack_ptr(pos_hi, pos_lo);
-        CUdeviceptr d_indices = unpack_ptr(indices_hi, indices_lo);
-        CUdeviceptr d_normals = unpack_ptr(normals_hi, normals_lo);
-        CUdeviceptr d_uvs = unpack_ptr(uvs_hi, uvs_lo);
-
-        return get_triangle_its(bar_y, bar_z, prim_index, mesh_id, d_pos, d_indices,
-                                d_normals, d_uvs);
+        return get_triangle_its(bar_y, bar_z, prim_index, mesh_id);
     } else {
         // Sphere
         u32 sphere_index = p1;
-        u32 material_id = p2;
-        u32 light_id = p3;
-        u32 has_light = p4;
-        f32 t = __uint_as_float(p5);
+        f32 t = __uint_as_float(p2);
 
         Spheres &spheres = sc->geometry.spheres;
         vec3 pos = ray.o + ray.dir * t;
 
-        return get_sphere_its(sphere_index, material_id, light_id, has_light, spheres,
-                              pos);
+        return get_sphere_its(sphere_index, spheres, pos);
     }
 }
 
@@ -180,8 +147,8 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
         u32 did_hit = 1;
         // TODO: didn't get much of a speedup, investigate
         // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
-        optixTrace(params.gas_handle, vec_to_float3(bxdf_ray.o), vec_to_float3(lrd),
-                   0.0001f, pl_mag - 0.001f, 0.0f, OptixVisibilityMask(255),
+        optixTrace(params.gas_handle, vec_to_float3(bxdf_ray.o), vec_to_float3(lrd), 0.f,
+                   pl_mag - 0.001f, 0.0f, OptixVisibilityMask(255),
                    OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT |
                        OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
                    0, 1, 0, did_hit);
@@ -192,7 +159,7 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
             // https://www.pbr-book.org/4ed/Radiometry,_Spectra,_and_Color/Working_with_Radiometric_Integrals#IntegralsoverArea
             f32 pdf_light = shape_sample.pdf * light_sample.pdf * (pl_mag_sq / cos_light);
 
-            vec3 bxdf_light = material->eval(params.textures, its.uv);
+            vec3 bxdf_light = material->eval(sgeom_light, params.textures, its.uv);
             f32 weight_light = mis_power_heuristic(pdf_light, material->pdf(sgeom_light));
 
             vec3 light_emission = light_sample.light.emitter.emission();
@@ -201,6 +168,30 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
                          light_emission * weight_light * throughput;
         }
     }
+}
+
+__device__ __forceinline__ vec3
+bxdf_mis(Scene *sc, const vec3 &throughput, const vec3 &last_hit_pos, f32 last_pdf_bxdf,
+         const Intersection &its, const vec3 &emission) {
+    vec3 pl_norm = glm::normalize(its.pos - last_hit_pos);
+    f32 pl_mag_sq = glm::length2(its.pos - last_hit_pos);
+    f32 cos_light = glm::dot(its.normal, -pl_norm);
+
+    // last_pdf_bxdf is the probability of this light having been sampled
+    // from the probability distribution of the BXDF of the *preceding*
+    // hit.
+
+    // TODO: currently calculating the shape PDF by assuming pdf = 1. / area
+    // ,will have to change with non-uniform sampling !
+    f32 light_area = sc->geometry.shape_area(sc->lights[its.light_id].shape);
+
+    // pdf_light is the probability of this light being sampled from the
+    // probability distribution of the lights.
+    f32 pdf_light = sc->light_sampler.light_sample_pdf(its.light_id) * pl_mag_sq /
+                    (light_area * cos_light);
+
+    f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_light);
+    return throughput * bxdf_weight * emission;
 }
 
 extern "C" __global__ void
@@ -218,25 +209,24 @@ __raygen__rg() {
 
     auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc);
 
+    vec3 radiance = vec3(0.f);
     u32 depth = 1;
     vec3 throughput = vec3(1.f);
-    vec3 radiance = vec3(0.f);
-
+    bool last_hit_specular = false;
     vec3 last_hit_pos = vec3(0.f);
     f32 last_pdf_bxdf = 0.f;
 
     while (true) {
-        u32 p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12;
-        optixTrace(params.gas_handle, vec_to_float3(ray.o), vec_to_float3(ray.dir), 0.0f,
+        u32 p0, p1, p2, p3, p4;
+        optixTrace(params.gas_handle, vec_to_float3(ray.o), vec_to_float3(ray.dir), 0.f,
                    1e16f, 0.0f, OptixVisibilityMask(255), OPTIX_RAY_FLAG_DISABLE_ANYHIT,
-                   0, 1, 0, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12);
+                   0, 1, 0, p0, p1, p2, p3, p4);
 
         u32 did_hit = p0;
         if (did_hit) {
             auto bsdf_sample = vec2(sampler->sample(), sampler->sample());
             auto rr_sample = sampler->sample();
-            Intersection its = get_its(sc, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11,
-                                       p12, did_hit, ray);
+            Intersection its = get_its(sc, p1, p2, p3, p4, did_hit, ray);
 
             auto material = &params.materials[its.material_id];
             bool is_frontfacing = glm::dot(-ray.dir, its.normal) > 0.f;
@@ -244,35 +234,19 @@ __raygen__rg() {
             if (its.has_light && is_frontfacing) {
                 vec3 emission = params.lights[its.light_id].emitter.emission();
 
-                if (depth == 1) {
-                    // Primary ray hit, can apply MIS...
+                if (depth == 1 || last_hit_specular) {
+                    // Primary ray hit, can't apply MIS...
                     radiance += throughput * emission;
                 } else {
-                    vec3 pl_norm = glm::normalize(its.pos - last_hit_pos);
-                    f32 pl_mag_sq = glm::length2(its.pos - last_hit_pos);
-                    f32 cos_light = glm::dot(its.normal, -pl_norm);
-
-                    // last_pdf_bxdf is the probability of this light having been sampled
-                    // from the probability distribution of the BXDF of the *preceding*
-                    // hit.
-
-                    // TODO: currently calculating the shape PDF by assuming pdf = 1. /
-                    // area will have to change with non-uniform sampling !
-                    f32 light_area =
-                        sc->geometry.shape_area(sc->lights[its.light_id].shape);
-
-                    // pdf_light is the probability of this light being sampled from the
-                    // probability distribution of the lights.
-                    f32 pdf_light = sc->light_sampler.light_sample_pdf(its.light_id) *
-                                    pl_mag_sq / (light_area * cos_light);
-
-                    f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_light);
-                    radiance += throughput * bxdf_weight * emission;
+                    radiance += bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its,
+                                         emission);
                 }
             }
 
+            // FIXME: I'll have to handle two-sided materials...
             if (!is_frontfacing) {
                 its.normal = -its.normal;
+                its.geometric_normal = -its.geometric_normal;
             }
 
             vec3 sample_dir = material->sample(its.normal, -ray.dir, bsdf_sample);
@@ -280,20 +254,55 @@ __raygen__rg() {
 
             Ray bxdf_ray = spawn_ray(its, sample_dir);
 
-            f32 pdf = material->pdf(sgeom_bxdf);
-            vec3 bxdf = material->eval(params.textures, its.uv);
+            f32 pdf = material->pdf(sgeom_bxdf, true);
+            vec3 bxdf = material->eval(sgeom_bxdf, params.textures, its.uv);
+            last_hit_specular = material->is_specular();
 
-            f32 light_sample = sampler->sample();
-            auto sampled_light = sc->sample_lights(light_sample);
-            if (sampled_light.has_value()) {
-                // TODO: create a template for creating these vector samples...
-                vec3 shape_rng =
-                    vec3(sampler->sample(), sampler->sample(), sampler->sample());
-                auto shape_sample = sc->geometry.sample_shape(
-                    sampled_light.value().light.shape, its.pos, shape_rng);
+            /*
+             * Envmap
+             * */
 
-                light_mis(its, ray, bxdf_ray, sampled_light.value(), shape_sample,
-                          material, &radiance, throughput);
+            if (sc->has_envmap && !last_hit_specular) {
+                auto [envrad, envdir, envpdf] =
+                    sc->envmap.sample(vec2(sampler->sample(), sampler->sample()));
+
+                u32 did_hit_env_test = 1;
+                // TODO: didn't get much of a speedup, investigate
+                // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
+                optixTrace(params.gas_handle, vec_to_float3(bxdf_ray.o),
+                           vec_to_float3(envdir), 0.f, 1e16f, 0.0f,
+                           OptixVisibilityMask(255),
+                           OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT |
+                               OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
+                           0, 1, 0, did_hit_env_test);
+
+                if (!did_hit_env_test) {
+                    auto sgeom_env = get_shading_geom(its.normal, envdir, -ray.dir);
+
+                    f32 env_weight =
+                        mis_power_heuristic(envpdf, material->pdf(sgeom_env));
+
+                    radiance += throughput * env_weight * envrad;
+                }
+            }
+
+            /*
+             * End envmap
+             * */
+
+            if (!last_hit_specular) {
+                f32 light_sample = sampler->sample();
+                auto sampled_light = sc->sample_lights(light_sample);
+                if (sampled_light.has_value()) {
+                    // TODO: create a method for creating these vector samples...
+                    vec3 shape_rng =
+                        vec3(sampler->sample(), sampler->sample(), sampler->sample());
+                    auto shape_sample = sc->geometry.sample_shape(
+                        sampled_light.value().light.shape, its.pos, shape_rng);
+
+                    light_mis(its, ray, bxdf_ray, sampled_light.value(), shape_sample,
+                              material, &radiance, throughput);
+                }
             }
 
             auto rr = russian_roulette(depth, rr_sample, throughput);
@@ -302,7 +311,6 @@ __raygen__rg() {
             }
 
             auto roulette_compensation = rr.value();
-
             throughput *=
                 bxdf * sgeom_bxdf.cos_theta * (1.f / (pdf * roulette_compensation));
 
@@ -310,6 +318,10 @@ __raygen__rg() {
             last_hit_pos = its.pos;
             last_pdf_bxdf = pdf;
             depth++;
+            if (depth > 64) {
+                // FIXME: specular infinite path
+                break;
+            }
         } else {
             // TODO: move into miss program to reduce divergence ?
             // Ray has escaped the scene
@@ -317,8 +329,17 @@ __raygen__rg() {
                 break;
             } else {
                 const Envmap *envmap = &sc->envmap;
-                vec3 envrad = envmap->sample(ray);
-                radiance += throughput * envrad;
+                vec3 envrad = envmap->get_ray_radiance(ray);
+
+                if (depth == 1) {
+                    radiance += envrad;
+                } else {
+                    f32 env_pdf = envmap->pdf(ray.dir);
+                    f32 env_weight = mis_power_heuristic(last_pdf_bxdf, env_pdf);
+
+                    radiance += throughput * env_weight * envrad;
+                }
+
                 break;
             }
         }
@@ -350,9 +371,7 @@ __closesthit__ch() {
         const float2 barycentrics = optixGetTriangleBarycentrics();
         const u32 prim_index = optixGetPrimitiveIndex();
 
-        set_payload_hit_triangle(prim_index, hit_data->mesh.mesh_id, barycentrics,
-                                 hit_data->mesh.pos, hit_data->mesh.indices,
-                                 hit_data->mesh.normals, hit_data->mesh.uvs);
+        set_payload_hit_triangle(prim_index, hit_data->mesh.mesh_id, barycentrics);
     } else {
         // Spheres
         // TODO: maybe add sphere_id to hit_data... would be safer if multiple
@@ -360,7 +379,6 @@ __closesthit__ch() {
         const u32 sphere_index = optixGetSbtGASIndex();
         f32 t = optixGetRayTmax();
 
-        set_payload_hit_sphere(sphere_index, hit_data->sphere.material_id,
-                               hit_data->sphere.light_id, hit_data->sphere.has_light, t);
+        set_payload_hit_sphere(sphere_index, t);
     }
 }

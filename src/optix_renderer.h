@@ -11,14 +11,18 @@ public:
     OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *optixAS);
 
     void
-    launch(PtParams params, u32 width, u32 height) {
-        params.gas_handle = optixAS->tlas_handle;
-        launch_params.set(&params);
+    launch(u32 width, u32 height) {
         OPTIX_CHECK(optixLaunch(pipeline, nullptr, launch_params.get_ptr(),
                                 sizeof(PtParams), &sbt, width, height, 1));
 
         cudaDeviceSynchronize();
         CUDA_CHECK_LAST_ERROR();
+    }
+
+    void
+    update_params(PtParams params) {
+        params.gas_handle = optixAS->tlas_handle;
+        launch_params.set(&params);
     }
 
     ~OptixRenderer();

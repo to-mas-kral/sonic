@@ -9,7 +9,9 @@
 #include <tinyexr.h>
 
 #include "geometry/ray.h"
+#include "math/piecewise_dist.h"
 #include "utils/basic_types.h"
+#include "utils/cuda_box.h"
 #include "utils/cuda_err.h"
 #include "utils/shared_vector.h"
 
@@ -20,7 +22,7 @@ public:
     explicit Texture(const std::string &texture_path);
 
     __device__ __forceinline__ vec3
-    sample(const vec2 &uv) const {
+    fetch(const vec2 &uv) const {
         auto ret = tex2D<float4>(tex_obj, uv.x, 1.f - uv.y);
         return vec3(ret.x, ret.y, ret.z);
     };

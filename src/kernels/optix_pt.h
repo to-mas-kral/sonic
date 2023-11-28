@@ -26,16 +26,10 @@ struct PtHitGroupData {
     union {
         struct {
             u32 mesh_id;
-            CUdeviceptr pos;
-            CUdeviceptr indices;
-            CUdeviceptr normals;
-            CUdeviceptr uvs;
         } mesh{};
 
         struct {
-            u32 material_id;
-            u32 light_id;
-            bool has_light = false;
+            // TODO: add sphere id
         } sphere;
     };
 };

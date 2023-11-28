@@ -29,7 +29,6 @@ struct ShapeSample {
     f32 area;
 };
 
-// TODO: could apply SOA layout to this astruct as well...
 struct Mesh {
     Mesh(u32 indices_index, u32 pos_index, u32 material_id,
          COption<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
@@ -42,6 +41,9 @@ struct Mesh {
 
     // What's exctually loaded by OptiX PT
     // Don't use optional<T> due too much memory consumption
+    u32 pos_index;
+    u32 indices_index;
+
     bool has_normals = false;
     bool has_uvs = false;
     bool has_light = false;
@@ -49,10 +51,8 @@ struct Mesh {
     u32 material_id;
 
     // What's needed on the CPU...
+    u32 normals_index = 0xdeadbeef;
     u32 uvs_index = 0xdeadbeef;
-    u32 indices_index = 0xdeadbeef;
-    u32 pos_index;
-    u32 normals_index;
     u32 num_vertices;
     u32 num_indices;
 };
@@ -105,8 +105,9 @@ struct Meshes {
 
     __device__ __forceinline__ static vec3
     calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, const vec3 *normals,
-                const vec3 &bar, const vec3 &p0, const vec3 &p1, const vec3 &p2) {
-        if (has_normals) {
+                const vec3 &bar, const vec3 &p0, const vec3 &p1, const vec3 &p2,
+                bool want_geometric_normal = false) {
+        if (has_normals && !want_geometric_normal) {
             vec3 n0 = normals[i0];
             vec3 n1 = normals[i1];
             vec3 n2 = normals[i2];
@@ -186,28 +187,30 @@ struct Spheres {
         f32 radius = radiuses[index];
 
         vec3 pos = center + radius * sample_dir;
+        f32 area = calc_sphere_area(radius);
 
         return ShapeSample{
             .pos = pos,
             .normal = calc_normal(pos, center),
-            .pdf = UNIFORM_SPHERE_SAMPLE_PDF,
-            .area = calc_sphere_area(radius),
+            .pdf = 1.f / area,
+            .area = area,
         };
     }
 
-    __device__ __forceinline__ static f32
+    __host__ __device__ __forceinline__ static f32
     calc_sphere_area(f32 radius) {
         return 4.f * M_PIf * sqr(radius);
     }
 
-    __host__ __device__ f32
+    __host__ __device__ __forceinline__ f32
     calc_sphere_area(u32 sphere_id) const {
         f32 radius = radiuses[sphere_id];
-        return 4.f * M_PIf * sqr(radius);
+        return calc_sphere_area(radius);
     }
 
     __device__ __forceinline__ static vec3
-    calc_normal(const vec3 &pos, const vec3 &center) {
+    calc_normal(const vec3 &pos, const vec3 &center, bool want_geometric_normal = false) {
+        // TODO: geometric normals calculation when using normal mapping
         return glm::normalize(pos - center);
     }
 

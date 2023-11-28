@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 #include <pugixml.hpp>
@@ -73,7 +74,7 @@ private:
     std::string scene_base_path;
     pugi::xml_document doc;
     std::unordered_map<std::string, u32> materials;
-    Material
+    std::tuple<Material, std::string>
     load_material(Scene *sc, pugi::xml_node &bsdf);
 };
 

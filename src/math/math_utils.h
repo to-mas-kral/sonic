@@ -29,7 +29,7 @@ to_rad(T v) {
 }
 
 template <typename T, class... Args>
-T
+T __host__ __device__
 avg(Args... args) {
     constexpr int num_args = sizeof...(args);
     static_assert(num_args > 0);

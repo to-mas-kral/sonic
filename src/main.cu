@@ -137,13 +137,13 @@ main(int argc, char **argv) {
         params.materials = rc->scene.materials.get_ptr();
         params.lights = rc->scene.lights.get_ptr();
         params.textures = rc->scene.textures.get_ptr();
+        optix_renderer.update_params(params);
 
         ProgressBar pb;
-
         const auto start{std::chrono::steady_clock::now()};
 
         for (u32 s = 1; s <= num_samples; s++) {
-            optix_renderer.launch(params, attribs.resx, attribs.resy);
+            optix_renderer.launch(attribs.resx, attribs.resy);
 
             const auto end{std::chrono::steady_clock::now()};
             const std::chrono::duration<f64> elapsed{end - start};
@@ -156,6 +156,8 @@ main(int argc, char **argv) {
 
             pb.print(s, num_samples, elapsed);
         }
+
+        ImageWriter::write_framebuffer("ptout.exr", rc->fb, num_samples);
 
         // spdlog::info("Shot a total of {} rays", rc->ray_counter.fetch_add(0));
 

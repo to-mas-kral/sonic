@@ -49,8 +49,6 @@ sample_uniform_sphere(const vec2 &sample) {
     return glm::normalize(vec3(r * cos(phi), r * sin(phi), z));
 }
 
-constexpr f32 UNIFORM_SPHERE_SAMPLE_PDF = M_PIf / 4.f;
-
 /// Taken from PBRT - UniformSampleTriangle.
 /// Return barycentric coordinates that can be used to sample any triangle.
 __device__ __forceinline__ vec3
@@ -70,7 +68,7 @@ sample_uniform_triangle(const vec2 &sample) {
 /// Expects a normalized CMF.
 __device__ __forceinline__ u32
 sample_discrete_cmf(const cuda::std::span<f32> cmf, f32 sample) {
-    // TODO: optimization - binary search
+    // TODO: binary search
     for (u32 i = 0; i < cmf.size(); i++) {
         if (sample < cmf[i]) {
             return i;
@@ -78,6 +76,28 @@ sample_discrete_cmf(const cuda::std::span<f32> cmf, f32 sample) {
     }
 
     assert(false);
+}
+
+/// Samples a CMF, return a value in [0, 1), and an index into the CDF slice.
+__device__ __forceinline__ CTuple<f32, u32>
+sample_continuous_cmf(const cuda::std::span<f32> cdf, f32 sample) {
+    // TODO: binary search
+    u32 offset = 0;
+    for (u32 i = 0; i < cdf.size(); i++) {
+        if (sample < cdf[i]) {
+            offset = i;
+            break;
+        }
+    }
+
+    f32 du = sample - cdf[offset];
+    if ((cdf[offset + 1] - cdf[offset]) > 0) {
+        du /= (cdf[offset + 1] - cdf[offset]);
+    }
+
+    f32 res = (offset + du) / cdf.size();
+
+    return {res, offset};
 }
 
 #endif // PT_SAMPLING_H

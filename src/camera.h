@@ -12,11 +12,9 @@ public:
         viewport_height = 2.f;
         viewport_width = viewport_height * aspect;
 
-        // From PBRT docs about FOV:
-        // This is the spread angle of the viewing frustum along the narrower of the
-        // image's width and height.
-        f32 narrower = std::min(viewport_width, viewport_height);
-        f32 focal_length = -(narrower / 2.f) / tanf((fov * (M_PIf / 180.f)) / 2.f);
+        // TODO: take fov_axis from scene parameters
+        f32 axis = viewport_width;
+        f32 focal_length = -(axis / 2.f) / tanf((fov * (M_PIf / 180.f)) / 2.f);
 
         origin = vec3(0.f, 0.f, 0.f);
         vec3 horizontal = vec3(viewport_width, 0.f, 0.f);

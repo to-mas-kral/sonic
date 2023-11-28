@@ -44,8 +44,9 @@ using bvec4 = glm::bvec4;
 using mat3 = glm::mat3;
 using mat4 = glm::mat4;
 
-template <class T> using COption = cuda::std::optional<T>;
-template <class T> using CSpan = cuda::std::span<T>;
+template <typename T> using COption = cuda::std::optional<T>;
+template <typename T> using CSpan = cuda::std::span<T>;
+template <typename... T> using CTuple = cuda::std::tuple<T...>;
 
 __device__ __forceinline__ vec3
 float3_to_vec(float3 f) {

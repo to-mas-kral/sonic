@@ -3,6 +3,7 @@
 
 #include "../emitter.h"
 #include "../geometry/geometry.h"
+#include "../math/piecewise_dist.h"
 #include "../math/sampling.h"
 #include "../scene/light.h"
 
@@ -17,7 +18,7 @@ struct LightSample {
 class LightSampler {
 public:
     LightSampler() = default;
-    explicit LightSampler(const SharedVector<Light> &lights);
+    explicit LightSampler(const SharedVector<Light> &lights, const Geometry &geom);
 
     /// Sample lights according to power
     __device__ __forceinline__ COption<LightSample>
@@ -26,10 +27,8 @@ public:
             return cuda::std::nullopt;
         }
 
-        u32 light_index =
-            sample_discrete_cmf(cuda::std::span(cmf.get_ptr(), cmf.size()), sample);
-
-        f32 pdf = pmf[light_index];
+        u32 light_index = sampling_dist.sample(sample);
+        f32 pdf = sampling_dist.pdf(light_index);
 
         return LightSample{
             .pdf = pdf,
@@ -40,13 +39,12 @@ public:
     /// The pdf of a light being sampled
     __device__ __forceinline__ f32
     light_sample_pdf(u32 light_id) {
-        return pmf[light_id];
+        return sampling_dist.pdf(light_id);
     }
 
 private:
     bool has_lights = false;
-    SharedVector<f32> pmf{}; // probability of sampling each light source
-    SharedVector<f32> cmf{}; // cumulative function ^
+    PiecewiseDist1D sampling_dist;
 };
 
 #endif // PT_LIGHT_SAMPLER_H

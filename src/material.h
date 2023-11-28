@@ -7,38 +7,104 @@
 #include "utils/basic_types.h"
 #include "utils/rng.h"
 
-class Material {
-public:
-    explicit Material(const vec3 &reflectance) : reflectance(reflectance) {}
-    explicit Material(u32 reflectance_tex_id) : reflectance_tex_id(reflectance_tex_id) {}
+enum class MaterialType : u8 {
+    Diffuse = 0,
+    Conductor = 1,
+};
+
+struct Material {
+    static Material
+    make_diffuse(const vec3 &p_reflectance) {
+        return Material{
+            .type = MaterialType::Diffuse,
+            .diffuse = {
+                .reflectance = {p_reflectance.x, p_reflectance.y, p_reflectance.z},
+                .reflectance_tex_id = {},
+            }};
+    }
+
+    static Material
+    make_diffuse(u32 reflectance_tex_id) {
+        return Material{.type = MaterialType::Diffuse,
+                        .diffuse = {
+                            .reflectance = {0.f, 0.f, 0.f},
+                            .reflectance_tex_id = reflectance_tex_id,
+                        }};
+    }
+
+    static Material
+    make_conductor() {
+        return Material{
+            .type = MaterialType::Conductor,
+        };
+    }
 
     __device__ vec3
-    sample(const vec3 &normal, const vec3 &view_dir, const vec2 &sample) const {
-        vec3 sample_dir = sample_cosine_hemisphere(sample);
-        return orient_dir(sample_dir, normal);
+    sample(const vec3 &normal, const vec3 &wo, const vec2 &sample) const {
+        switch (type) {
+        case MaterialType::Diffuse: {
+            vec3 sample_dir = sample_cosine_hemisphere(sample);
+            return orient_dir(sample_dir, normal);
+        }
+        case MaterialType::Conductor: {
+            return glm::reflect(-wo, normal);
+        }
+        }
     }
 
     // Probability density function of sampling the BRDF
     __device__ f32
-    pdf(const ShadingGeometry &sgeom) const {
-        return sgeom.cos_theta / M_PIf;
+    pdf(const ShadingGeometry &sgeom, bool was_generated = false) const {
+        switch (type) {
+        case MaterialType::Diffuse: {
+            return sgeom.cos_theta / M_PIf;
+        }
+        case MaterialType::Conductor: {
+            if (was_generated) {
+                return 1.f;
+            } else {
+                return 0.f;
+            }
+        }
+        }
     }
 
     __device__ vec3
-    eval(Texture *textures, const vec2 &uv) const {
-        vec3 refl = reflectance;
-        if (reflectance_tex_id.has_value()) {
-            auto tex_id = reflectance_tex_id.value();
-            auto texture = &textures[tex_id];
-            refl = vec3(texture->sample(uv));
-        }
+    eval(const ShadingGeometry &sgeom, Texture *textures, const vec2 &uv) const {
+        switch (type) {
+        case MaterialType::Diffuse: {
+            vec3 refl = vec3(diffuse.reflectance[0], diffuse.reflectance[1],
+                             diffuse.reflectance[2]);
+            if (diffuse.reflectance_tex_id.has_value()) {
+                auto tex_id = diffuse.reflectance_tex_id.value();
+                auto texture = &textures[tex_id];
+                refl = vec3(texture->fetch(uv));
+            }
 
-        return refl / M_PIf;
+            return refl / M_PIf;
+        }
+        case MaterialType::Conductor:
+            return vec3(1.f) / abs(sgeom.cos_theta);
+        }
     }
 
-    // TODO: reduce size... apply SOA layout
-    vec3 reflectance = vec3(0.);
-    COption<u32> reflectance_tex_id = {};
+    __device__ bool
+    is_specular() const {
+        switch (type) {
+        case MaterialType::Diffuse:
+            return false;
+        case MaterialType::Conductor:
+            return true;
+        }
+    }
+
+    MaterialType type = MaterialType::Diffuse;
+    union {
+        struct {
+            f32 reflectance[3] = {0.5f, 0.5f, 0.5f};
+            COption<u32> reflectance_tex_id = {};
+        } diffuse;
+    };
 };
 
 #endif // PT_MATERIAL_H

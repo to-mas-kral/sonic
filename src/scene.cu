@@ -16,7 +16,7 @@ Scene::add_texture(Texture &&texture) {
 
 __host__ void
 Scene::init_light_sampler() {
-    light_sampler = LightSampler(lights);
+    light_sampler = LightSampler(lights, geometry);
 }
 
 __host__ void

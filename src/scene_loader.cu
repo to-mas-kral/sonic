@@ -45,7 +45,7 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
             std::string bsdf_id = ref_node.attribute("id").as_string();
             mat_id = materials.at(bsdf_id);
         } else if (bsdf_node) {
-            auto mat = load_material(sc, bsdf_node);
+            auto [mat, _] = load_material(sc, bsdf_node);
             mat_id = sc->add_material(std::move(mat));
         } else {
             spdlog::error("Shape has no material");
@@ -84,25 +84,30 @@ SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
-        std::string id = bsdf.attribute("id").as_string();
-        auto mat = load_material(sc, bsdf);
+        auto [mat, id] = load_material(sc, bsdf);
 
         u32 mat_id = sc->add_material(std::move(mat));
         materials.insert({id, mat_id});
     }
 }
 
-Material
+std::tuple<Material, std::string>
 SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
+    std::string id = bsdf.attribute("id").as_string();
 
-    if (type == "twosided") {
+    if (type == "twosided" || type == "bumpmap") {
         bsdf = bsdf.child("bsdf");
         type = bsdf.attribute("type").as_string();
+
+        // For bumpmaps, the id is in the nested bsdf... ??
+        if (id == "") {
+            id = bsdf.attribute("id").as_string();
+        }
     }
 
     // Default material - 50% reflectance
-    auto mat = Material(vec3(0.5, 0.5, 0.5));
+    Material mat = Material::make_diffuse(vec3(0.5, 0.5, 0.5));
 
     if (type == "diffuse") {
         auto reflectance_node = bsdf.find_child([](pugi::xml_node node) {
@@ -124,16 +129,18 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
             auto texture = Texture(this->scene_base_path + "/" + file_path);
 
             u32 tex_id = sc->add_texture(std::move(texture));
-            mat = Material(tex_id);
+            mat = Material::make_diffuse(tex_id);
         } else {
             vec3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
-            mat = Material(rgb);
+            mat = Material::make_diffuse(rgb);
         }
+    } else if (type == "conductor") {
+        mat = Material::make_conductor();
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
     }
 
-    return mat;
+    return {mat, id};
 }
 
 mat4
