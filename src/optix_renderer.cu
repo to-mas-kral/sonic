@@ -42,25 +42,11 @@ OptixRenderer::OptixRenderer(Scene *sc, OptixDeviceContext context, OptixAS *opt
         OPTIX_CHECK(optixSbtRecordPackHeader(miss_pg, &ms_sbt));
         miss_record.set(&ms_sbt);
 
-        auto pos = &sc->geometry.meshes.pos;
-        auto indices = &sc->geometry.meshes.indices;
-        auto normals = &sc->geometry.meshes.normals;
-        auto uvs = &sc->geometry.meshes.uvs;
-        const SharedVector<Mesh> &meshes = sc->geometry.meshes.meshes;
-
-        const Spheres &spheres = sc->geometry.spheres;
-
-        auto base_indices = (CUdeviceptr)indices->get_ptr();
-        auto base_pos = (CUdeviceptr)pos->get_ptr();
-        auto base_normals = (CUdeviceptr)normals->get_ptr();
-        auto base_uvs = (CUdeviceptr)uvs->get_ptr();
-
         std::vector<PtHitGroupSbtRecord> hitgroup_records{};
         hitgroup_records.reserve(2 * (optixAS->num_meshes + optixAS->num_spheres));
 
         for (int i = 0; i < optixAS->num_meshes; i++) {
             PtHitGroupSbtRecord hg_rec{};
-            auto &mesh = meshes[i];
 
             OPTIX_CHECK(optixSbtRecordPackHeader(hitgroup_pg, &hg_rec));
 

@@ -7,7 +7,6 @@ class Camera {
 public:
     Camera() = default;
 
-    __host__
     Camera(float fov, float aspect) {
         viewport_height = 2.f;
         viewport_width = viewport_height * aspect;

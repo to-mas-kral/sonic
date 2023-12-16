@@ -207,7 +207,8 @@ __raygen__rg() {
 
     auto cam_sample = vec2(sampler->sample(), sampler->sample());
 
-    auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc);
+    auto ray =
+        gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam, params.cam_to_world);
 
     vec3 radiance = vec3(0.f);
     u32 depth = 1;
@@ -229,7 +230,13 @@ __raygen__rg() {
             Intersection its = get_its(sc, p1, p2, p3, p4, did_hit, ray);
 
             auto material = &params.materials[its.material_id];
-            bool is_frontfacing = glm::dot(-ray.dir, its.normal) > 0.f;
+            bool is_frontfacing = glm::dot(-ray.dir, its.normal) >= 0.f;
+
+            // FIXME: I'll have to handle two-sided materials...
+            if (!is_frontfacing) {
+                its.normal = -its.normal;
+                its.geometric_normal = -its.geometric_normal;
+            }
 
             if (its.has_light && is_frontfacing) {
                 vec3 emission = params.lights[its.light_id].emitter.emission();
@@ -241,12 +248,6 @@ __raygen__rg() {
                     radiance += bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its,
                                          emission);
                 }
-            }
-
-            // FIXME: I'll have to handle two-sided materials...
-            if (!is_frontfacing) {
-                its.normal = -its.normal;
-                its.geometric_normal = -its.geometric_normal;
             }
 
             vec3 sample_dir = material->sample(its.normal, -ray.dir, bsdf_sample);
@@ -318,8 +319,8 @@ __raygen__rg() {
             last_hit_pos = its.pos;
             last_pdf_bxdf = pdf;
             depth++;
-            if (depth > 64) {
-                // FIXME: specular infinite path
+            if (depth == 64) {
+                // FIXME: specular infinite path caused by self-intersections
                 break;
             }
         } else {

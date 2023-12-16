@@ -99,6 +99,7 @@ struct Material {
     }
 
     MaterialType type = MaterialType::Diffuse;
+    bool is_twosided = false;
     union {
         struct {
             f32 reflectance[3] = {0.5f, 0.5f, 0.5f};

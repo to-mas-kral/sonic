@@ -95,10 +95,12 @@ std::tuple<Material, std::string>
 SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
     std::string id = bsdf.attribute("id").as_string();
+    bool is_twosided = false;
 
     if (type == "twosided" || type == "bumpmap") {
         bsdf = bsdf.child("bsdf");
         type = bsdf.attribute("type").as_string();
+        is_twosided = true;
 
         // For bumpmaps, the id is in the nested bsdf... ??
         if (id == "") {
@@ -139,6 +141,8 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
     }
+
+    mat.is_twosided = is_twosided;
 
     return {mat, id};
 }
@@ -371,6 +375,16 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         spdlog::warn("Warning when reading obj file");
     }
 
+    bool face_normals = false;
+    auto face_normals_node = shape_node.find_child([](pugi::xml_node node) {
+        return node.find_attribute([](pugi::xml_attribute attr) {
+            return str(attr.name()) == "name" && str(attr.value()) == "face_normals";
+        });
+    });
+    if (face_normals_node) {
+        face_normals = face_normals_node.attribute("value").as_bool();
+    }
+
     auto &attrib = reader.GetAttrib();
     auto &shapes = reader.GetShapes();
 
@@ -421,12 +435,14 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         vec3 vert_pos = vec3(x, y, z);
         pos.push(std::move(vert_pos));
 
-        tinyobj::real_t nx = attrib.normals[3 * v];
-        tinyobj::real_t ny = attrib.normals[3 * v + 1];
-        tinyobj::real_t nz = attrib.normals[3 * v + 2];
+        if (!face_normals) {
+            tinyobj::real_t nx = attrib.normals[3 * v];
+            tinyobj::real_t ny = attrib.normals[3 * v + 1];
+            tinyobj::real_t nz = attrib.normals[3 * v + 2];
 
-        vec3 vert_normal = vec3(nx, ny, nz);
-        normals.push(std::move(vert_normal));
+            vec3 vert_normal = vec3(nx, ny, nz);
+            normals.push(std::move(vert_normal));
+        }
 
         tinyobj::real_t tx = attrib.texcoords[2 * v];
         tinyobj::real_t ty = attrib.texcoords[2 * v + 1];
@@ -447,7 +463,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     MeshParams mp = {
         .indices = &indices,
         .pos = &pos,
-        .normals = &normals,
+        .normals = (face_normals) ? nullptr : &normals,
         .uvs = &uvs,
         .material_id = mat_id,
         .emitter = emitter,

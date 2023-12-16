@@ -15,6 +15,7 @@ struct PtParams {
     Framebuffer *fb;
     RenderContext *rc;
     OptixTraversableHandle gas_handle;
+    mat4 cam_to_world;
 };
 
 struct PtRayGenData {};

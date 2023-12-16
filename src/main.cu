@@ -22,7 +22,7 @@
 #include "utils/shared_vector.h"
 
 // FIXME: there is a memory error in OptiX sphere acceleration creation, but seems to be
-// an issue in Nvidia's code. Try when new CUDA version is released...
+// an issue in Nvidia's code. Try when new OptiX version is released...
 //==51801== Conditional jump or move depends on uninitialised value(s)
 //==51801==    at 0x261576F9: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
 //==51801==    by 0x2613C96D: ??? (in /usr/lib/libnvidia-rtcore.so.545.29.02)
@@ -52,14 +52,14 @@ main(int argc, char **argv) {
          * Parse comdline arguments
          * */
 
-        u32 num_samples = 32;
+        u32 spp = 32;
         bool silent = false;
         std::string scene_path{};
 
         CLI::App app{"A CUDA path-tracer project for PGRF3 by Tomáš Král, 2023."};
         // argv = app.ensure_utf8(argv);
 
-        app.add_option("--samples", num_samples, "Number of samples.");
+        app.add_option("--samples", spp, "Samples per pixel (SPP).");
         app.add_option("-s,--scene", scene_path, "Path to the scene file.");
         app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
 
@@ -128,7 +128,7 @@ main(int argc, char **argv) {
          * */
 
         spdlog::info("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
-                     num_samples);
+                     spp);
 
         PtParams params{};
         params.rc = rc;
@@ -137,12 +137,13 @@ main(int argc, char **argv) {
         params.materials = rc->scene.materials.get_ptr();
         params.lights = rc->scene.lights.get_ptr();
         params.textures = rc->scene.textures.get_ptr();
+        params.cam_to_world = rc->attribs.camera_to_world;
         optix_renderer.update_params(params);
 
         ProgressBar pb;
         const auto start{std::chrono::steady_clock::now()};
 
-        for (u32 s = 1; s <= num_samples; s++) {
+        for (u32 s = 1; s <= spp; s++) {
             optix_renderer.launch(attribs.resx, attribs.resy);
 
             const auto end{std::chrono::steady_clock::now()};
@@ -151,15 +152,13 @@ main(int argc, char **argv) {
             // Update the framebuffer when the number of samples doubles...
             if (std::popcount(s) == 1) {
                 window.update(rc->fb, s);
-                ImageWriter::write_framebuffer("ptout.exr", rc->fb, s);
+                ImageWriter::write_framebuffer("out.exr", rc->fb, s);
             }
 
-            pb.print(s, num_samples, elapsed);
+            pb.print(s, spp, elapsed);
         }
 
-        ImageWriter::write_framebuffer("ptout.exr", rc->fb, num_samples);
-
-        // spdlog::info("Shot a total of {} rays", rc->ray_counter.fetch_add(0));
+        ImageWriter::write_framebuffer("out.exr", rc->fb, spp);
 
         /*
          * Clean up and exit

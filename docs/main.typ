@@ -122,6 +122,8 @@ Lepším způsobem by bylo paralelizovat výpočet jednotlivých vzorků jednoho
 
 Řešením problému paralelizace je tzv. _Wavefront_ algoritmus #cite("10.1145/2492045.2492060"), který vychází z tzv. _streaming path-tracing_ postupu #cite("van_antwerpen_unbiased_2011").
 
+= Hardwarový ray-tracing a knihovna OptiX
+
 = Implementace
 == Konfigurace systému a požadavky
 Implementace byla provedena na platformě CUDA 12.2. Byl použit standard C++20 na kompilátoru GCC 13.2.1. Program byl testován na grafické kartě Nvidia GeForce MX 550M na OS Linux s verzí kernelu 6.5.4.

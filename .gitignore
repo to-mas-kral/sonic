@@ -6,3 +6,9 @@
 *.fatbin
 /resources/
 /build/
+*.exr
+*.jpg
+*.pdf
+*.typ
+*.ncu-rep
+.txt

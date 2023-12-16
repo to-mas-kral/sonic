@@ -70,7 +70,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     const char *err;
     int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
     if (ret != TINYEXR_SUCCESS) {
-        spdlog::error("Error when saving output image file: %s\n", err);
+        spdlog::error("Error when saving output image file: {}\n", err);
     }
 
     free(header.channels);

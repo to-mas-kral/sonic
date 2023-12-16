@@ -148,9 +148,9 @@ struct Meshes {
         const auto tri_pos = get_tri_pos(mesh.pos_index, tri_indices);
         vec3 sampled_pos = barycentric_interp(bar, tri_pos[0], tri_pos[1], tri_pos[2]);
 
-        vec3 normal =
-            calc_normal(mesh.has_normals, tri_indices.x, tri_indices.y, tri_indices.z,
-                        normals.get_ptr(), bar, tri_pos[0], tri_pos[1], tri_pos[2]);
+        vec3 normal = calc_normal(mesh.has_normals, tri_indices.x, tri_indices.y,
+                                  tri_indices.z, &normals[mesh.normals_index], bar,
+                                  tri_pos[0], tri_pos[1], tri_pos[2]);
 
         f32 area = calc_tri_area(mesh.indices_index, mesh.pos_index, si.triangle_index);
 
