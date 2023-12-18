@@ -5,19 +5,18 @@
 
 #include "../math/sampling.h"
 #include "../utils/basic_types.h"
-#include "../utils/shared_vector.h"
+#include "../utils/um_vector.h"
 
 class PiecewiseDist1D {
 public:
     void
-    create_cmf(const SharedVector<f32> &p_pmf) {
-        cmf = SharedVector<f32>(pmf.size());
+    create_cmf(const UmVector<f32> &p_pmf) {
+        cmf = UmVector<f32>(pmf.size());
 
         f32 cmf_sum = 0.f;
         for (int i = 0; i < pmf.size(); i++) {
             cmf_sum += pmf[i];
-            // TODO: do someting about this std::move nonsense
-            cmf.push(cmf_sum + 0.f);
+            cmf.push(cmf_sum);
         }
 
         f32 err = abs(cmf[cmf.size() - 1] - 1.f);
@@ -29,13 +28,13 @@ public:
     PiecewiseDist1D() = default;
 
     /// Expects normalized probabilites !
-    explicit PiecewiseDist1D(SharedVector<f32> &&p_pmf) : pmf(std::move(p_pmf)) {
+    explicit PiecewiseDist1D(UmVector<f32> &&p_pmf) : pmf{std::move(p_pmf)} {
         create_cmf(pmf);
     }
 
     /// Calculates probabilities
     explicit PiecewiseDist1D(CSpan<f32> vals) {
-        pmf = SharedVector<f32>(vals.size());
+        pmf = UmVector<f32>(vals.size());
 
         f32 sum = std::accumulate(vals.begin(), vals.end(), 0.f);
         for (auto v : vals) {
@@ -70,29 +69,41 @@ public:
         return {pmf[offset], offset};
     }
 
+    PiecewiseDist1D &
+    operator=(PiecewiseDist1D &other) = delete;
+
+    PiecewiseDist1D &
+    operator=(PiecewiseDist1D &&other)  noexcept {
+        this->pmf = std::move(other.pmf);
+        this->cmf = std::move(other.cmf);
+
+        return *this;
+    }
+
 private:
     /// Probability mass function
-    SharedVector<f32> pmf{};
+    UmVector<f32> pmf{};
     /// Cumulative mass function
-    SharedVector<f32> cmf{};
+    UmVector<f32> cmf{};
 };
 
-// TODO: could reduce size by having a SharedVector with a fixed size
+// TODO: could reduce size by having a UmVector with a fixed size
+
 /// Adapted from:
 /// https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations#sec:sample-discrete-2d
 class PiecewiseDist2D {
 public:
     explicit PiecewiseDist2D() = default;
-    explicit PiecewiseDist2D(const SharedVector<f32> &grid, int width, int height) {
-        conditionals = SharedVector<PiecewiseDist1D>(height);
-        SharedVector<f32> marginals_sums(height);
+    explicit PiecewiseDist2D(const UmVector<f32> &grid, int width, int height) {
+        conditionals = UmVector<PiecewiseDist1D>(height);
+        UmVector<f32> marginals_sums(height);
 
         for (int r = 0; r < height; r++) {
             auto row = CSpan<f32>(const_cast<f32 *>(&grid[r * width]), width);
             conditionals.push(PiecewiseDist1D(row));
 
             f32 sum = std::accumulate(row.begin(), row.end(), 0.f);
-            marginals_sums.push(std::move(sum));
+            marginals_sums.push(sum);
         }
 
         marginals = PiecewiseDist1D(CSpan<f32>(
@@ -121,7 +132,7 @@ public:
 
 private:
     /// probability distributions in rows
-    SharedVector<PiecewiseDist1D> conditionals;
+    UmVector<PiecewiseDist1D> conditionals;
     /// Probbability distributions of rows
     PiecewiseDist1D marginals;
 };

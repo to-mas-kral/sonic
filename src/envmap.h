@@ -12,7 +12,7 @@
 #include "texture.h"
 #include "utils/basic_types.h"
 #include "utils/cuda_err.h"
-#include "utils/shared_vector.h"
+#include "utils/um_vector.h"
 
 __global__ static void
 calc_texture(int width, int height, f32 *img, cudaTextureObject_t tex_obj) {
@@ -39,7 +39,7 @@ public:
 
     explicit Envmap(const std::string &texture_path, const mat4 &to_world_transform)
         : Texture(texture_path), to_world_transform(glm::inverse(to_world_transform)) {
-        SharedVector<f32> img(width * height);
+        UmVector<f32> img(width * height);
         img.assume_all_init();
 
         calc_texture<<<1, 1>>>(width, height, img.get_ptr(), tex_obj);

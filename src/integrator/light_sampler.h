@@ -18,11 +18,12 @@ struct LightSample {
 class LightSampler {
 public:
     LightSampler() = default;
-    explicit LightSampler(const SharedVector<Light> &lights, const Geometry &geom);
+    explicit
+    LightSampler(const UmVector<Light> &lights, const Geometry &geom);
 
     /// Sample lights according to power
     __device__ __forceinline__ COption<LightSample>
-    sample(const SharedVector<Light> &lights, f32 sample) const {
+    sample(const UmVector<Light> &lights, f32 sample) const {
         if (!has_lights) {
             return cuda::std::nullopt;
         }

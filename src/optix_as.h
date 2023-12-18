@@ -31,7 +31,7 @@ public:
     }
 
     void
-    add_mesh_inputs(const Scene *sc, const SharedVector<Mesh> &meshes,
+    add_mesh_inputs(const Scene *sc, const UmVector<Mesh> &meshes,
                     std::vector<OptixBuildInput> &build_inputs,
                     std::vector<CUdeviceptr> &mesh_d_poses,
                     std::vector<CUdeviceptr> &mesh_d_indices,
@@ -146,7 +146,7 @@ public:
         const uint32_t input_flags =
             OPTIX_GEOMETRY_FLAG_NONE | OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
 
-        const SharedVector<Mesh> &meshes = sc->geometry.meshes.meshes;
+        const UmVector<Mesh> &meshes = sc->geometry.meshes.meshes;
         num_meshes = meshes.size();
         std::vector<OptixBuildInput> triangle_build_inputs{};
         triangle_build_inputs.reserve(num_meshes);

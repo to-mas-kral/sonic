@@ -2,24 +2,22 @@
 #include <chrono>
 
 #include <CLI/CLI.hpp>
-#include <fmt/core.h>
+#include <spdlog/spdlog.h>
+
 #include <optix.h>
 #include <optix_function_table_definition.h>
 #include <optix_host.h>
 #include <optix_stubs.h>
-#include <spdlog/spdlog.h>
 
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
 #include "io/window.h"
-#include "kernels/raygen.h"
 #include "optix_as.h"
 #include "optix_common.h"
 #include "optix_renderer.h"
 #include "render_context.h"
 #include "scene_loader.h"
 #include "utils/cuda_err.h"
-#include "utils/shared_vector.h"
 
 // FIXME: there is a memory error in OptiX sphere acceleration creation, but seems to be
 // an issue in Nvidia's code. Try when new OptiX version is released...
@@ -63,7 +61,7 @@ main(int argc, char **argv) {
         app.add_option("-s,--scene", scene_path, "Path to the scene file.");
         app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
 
-        CLI11_PARSE(app, argc, argv);
+        CLI11_PARSE(app, argc, argv)
 
         spdlog::set_level(spdlog::level::info);
 
@@ -81,7 +79,7 @@ main(int argc, char **argv) {
         } catch (const std::exception &e) {
             spdlog::error("Error while parsing the scene file");
             return 1;
-        };
+        }
         auto attrib_result = scene_loader.load_scene_attribs();
         if (!attrib_result.has_value()) {
             spdlog::error("Error while getting scene attribs");
@@ -100,7 +98,7 @@ main(int argc, char **argv) {
 
         // TODO: could probably make some template class for this...
         RenderContext *rc;
-        CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)));
+        CUDA_CHECK(cudaMallocManaged((void **)&rc, sizeof(RenderContext)))
         auto rcx = new (rc) RenderContext(attribs);
 
         /*
@@ -171,12 +169,12 @@ main(int argc, char **argv) {
         // Call the destructor manually, so the memory inside of RenderContext
         // deallocates.
         rc->~RenderContext();
-        CUDA_CHECK(cudaFree(rc));
+        CUDA_CHECK(cudaFree(rc))
         CUDA_CHECK_LAST_ERROR();
     }
 
     OPTIX_CHECK(optixDeviceContextDestroy(optix_context));
-    CUDA_CHECK(cudaDeviceReset());
+    CUDA_CHECK(cudaDeviceReset())
 
     return 0;
 }

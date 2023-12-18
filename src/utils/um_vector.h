@@ -1,5 +1,5 @@
-#ifndef PT_SHARED_VECTOR_H
-#define PT_SHARED_VECTOR_H
+#ifndef PT_UM_VECTOR_H
+#define PT_UM_VECTOR_H
 
 #include <cstring>
 #include <cuda/std/cassert>
@@ -12,39 +12,36 @@
 /// Device code can access / modify individual elements but not modify the "vector"
 /// itself.
 // Storing objects that have pointers to non-unified memory is UB if used in kernels !!!
-// TODO: implement iterator for SharedVector ?
-template <class T> class SharedVector {
+// TODO: implement iterator for UmVector ?
+template <class T> class UmVector {
 public:
     __host__
-    SharedVector()
+    UmVector()
         : m_len(0), cap(0), mem(nullptr) {}
 
     // Do I need synchronizations here ? I don't think so execept for destructor...
     // but could be problematic if multi-threading is used and kernels would be launched
     // from multiple threads (is that even allowed tho ?)
 
-    __host__ explicit SharedVector(u64 capacity) : m_len(0), cap(capacity), mem(nullptr) {
+    __host__ explicit UmVector(u64 capacity) : m_len(0), cap(capacity), mem(nullptr) {
         CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
         cudaDeviceSynchronize();
     }
 
-    __host__ explicit SharedVector(T elem, u64 count)
+    __host__ explicit UmVector(T elem, u64 count)
         : m_len(count), cap(count), mem(nullptr) {
         if (count != 0) {
             CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
             cudaDeviceSynchronize();
 
-            // TODO: is there some sort of memset for this ?
-            for (int i = 0; i < count; i++) {
-                mem[i] = elem;
-            }
+            std::fill_n(mem, count, elem);
         }
     }
 
     __host__
-    SharedVector(std::initializer_list<T> l) {
+    UmVector(std::initializer_list<T> l) {
         assert(l.size() > 0);
 
         cap = l.size();
@@ -57,19 +54,19 @@ public:
         m_len = l.size();
     }
 
-    __host__ ~SharedVector() {
+    __host__ ~UmVector() {
         if (mem != nullptr) {
             cudaDeviceSynchronize();
             CUDA_CHECK(cudaFree(mem))
         }
     }
 
-    SharedVector(SharedVector const &) = delete;
+    UmVector(UmVector const &) = delete;
 
-    SharedVector &
-    operator=(SharedVector const &) = delete;
+    UmVector &
+    operator=(UmVector const &) = delete;
 
-    SharedVector(SharedVector &&other) noexcept {
+    UmVector(UmVector &&other) noexcept {
         cap = other.cap;
         m_len = other.m_len;
         mem = other.mem;
@@ -79,8 +76,8 @@ public:
         other.mem = nullptr;
     };
 
-    SharedVector &
-    operator=(SharedVector &&other) noexcept {
+    UmVector &
+    operator=(UmVector &&other) noexcept {
         mem = other.mem;
         cap = other.cap;
         m_len = other.m_len;
@@ -91,21 +88,6 @@ public:
 
         return *this;
     };
-
-    void
-    swap(SharedVector *other) {
-        auto other_mem = other->mem;
-        auto other_cap = other->cap;
-        auto other_m_len = other->m_len;
-
-        other->mem = mem;
-        other->cap = cap;
-        other->m_len = m_len;
-
-        mem = other_mem;
-        cap = other_cap;
-        m_len = other_m_len;
-    }
 
     __host__ __device__ T &
     last() const {
@@ -135,7 +117,11 @@ public:
         return mem[idx];
     }
 
-    // TODO: refactor this std::move nonsense...
+    __host__ void
+    push(T &elem) {
+        push(std::move(elem));
+    }
+
     __host__ void
     push(T &&elem) {
         if (cap == 0 || mem == nullptr) {
@@ -149,6 +135,7 @@ public:
         if (m_len >= cap) {
             resize();
         }
+
         mem[m_len] = std::move(elem);
         m_len++;
     }
@@ -187,4 +174,4 @@ private:
     u64 cap = 0;
 };
 
-#endif // PT_SHARED_VECTOR_H
+#endif // PT_UM_VECTOR_H

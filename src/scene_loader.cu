@@ -251,7 +251,7 @@ void
 SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
                             COption<Emitter> emitter, Scene *sc) {
     // clang-format off
-    SharedVector<vec3> pos = {vec3(-1.,  -1., 0.),
+    UmVector<vec3> pos = {vec3(-1.,  -1., 0.),
                                vec3( 1.,  -1., 0.),
                                vec3( 1.,   1., 0.),
                                vec3(-1.,   1., 0.)
@@ -262,7 +262,7 @@ SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transf
      * |    |
      * 0 -- 1
      * */
-    SharedVector<u32> indices{
+    UmVector<u32> indices{
         0, 1, 2, 0, 2, 3,
     };
     // clang-format on
@@ -285,7 +285,7 @@ void
 SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
                        COption<Emitter> emitter, Scene *sc) {
     // clang-format off
-    SharedVector<vec3> pos = {
+    UmVector<vec3> pos = {
                               vec3(-1.,  -1.,  1.),
                               vec3( 1.,  -1.,  1.),
                               vec3( 1.,   1.,  1.),
@@ -302,7 +302,7 @@ SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
      * |    |         |    |
      * 0 -- 1         4 -- 5
      * */
-    SharedVector<u32> indices{
+    UmVector<u32> indices{
         0, 1, 2, 0, 2, 3,
         1, 5, 6, 1, 6, 2,
         3, 2, 6, 3, 6, 7,
@@ -388,10 +388,10 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     auto &attrib = reader.GetAttrib();
     auto &shapes = reader.GetShapes();
 
-    SharedVector<vec3> pos{};
-    SharedVector<vec3> normals{};
-    SharedVector<vec2> uvs{};
-    SharedVector<u32> indices{};
+    UmVector<vec3> pos{};
+    UmVector<vec3> normals{};
+    UmVector<vec2> uvs{};
+    UmVector<u32> indices{};
 
     assert(shapes.size() == 1);
     auto shape = &shapes[0];
@@ -414,9 +414,9 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
                    ind.vertex_index == ind.texcoord_index);
         }
 
-        indices.push(std::move(i0));
-        indices.push(std::move(i1));
-        indices.push(std::move(i2));
+        indices.push(i0);
+        indices.push(i1);
+        indices.push(i2);
     }
 
     size_t pos_size = attrib.vertices.size() / 3;

@@ -2,6 +2,7 @@
 #include "geometry.h"
 
 #include "../utils/basic_types.h"
+#include "../utils/um_vector.h"
 
 __host__ void
 Geometry::add_mesh(const MeshParams &mp, COption<u32> lights_start_id) {
@@ -10,12 +11,12 @@ Geometry::add_mesh(const MeshParams &mp, COption<u32> lights_start_id) {
 
     u32 indices_index = meshes.indices.size();
     for (int i = 0; i < mp.indices->size(); i++) {
-        meshes.indices.push(std::move((*mp.indices)[i]));
+        meshes.indices.push((*mp.indices)[i]);
     }
 
     u32 pos_index = meshes.pos.size();
     for (int i = 0; i < mp.pos->size(); i++) {
-        meshes.pos.push(std::move((*mp.pos)[i]));
+        meshes.pos.push((*mp.pos)[i]);
     }
 
     COption<u32> normals_index = {};
@@ -24,7 +25,7 @@ Geometry::add_mesh(const MeshParams &mp, COption<u32> lights_start_id) {
         assert(mp.normals->size() == mp.pos->size());
 
         for (int i = 0; i < mp.normals->size(); i++) {
-            meshes.normals.push(std::move((*mp.normals)[i]));
+            meshes.normals.push((*mp.normals)[i]);
         }
     }
 
@@ -34,23 +35,23 @@ Geometry::add_mesh(const MeshParams &mp, COption<u32> lights_start_id) {
         assert(mp.uvs->size() == mp.pos->size());
 
         for (int i = 0; i < mp.uvs->size(); i++) {
-            meshes.uvs.push(std::move((*mp.uvs)[i]));
+            meshes.uvs.push((*mp.uvs)[i]);
         }
     }
 
     auto mesh = Mesh(indices_index, pos_index, mp.material_id, lights_start_id,
                      num_indices, num_vertices, normals_index, uvs_index);
-    meshes.meshes.push(std::move(mesh));
+    meshes.meshes.push(mesh);
 }
 
 __host__ void
 Geometry::add_sphere(SphereParams sp, COption<u32> light_id) {
-    spheres.centers.push(std::move(sp.center));
-    spheres.radiuses.push(std::move(sp.radius));
-    spheres.material_ids.push(std::move(sp.material_id));
-    spheres.has_light.push(std::move(light_id.has_value()));
+    spheres.centers.push(sp.center);
+    spheres.radiuses.push(sp.radius);
+    spheres.material_ids.push(sp.material_id);
+    spheres.has_light.push(light_id.has_value());
     if (light_id.has_value()) {
-        spheres.light_ids.push(std::move(light_id.value()));
+        spheres.light_ids.push(light_id.value());
     } else {
         spheres.light_ids.push(0);
     }

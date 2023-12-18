@@ -3,14 +3,14 @@
 __host__ u32
 Scene::add_material(Material &&material) {
     u32 mat_id = materials.size();
-    materials.push(std::move(material));
+    materials.push(material);
     return mat_id;
 }
 
 __host__ u32
 Scene::add_texture(Texture &&texture) {
     u32 texture_id = textures.size();
-    textures.push(std::move(texture));
+    textures.push(texture);
     return texture_id;
 }
 

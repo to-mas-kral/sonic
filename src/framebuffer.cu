@@ -16,8 +16,8 @@ init_rand_state(u32 pixels, u32 image_x, Sampler *samplers) {
 
 Framebuffer::Framebuffer(u32 image_x, u32 image_y, dim3 blocks_dim, dim3 threads_dim)
     : image_x(image_x), image_y(image_y) {
-    pixels = SharedVector<vec3>(vec3(0.f, 0.f, 0.f), num_pixels());
-    samplers = SharedVector<Sampler>(num_pixels());
+    pixels = UmVector<vec3>(vec3(0.f, 0.f, 0.f), num_pixels());
+    samplers = UmVector<Sampler>(num_pixels());
 
     // RenderContext isn't initialized yet. Have to pass rand_state raw pointer,
     // because rand_state itself could still be placed on the stack at this point.

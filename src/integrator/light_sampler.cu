@@ -1,7 +1,7 @@
 
 #include "light_sampler.h"
 
-LightSampler::LightSampler(const SharedVector<Light> &lights, const Geometry &geom) {
+LightSampler::LightSampler(const UmVector<Light> &lights, const Geometry &geom) {
     if (lights.size() == 0) {
         return;
     }
@@ -15,11 +15,11 @@ LightSampler::LightSampler(const SharedVector<Light> &lights, const Geometry &ge
     }
 
     auto num_lights = lights.size();
-    auto pmf = SharedVector<f32>(num_lights);
+    auto pmf = UmVector<f32>(num_lights);
 
     for (int l = 0; l < lights.size(); l++) {
         f32 prob = lights[l].power(geom) / total_power;
-        pmf.push(std::move(prob));
+        pmf.push(prob);
     }
 
     sampling_dist = PiecewiseDist1D(std::move(pmf));

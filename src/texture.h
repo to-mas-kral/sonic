@@ -13,7 +13,7 @@
 #include "utils/basic_types.h"
 #include "utils/cuda_box.h"
 #include "utils/cuda_err.h"
-#include "utils/shared_vector.h"
+#include "utils/um_vector.h"
 
 class Texture {
 public:

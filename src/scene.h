@@ -37,10 +37,10 @@ struct Scene {
 
     Geometry geometry{};
     LightSampler light_sampler{};
-    SharedVector<Light> lights{};
+    UmVector<Light> lights{};
 
-    SharedVector<Texture> textures = SharedVector<Texture>();
-    SharedVector<Material> materials = SharedVector<Material>();
+    UmVector<Texture> textures = UmVector<Texture>();
+    UmVector<Material> materials = UmVector<Material>();
 
     Envmap envmap{};
     bool has_envmap = false;

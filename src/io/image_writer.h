@@ -16,7 +16,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     auto width = fb.get_res_x();
     auto height = fb.get_res_y();
 
-    SharedVector<vec3> &rgb = fb.get_pixels();
+    UmVector<vec3> &rgb = fb.get_pixels();
 
     EXRHeader header;
     InitEXRHeader(&header);

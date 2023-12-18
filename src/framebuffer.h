@@ -6,7 +6,7 @@
 
 #include "utils/basic_types.h"
 #include "utils/sampler.h"
-#include "utils/shared_vector.h"
+#include "utils/um_vector.h"
 
 class Framebuffer {
 public:
@@ -27,18 +27,18 @@ public:
         return image_y;
     }
 
-    __host__ __device__ SharedVector<vec3> &
+    __host__ __device__ UmVector<vec3> &
     get_pixels() {
         return pixels;
     }
-    __device__ SharedVector<Sampler> &
+    __device__ UmVector<Sampler> &
     get_rand_state() {
         return samplers;
     }
 
 private:
-    SharedVector<vec3> pixels;
-    SharedVector<Sampler> samplers;
+    UmVector<vec3> pixels;
+    UmVector<Sampler> samplers;
 
     u32 image_x;
     u32 image_y;

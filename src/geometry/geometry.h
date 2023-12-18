@@ -8,7 +8,7 @@
 #include "../emitter.h"
 #include "../math/sampling.h"
 #include "../utils/basic_types.h"
-#include "../utils/shared_vector.h"
+#include "../utils/um_vector.h"
 
 enum class ShapeType : u8 {
     Mesh = 0,
@@ -59,22 +59,22 @@ struct Mesh {
 
 // Used only for mesh creation
 struct MeshParams {
-    SharedVector<u32> *indices;
-    SharedVector<vec3> *pos;
-    SharedVector<vec3> *normals = nullptr; // may be null
-    SharedVector<vec2> *uvs = nullptr;     // may be null
+    UmVector<u32> *indices;
+    UmVector<vec3> *pos;
+    UmVector<vec3> *normals = nullptr; // may be null
+    UmVector<vec2> *uvs = nullptr;     // may be null
     u32 material_id;
     COption<Emitter> emitter = {};
 };
 
 // OptiX requires SOA layout
 struct Meshes {
-    SharedVector<Mesh> meshes = SharedVector<Mesh>();
+    UmVector<Mesh> meshes = UmVector<Mesh>();
 
-    SharedVector<u32> indices = SharedVector<u32>();
-    SharedVector<vec3> pos = SharedVector<vec3>();
-    SharedVector<vec3> normals = SharedVector<vec3>();
-    SharedVector<vec2> uvs = SharedVector<vec2>();
+    UmVector<u32> indices = UmVector<u32>();
+    UmVector<vec3> pos = UmVector<vec3>();
+    UmVector<vec3> normals = UmVector<vec3>();
+    UmVector<vec2> uvs = UmVector<vec2>();
 
     __host__ __device__ __forceinline__ uvec3
     get_tri_indices(u32 mesh_indices_index, u32 triangle) const {
@@ -173,11 +173,11 @@ struct SphereParams {
 
 // OptiX requires SOA layout
 struct Spheres {
-    SharedVector<vec3> centers = SharedVector<vec3>();
-    SharedVector<f32> radiuses = SharedVector<f32>();
-    SharedVector<u32> material_ids = SharedVector<u32>();
-    SharedVector<bool> has_light = SharedVector<bool>();
-    SharedVector<u32> light_ids = SharedVector<u32>();
+    UmVector<vec3> centers = UmVector<vec3>();
+    UmVector<f32> radiuses = UmVector<f32>();
+    UmVector<u32> material_ids = UmVector<u32>();
+    UmVector<bool> has_light = UmVector<bool>();
+    UmVector<u32> light_ids = UmVector<u32>();
     u32 num_spheres = 0;
 
     __device__ __forceinline__ ShapeSample
