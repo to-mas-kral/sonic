@@ -113,9 +113,9 @@ public:
         return mem[m_len - 1];
     }
 
-    __host__ __device__ T &
-    get_unchecked(u64 idx) const {
-        return mem[idx];
+    __host__ __device__ T const *
+    get_ptr_to(u64 idx) const {
+        return mem + idx;
     }
 
     __host__ void

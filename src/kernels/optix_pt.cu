@@ -52,8 +52,8 @@ get_triangle_its(u32 bar_y, u32 bar_z, u32 triangle_index, u32 mesh_id) {
     auto geometry = &params.rc->scene.geometry;
     vec3 *positions = &geometry->meshes.pos[mesh_o->pos_index];
     u32 *indices = &geometry->meshes.indices[mesh_o->indices_index];
-    vec3 *normals = &geometry->meshes.normals[mesh_o->normals_index];
-    vec2 *uvs = &geometry->meshes.uvs[mesh_o->uvs_index];
+    vec3 const *normals = geometry->meshes.normals.get_ptr_to(mesh_o->normals_index);
+    vec2 const *uvs = geometry->meshes.uvs.get_ptr_to(mesh_o->uvs_index);
 
     u32 i0 = indices[3 * triangle_index];
     u32 i1 = indices[3 * triangle_index + 1];

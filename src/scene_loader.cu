@@ -466,7 +466,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         .normals = (face_normals) ? nullptr : &normals,
         .uvs = &uvs,
         .material_id = mat_id,
-        .emitter = emitter,
+        .emitter = std::move(emitter),
     };
 
     sc->add_mesh(mp);
