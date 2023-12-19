@@ -26,9 +26,6 @@ public:
     Camera cam;
     Framebuffer fb;
     SceneAttribs attribs;
-
-    const u32 THREADS_DIM_SIZE = 8;
-    const dim3 THREADS_DIM = dim3(THREADS_DIM_SIZE, THREADS_DIM_SIZE);
 };
 
 #endif // PT_RENDER_CONTEXT_H

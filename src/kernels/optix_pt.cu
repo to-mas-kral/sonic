@@ -202,9 +202,10 @@ __raygen__rg() {
     auto sc = &rc->scene;
     auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
-    auto sampler = &params.fb->get_rand_state()[pixel_index];
+    Sampler sampler{};
+    sampler.init_frame(uvec2(pixel.x, pixel.y), uvec2(dim.x, dim.y), params.frame);
 
-    auto cam_sample = sampler->sample2();
+    auto cam_sample = sampler.sample2();
 
     auto ray =
         gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam, params.cam_to_world);
@@ -224,8 +225,8 @@ __raygen__rg() {
 
         u32 did_hit = p0;
         if (did_hit) {
-            auto bsdf_sample = sampler->sample2();
-            auto rr_sample = sampler->sample();
+            auto bsdf_sample = sampler.sample2();
+            auto rr_sample = sampler.sample();
             Intersection its = get_its(sc, p1, p2, p3, p4, did_hit, ray);
 
             auto material = &params.materials[its.material_id];
@@ -263,7 +264,7 @@ __raygen__rg() {
              * */
 
             if (sc->has_envmap && !last_hit_specular) {
-                auto [envrad, envdir, envpdf] = sc->envmap.sample(sampler->sample2());
+                auto [envrad, envdir, envpdf] = sc->envmap.sample(sampler.sample2());
 
                 u32 did_hit_env_test = 1;
                 // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
@@ -289,10 +290,10 @@ __raygen__rg() {
              * */
 
             if (!last_hit_specular) {
-                f32 light_sample = sampler->sample();
+                f32 light_sample = sampler.sample();
                 auto sampled_light = sc->sample_lights(light_sample);
                 if (sampled_light.has_value()) {
-                    auto shape_rng = sampler->sample3();
+                    auto shape_rng = sampler.sample3();
                     auto shape_sample = sc->geometry.sample_shape(
                         sampled_light.value().light.shape, its.pos, shape_rng);
 

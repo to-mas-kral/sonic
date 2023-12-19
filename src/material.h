@@ -5,7 +5,6 @@
 #include "math/sampling.h"
 #include "math/vecmath.h"
 #include "utils/basic_types.h"
-#include "utils/rng.h"
 
 enum class MaterialType : u8 {
     Diffuse = 0,

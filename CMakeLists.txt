@@ -27,7 +27,6 @@ add_executable(pt src/main.cu
         src/utils/um_vector.h
         src/io/image_writer.h
         src/utils/cuda_err.h
-        src/utils/rng.h
         src/utils/sampler.h
 
         src/io/progress_bar.h

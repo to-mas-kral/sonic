@@ -136,12 +136,15 @@ main(int argc, char **argv) {
         params.lights = rc->scene.lights.get_ptr();
         params.textures = rc->scene.textures.get_ptr();
         params.cam_to_world = rc->attribs.camera_to_world;
+        params.frame = 1;
         optix_renderer.update_params(params);
 
         ProgressBar pb;
         const auto start{std::chrono::steady_clock::now()};
 
         for (u32 s = 1; s <= spp; s++) {
+            params.frame += 1;
+            optix_renderer.update_params(params);
             optix_renderer.launch(attribs.resx, attribs.resy);
 
             const auto end{std::chrono::steady_clock::now()};

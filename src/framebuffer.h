@@ -2,17 +2,15 @@
 #define PT_FRAMEBUFFER_H
 
 #include <cuda/std/tuple>
-#include <curand_kernel.h>
 
 #include "utils/basic_types.h"
-#include "utils/sampler.h"
 #include "utils/um_vector.h"
 
 class Framebuffer {
 public:
     Framebuffer() : image_x{0}, image_y{0} {};
 
-    Framebuffer(u32 image_x, u32 image_y, dim3 blocks_dim, dim3 threads_dim);
+    Framebuffer(u32 image_x, u32 image_y);
 
     __host__ __device__ u32
     num_pixels() const {
@@ -31,14 +29,9 @@ public:
     get_pixels() {
         return pixels;
     }
-    __device__ UmVector<Sampler> &
-    get_rand_state() {
-        return samplers;
-    }
 
 private:
     UmVector<vec3> pixels;
-    UmVector<Sampler> samplers;
 
     u32 image_x;
     u32 image_y;

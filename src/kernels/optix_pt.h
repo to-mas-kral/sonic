@@ -16,6 +16,7 @@ struct PtParams {
     RenderContext *rc;
     OptixTraversableHandle gas_handle;
     mat4 cam_to_world;
+    u32 frame;
 };
 
 struct PtRayGenData {};

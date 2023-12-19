@@ -2,13 +2,9 @@
 #define PT_SAMPLING_H
 
 #include <cuda/std/cmath>
-#include <curand_kernel.h>
 
 #include "../math/math_utils.h"
 #include "../utils/basic_types.h"
-#include "../utils/rng.h"
-
-#include <cuda/std/span>
 
 /*
  * All sampling code was taken from Physically Based Rendering, 4th edition
@@ -67,7 +63,7 @@ sample_uniform_triangle(const vec2 &sample) {
 /// Samples a CMF, return an index into the CMF slice.
 /// Expects a normalized CMF.
 __device__ __forceinline__ u32
-sample_discrete_cmf(const cuda::std::span<f32> cmf, f32 sample) {
+sample_discrete_cmf(const CSpan<f32> cmf, f32 sample) {
     // TODO: binary search
     for (u32 i = 0; i < cmf.size(); i++) {
         if (sample < cmf[i]) {
@@ -80,7 +76,7 @@ sample_discrete_cmf(const cuda::std::span<f32> cmf, f32 sample) {
 
 /// Samples a CMF, return a value in [0, 1), and an index into the CDF slice.
 __device__ __forceinline__ CTuple<f32, u32>
-sample_continuous_cmf(const cuda::std::span<f32> cdf, f32 sample) {
+sample_continuous_cmf(const CSpan<f32> cdf, f32 sample) {
     // TODO: binary search
     u32 offset = 0;
     for (u32 i = 0; i < cdf.size(); i++) {
