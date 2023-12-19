@@ -25,7 +25,7 @@ set_payload_miss() {
 
 static __forceinline__ __device__ void
 set_payload_hit_triangle(u32 prim_index, u32 mesh_id, float2 barycentrics) {
-    // TODO: could pack hit type into the sign bits of the barycentrics
+    // OPTIMIZE: could pack hit type into the sign bits of the barycentrics
     optixSetPayload_0(HIT_TRIANGLE);
     optixSetPayload_1(prim_index);
     optixSetPayload_2(mesh_id);
@@ -145,7 +145,6 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
         // that it doesn't self-intersect.
         vec3 lrd = glm::normalize(light_pos - bxdf_ray.o);
         u32 did_hit = 1;
-        // TODO: didn't get much of a speedup, investigate
         // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
         optixTrace(params.gas_handle, vec_to_float3(bxdf_ray.o), vec_to_float3(lrd), 0.f,
                    pl_mag - 0.001f, 0.0f, OptixVisibilityMask(255),
@@ -181,8 +180,8 @@ bxdf_mis(Scene *sc, const vec3 &throughput, const vec3 &last_hit_pos, f32 last_p
     // from the probability distribution of the BXDF of the *preceding*
     // hit.
 
-    // TODO: currently calculating the shape PDF by assuming pdf = 1. / area
-    // ,will have to change with non-uniform sampling !
+    // CHECK!!!: currently calculating the shape PDF by assuming pdf = 1. / area
+    //  will have to change with non-uniform sampling !
     f32 light_area = sc->geometry.shape_area(sc->lights[its.light_id].shape);
 
     // pdf_light is the probability of this light being sampled from the
@@ -205,7 +204,7 @@ __raygen__rg() {
 
     auto sampler = &params.fb->get_rand_state()[pixel_index];
 
-    auto cam_sample = vec2(sampler->sample(), sampler->sample());
+    auto cam_sample = sampler->sample2();
 
     auto ray =
         gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam, params.cam_to_world);
@@ -225,7 +224,7 @@ __raygen__rg() {
 
         u32 did_hit = p0;
         if (did_hit) {
-            auto bsdf_sample = vec2(sampler->sample(), sampler->sample());
+            auto bsdf_sample = sampler->sample2();
             auto rr_sample = sampler->sample();
             Intersection its = get_its(sc, p1, p2, p3, p4, did_hit, ray);
 
@@ -264,11 +263,9 @@ __raygen__rg() {
              * */
 
             if (sc->has_envmap && !last_hit_specular) {
-                auto [envrad, envdir, envpdf] =
-                    sc->envmap.sample(vec2(sampler->sample(), sampler->sample()));
+                auto [envrad, envdir, envpdf] = sc->envmap.sample(sampler->sample2());
 
                 u32 did_hit_env_test = 1;
-                // TODO: didn't get much of a speedup, investigate
                 // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
                 optixTrace(params.gas_handle, vec_to_float3(bxdf_ray.o),
                            vec_to_float3(envdir), 0.f, 1e16f, 0.0f,
@@ -295,9 +292,7 @@ __raygen__rg() {
                 f32 light_sample = sampler->sample();
                 auto sampled_light = sc->sample_lights(light_sample);
                 if (sampled_light.has_value()) {
-                    // TODO: create a method for creating these vector samples...
-                    vec3 shape_rng =
-                        vec3(sampler->sample(), sampler->sample(), sampler->sample());
+                    auto shape_rng = sampler->sample3();
                     auto shape_sample = sc->geometry.sample_shape(
                         sampled_light.value().light.shape, its.pos, shape_rng);
 
@@ -324,7 +319,7 @@ __raygen__rg() {
                 break;
             }
         } else {
-            // TODO: move into miss program to reduce divergence ?
+            // OPTIMIZE: move into miss program to reduce divergence ?
             // Ray has escaped the scene
             if (!sc->has_envmap) {
                 break;
@@ -375,8 +370,8 @@ __closesthit__ch() {
         set_payload_hit_triangle(prim_index, hit_data->mesh.mesh_id, barycentrics);
     } else {
         // Spheres
-        // TODO: maybe add sphere_id to hit_data... would be safer if multiple
-        // sphere GASes are used in the future...
+        // CHECK: maybe add sphere_id to hit_data... would be safer if multiple
+        //  sphere GASes are used in the future...
         const u32 sphere_index = optixGetSbtGASIndex();
         f32 t = optixGetRayTmax();
 

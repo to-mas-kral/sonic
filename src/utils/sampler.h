@@ -14,6 +14,18 @@ public:
     sample() {
         return rng_curand(&rand_state);
     }
+
+    __device__ __forceinline__ vec2
+    sample2() {
+        return vec2(rng_curand(&rand_state), rng_curand(&rand_state));
+    }
+
+    __device__ __forceinline__ vec3
+    sample3() {
+        return vec3(rng_curand(&rand_state), rng_curand(&rand_state),
+                    rng_curand(&rand_state));
+    }
+
     __device__ __forceinline__ curandState *
     get_rand_state() {
         return &rand_state;

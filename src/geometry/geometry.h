@@ -15,7 +15,7 @@ enum class ShapeType : u8 {
     Sphere = 1,
 };
 
-// TODO: optimization - could merge triangle index into type...
+// OPTIMIZE: could merge triangle index into type...
 struct ShapeIndex {
     ShapeType type;
     u32 index;

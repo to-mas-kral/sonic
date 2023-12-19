@@ -10,7 +10,7 @@
 class PiecewiseDist1D {
 public:
     void
-    create_cmf(const UmVector<f32> &p_pmf) {
+    create_cmf() {
         cmf = UmVector<f32>(pmf.size());
 
         f32 cmf_sum = 0.f;
@@ -29,7 +29,7 @@ public:
 
     /// Expects normalized probabilites !
     explicit PiecewiseDist1D(UmVector<f32> &&p_pmf) : pmf{std::move(p_pmf)} {
-        create_cmf(pmf);
+        create_cmf();
     }
 
     /// Calculates probabilities
@@ -41,7 +41,7 @@ public:
             pmf.push(v / sum);
         }
 
-        create_cmf(pmf);
+        create_cmf();
     }
 
     __device__ __forceinline__ f32
@@ -55,12 +55,12 @@ public:
     }
 
     __device__ __forceinline__ CTuple<f32, u32>
-    sample_continuous(f32 sample, bool debug = false) const {
+    sample_continuous(f32 sample) const {
         return sample_continuous_cmf(CSpan<f32>(cmf.get_ptr(), cmf.size()), sample);
     }
 
     __device__ __forceinline__ CTuple<f32, u32>
-    pdf(float sample) const {
+    pdf(f32 sample) const {
         u32 offset = sample * (f32)cmf.size();
         if (offset > cmf.size() - 1) {
             offset = cmf.size();
@@ -73,7 +73,7 @@ public:
     operator=(PiecewiseDist1D &other) = delete;
 
     PiecewiseDist1D &
-    operator=(PiecewiseDist1D &&other)  noexcept {
+    operator=(PiecewiseDist1D &&other) noexcept {
         this->pmf = std::move(other.pmf);
         this->cmf = std::move(other.cmf);
 
@@ -87,7 +87,7 @@ private:
     UmVector<f32> cmf{};
 };
 
-// TODO: could reduce size by having a UmVector with a fixed size
+// OPTIMIZE: could reduce size by having a UmVector with a fixed size
 
 /// Adapted from:
 /// https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations#sec:sample-discrete-2d

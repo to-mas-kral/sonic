@@ -30,7 +30,6 @@ struct PtHitGroupData {
         } mesh{};
 
         struct {
-            // TODO: add sphere id
         } sphere;
     };
 };

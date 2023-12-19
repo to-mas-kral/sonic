@@ -125,7 +125,7 @@ public:
     __host__ void
     push(T &&elem) {
         if (cap == 0 || mem == nullptr) {
-            // TODO: could select better default size based on T's size...
+            // OPTIMIZE: could select better default size based on T's size...
             cap = 8;
             CUDA_CHECK(cudaMallocManaged((void **)&mem, cap * sizeof(T)))
 
