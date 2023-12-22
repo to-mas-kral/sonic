@@ -38,15 +38,15 @@ struct Material {
         };
     }
 
-    __device__ vec3
-    sample(const vec3 &normal, const vec3 &wo, const vec2 &sample) const {
+    __device__ norm_vec3
+    sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &sample) const {
         switch (type) {
         case MaterialType::Diffuse: {
-            vec3 sample_dir = sample_cosine_hemisphere(sample);
+            norm_vec3 sample_dir = sample_cosine_hemisphere(sample);
             return orient_dir(sample_dir, normal);
         }
         case MaterialType::Conductor: {
-            return glm::reflect(-wo, normal);
+            return vec3::reflect(wo, normal).normalized();
         }
         }
     }

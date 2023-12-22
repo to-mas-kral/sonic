@@ -4,13 +4,16 @@
 #include <cuda/std/tuple>
 
 #include "utils/basic_types.h"
+#include "math/vecmath.h"
 #include "utils/um_vector.h"
 
 class Framebuffer {
 public:
     Framebuffer() : image_x{0}, image_y{0} {};
 
-    Framebuffer(u32 image_x, u32 image_y);
+    Framebuffer(u32 image_x, u32 image_y) : image_x{image_x}, image_y{image_y} {
+        pixels = UmVector<vec3>(vec3(0.f, 0.f, 0.f), num_pixels());
+    }
 
     __host__ __device__ u32
     num_pixels() const {

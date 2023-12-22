@@ -11,8 +11,6 @@ set(CMAKE_CUDA_ARCHITECTURES 75)
 
 add_executable(pt src/main.cu
         src/render_context.h
-        src/render_context.cu
-        src/framebuffer.cu
         src/framebuffer.h
         src/camera.h
         src/material.h
@@ -22,13 +20,20 @@ add_executable(pt src/main.cu
         src/envmap.h
         src/texture.h
         src/texture.cu
+        src/scene.cu
+        src/scene.h
+        src/optix_renderer.cu
+        src/optix_renderer.h
+        src/optix_common.h
+        src/optix_as.h
+        src/optix_common.cu
 
         src/utils/basic_types.h
         src/utils/um_vector.h
-        src/io/image_writer.h
         src/utils/cuda_err.h
         src/utils/sampler.h
 
+        src/io/image_writer.h
         src/io/progress_bar.h
         src/io/window.cu
         src/io/window.h
@@ -39,21 +44,15 @@ add_executable(pt src/main.cu
         src/math/sampling.h
         src/math/vecmath.h
         src/math/math_utils.h
-
-        src/optix_renderer.cu
-        src/optix_renderer.h
-        src/optix_common.h
-        src/optix_as.h
-        src/optix_common.cu
+        src/math/transform.h
 
         src/integrator/utils.h
+        src/integrator/light_sampler.cu
+        src/integrator/light_sampler.h
 
         src/geometry/geometry.h
         src/geometry/geometry.cu
-        src/scene.cu
-        src/scene.h
-        src/integrator/light_sampler.cu
-        src/integrator/light_sampler.h
+
         src/scene/light.h
 )
 

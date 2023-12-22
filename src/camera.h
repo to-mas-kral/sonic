@@ -2,6 +2,7 @@
 #define CAMERAH
 
 #include "geometry/ray.h"
+#include "math/vecmath.h"
 
 class Camera {
 public:
@@ -15,7 +16,7 @@ public:
         f32 axis = viewport_width;
         f32 focal_length = -(axis / 2.f) / tanf((fov * (M_PIf / 180.f)) / 2.f);
 
-        origin = vec3(0.f, 0.f, 0.f);
+        origin = point3(0.f);
         vec3 horizontal = vec3(viewport_width, 0.f, 0.f);
         vec3 vertical = vec3(0.f, viewport_height, 0.f);
         bottom_left =
@@ -25,13 +26,13 @@ public:
     __device__ Ray
     get_ray(float s, float t) const {
         vec3 offset = vec3(1.f - s, t, 0.f) * vec3(viewport_width, viewport_height, 0.f);
-        vec3 screencoord = bottom_left + offset;
+        point3 screencoord = bottom_left + offset;
 
-        return Ray(origin, glm::normalize(screencoord - origin));
+        return Ray(origin, (screencoord - origin).normalized());
     }
 
-    vec3 origin;
-    vec3 bottom_left;
+    point3 origin{0.f};
+    point3 bottom_left{0.f};
     f32 viewport_width{};
     f32 viewport_height{};
 };

@@ -2,6 +2,7 @@
 #define PT_SAMPLER_H
 
 #include "basic_types.h"
+#include "../math/vecmath.h"
 
 // This RNG implementation was taken from Ray Tracing Gems II
 __device__ __forceinline__ u32

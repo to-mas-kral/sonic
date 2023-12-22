@@ -5,8 +5,8 @@
 
 #include <fmt/core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
+#include "math/vecmath.h"
 #include "tiny_obj_loader.h"
-#include <glm/gtx/euler_angles.hpp>
 #include <utility>
 
 using str = std::string_view;
@@ -23,7 +23,7 @@ SceneLoader::load_scene(Scene *sc) {
         std::string filename = envmap_node.child("string").attribute("value").as_string();
         auto file_path = scene_base_path + "/" + filename;
 
-        auto to_world_transform = mat4(1.);
+        auto to_world_transform = mat4::identity();
         auto transform_node = envmap_node.child("transform");
         to_world_transform = parse_transform(transform_node);
 
@@ -53,7 +53,7 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
         }
 
         auto transform_node = shape.child("transform");
-        mat4 transform = mat4(1.);
+        mat4 transform = mat4::identity();
         if (transform_node) {
             transform = parse_transform(transform_node);
         }
@@ -103,7 +103,7 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
         is_twosided = true;
 
         // For bumpmaps, the id is in the nested bsdf... ??
-        if (id == "") {
+        if (id.empty()) {
             id = bsdf.attribute("id").as_string();
         }
     }
@@ -149,10 +149,9 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
 
 mat4
 SceneLoader::parse_transform(pugi::xml_node transform_node) {
-    mat4 cur_transform = mat4(1.);
+    mat4 cur_transform = mat4::identity();
 
     for (auto child_node : transform_node.children()) {
-        // auto matrix = transform_node.child("matrix");
         str name = child_node.name();
 
         if (name == "matrix") {
@@ -164,7 +163,7 @@ SceneLoader::parse_transform(pugi::xml_node transform_node) {
                     return std::stof(std::string(c.begin(), c.end()));
                 });
 
-            std::array<f32, 16> mat{};
+            CArray<f32, 16> mat{};
             int i = 0;
             for (f32 f : floats) {
                 if (i > 15) {
@@ -177,22 +176,22 @@ SceneLoader::parse_transform(pugi::xml_node transform_node) {
                 i++;
             }
 
-            // GLM stores matrices in column-majorm, but Mitsuba's format is row-major...
-            cur_transform = glm::transpose(glm::make_mat4(mat.data())) * cur_transform;
+            // matrices are stored in column-majorm, but Mitsuba's format is row-major...
+            cur_transform = cur_transform.compose(mat4::from_elements(mat).transpose());
         } else if (name == "rotate") {
             auto angle_attr = child_node.attribute("angle");
             if (angle_attr) {
                 f32 angle = to_rad(angle_attr.as_float());
 
-                mat4 trans = mat4(1.);
+                mat4 trans = mat4::identity();
                 if (child_node.attribute("y")) {
-                    trans = glm::eulerAngleY(angle);
+                    trans = mat4::from_euler_y(angle);
                 } else if (child_node.attribute("x")) {
-                    trans = glm::eulerAngleX(angle);
+                    trans = mat4::from_euler_x(angle);
                 } else if (child_node.attribute("z")) {
-                    trans = glm::eulerAngleZ(angle);
+                    trans = mat4::from_euler_z(angle);
                 }
-                cur_transform = trans * cur_transform;
+                cur_transform = cur_transform.compose(trans);
             } else {
                 spdlog::error("rotate along arbitrary axis not implemented");
                 throw;
@@ -251,10 +250,11 @@ void
 SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
                             COption<Emitter> emitter, Scene *sc) {
     // clang-format off
-    UmVector<vec3> pos = {vec3(-1.,  -1., 0.),
-                               vec3( 1.,  -1., 0.),
-                               vec3( 1.,   1., 0.),
-                               vec3(-1.,   1., 0.)
+    UmVector<point3> pos = {
+        point3(-1.,  -1., 0.),
+        point3( 1.,  -1., 0.),
+        point3( 1.,   1., 0.),
+        point3(-1.,   1., 0.)
     };
 
     /*
@@ -268,14 +268,14 @@ SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transf
     // clang-format on
 
     for (int i = 0; i < pos.size(); i++) {
-        pos[i] = transform * vec4(pos[i], 1.);
+        pos[i] = transform.transform_point(pos[i]);
     }
 
     MeshParams mp = {
         .indices = &indices,
         .pos = &pos,
         .material_id = mat_id,
-        .emitter = std::move(emitter),
+        .emitter = emitter,
     };
 
     sc->add_mesh(mp);
@@ -285,16 +285,16 @@ void
 SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
                        COption<Emitter> emitter, Scene *sc) {
     // clang-format off
-    UmVector<vec3> pos = {
-                              vec3(-1.,  -1.,  1.),
-                              vec3( 1.,  -1.,  1.),
-                              vec3( 1.,   1.,  1.),
-                              vec3(-1.,   1.,  1.),
+    UmVector<point3> pos = {
+        point3(-1.,  -1.,  1.),
+        point3( 1.,  -1.,  1.),
+        point3( 1.,   1.,  1.),
+        point3(-1.,   1.,  1.),
 
-                              vec3(-1.,  -1., -1.),
-                              vec3( 1.,  -1., -1.),
-                              vec3( 1.,   1., -1.),
-                              vec3(-1.,   1., -1.),
+        point3(-1.,  -1., -1.),
+        point3( 1.,  -1., -1.),
+        point3( 1.,   1., -1.),
+        point3(-1.,   1., -1.),
     };
 
     /* Front face     back face
@@ -313,7 +313,7 @@ SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
     // clang-format on
 
     for (int i = 0; i < pos.size(); i++) {
-        pos[i] = transform * vec4(pos[i], 1.);
+        pos[i] = transform.transform_point(pos[i]);
     }
 
     MeshParams mp = {
@@ -347,7 +347,7 @@ SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
     f32 y = center_node.attribute("y").as_float();
     f32 z = center_node.attribute("z").as_float();
 
-    vec3 center = vec3(x, y, z);
+    point3 center = point3(x, y, z);
     auto sphere = SphereParams{center, radius, mat_id, emitter};
     sc->add_sphere(sphere);
 }
@@ -388,7 +388,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     auto &attrib = reader.GetAttrib();
     auto &shapes = reader.GetShapes();
 
-    UmVector<vec3> pos{};
+    UmVector<point3> pos{};
     UmVector<vec3> normals{};
     UmVector<vec2> uvs{};
     UmVector<u32> indices{};
@@ -432,7 +432,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         tinyobj::real_t y = attrib.vertices[3 * v + 1];
         tinyobj::real_t z = attrib.vertices[3 * v + 2];
 
-        vec3 vert_pos = vec3(x, y, z);
+        point3 vert_pos = point3(x, y, z);
         pos.push(std::move(vert_pos));
 
         if (!face_normals) {
@@ -452,12 +452,12 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     }
 
     for (int i = 0; i < pos.size(); i++) {
-        pos[i] = transform * vec4(pos[i], 1.);
+        pos[i] = transform.transform_point(pos[i]);
     }
 
-    auto inv_trans = glm::inverse(glm::transpose(transform));
+    auto inv_trans = transform.transpose().inverse();
     for (int i = 0; i < normals.size(); i++) {
-        normals[i] = inv_trans * vec4(normals[i], 1.);
+        normals[i] = inv_trans.transform_vec(normals[i]);
     }
 
     MeshParams mp = {

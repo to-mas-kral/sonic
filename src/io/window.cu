@@ -1,9 +1,11 @@
 
 #include "window.h"
 
+#include <stdexcept>
+
 #include <spdlog/spdlog.h>
 
-#include <stdexcept>
+#include "../math/vecmath.h"
 
 Window::Window(int resx, int resy) {
     framebuffer = std::vector<u32>(resx * resy, 0);
@@ -26,7 +28,7 @@ Window::update(Framebuffer &fb, int samples) {
     for (int pi = 0; pi < fb.num_pixels(); pi++) {
         vec3 rgb = fb.get_pixels()[pi];
         rgb /= static_cast<f32>(samples);
-        rgb = glm::pow(rgb, vec3(1. / 2.2));
+        rgb = rgb.pow(1.f / 2.2f);
 
         vec3 tonemapped = reinhard(rgb);
         u8 r = static_cast<u8>(tonemapped.x * 255.f);

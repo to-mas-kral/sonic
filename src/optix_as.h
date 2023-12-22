@@ -2,6 +2,7 @@
 #define PT_OPTIX_AS_H
 
 #include "scene.h"
+#include "math/vecmath.h"
 
 class OptixAS {
 public:

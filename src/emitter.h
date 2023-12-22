@@ -3,6 +3,7 @@
 
 #include "math/math_utils.h"
 #include "utils/basic_types.h"
+#include "math/vecmath.h"
 
 // Just a description of how a light emits light.
 // More light sources can map onto the same emitter !

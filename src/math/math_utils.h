@@ -42,10 +42,4 @@ avg(Args... args) {
     return total / static_cast<T>(num_args);
 }
 
-template <typename T>
-__device__ __forceinline__ T
-barycentric_interp(const vec3 &bar, const T &x, const T &y, const T &z) {
-    return bar.x * x + bar.y * y + bar.z * z;
-}
-
 #endif // PT_MATH_UTILS_H

@@ -2,6 +2,7 @@
 #define PT_RAYGEN_H
 
 #include "../render_context.h"
+#include "../math/vecmath.h"
 
 __device__ __forceinline__ Ray
 gen_ray(u32 x, u32 y, u32 res_x, u32 res_y, const vec2 &sample, const Camera &cam,

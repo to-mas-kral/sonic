@@ -10,7 +10,7 @@
 #include <pugixml.hpp>
 
 #include "utils/basic_types.h"
-
+#include "math/vecmath.h"
 #include "envmap.h"
 #include "scene.h"
 #include "texture.h"
@@ -19,7 +19,7 @@ struct SceneAttribs {
     u32 resx{};
     u32 resy{};
     f32 fov{};
-    mat4 camera_to_world = mat4(1.f);
+    mat4 camera_to_world = mat4::identity();
 };
 
 /// Loader for Mitsuba's scene format:

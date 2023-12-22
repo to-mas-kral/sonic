@@ -5,6 +5,7 @@
 
 #include "../math/sampling.h"
 #include "../utils/basic_types.h"
+#include "../math/vecmath.h"
 #include "../utils/um_vector.h"
 
 class PiecewiseDist1D {

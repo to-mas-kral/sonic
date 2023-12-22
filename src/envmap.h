@@ -9,6 +9,7 @@
 #include <tinyexr.h>
 
 #include "geometry/ray.h"
+#include "math/vecmath.h"
 #include "texture.h"
 #include "utils/basic_types.h"
 #include "utils/cuda_err.h"
@@ -38,7 +39,7 @@ public:
     Envmap() : Texture(){};
 
     explicit Envmap(const std::string &texture_path, const mat4 &to_world_transform)
-        : Texture(texture_path), to_world_transform(glm::inverse(to_world_transform)) {
+        : Texture(texture_path), to_world_transform(to_world_transform.inverse()) {
         UmVector<f32> img(width * height);
         img.assume_all_init();
 
@@ -49,9 +50,9 @@ public:
 
     __device__ __forceinline__ vec3
     get_ray_radiance(Ray &ray) const {
-        // FIXME: correct coordinates for environment mapping...
+        // TODO: correct coordinates for environment mapping...
         /*Ray tray = Ray(ray);
-        tray.dir = glm::normalize(tray.dir);
+        tray.dir = tray.dir.normalize();
         tray.transform(to_world_transform);*/
 
         // Mapping from ray direction to UV on equirectangular texture
@@ -66,11 +67,11 @@ public:
     };
 
     /// Returns radiance, direction and pdf
-    __device__ __forceinline__ CTuple<vec3, vec3, f32>
+    __device__ __forceinline__ CTuple<vec3, norm_vec3, f32>
     sample(const vec2 &sample) const {
         auto [uv, pdf] = sampling_dist.sample(sample);
         if (pdf == 0.f) {
-            return {vec3(0.f), vec3(0.f), pdf};
+            return {vec3(0.f), norm_vec3(0.f), pdf};
         }
 
         f32 theta = uv[1] * M_PIf;
@@ -79,8 +80,8 @@ public:
         f32 cos_theta = cos(theta);
         f32 sin_phi = sin(phi);
         f32 cos_phi = cos(phi);
-        vec3 dir =
-            glm::normalize(vec3(sin_theta * cos_phi, cos_theta, sin_theta * sin_phi));
+        norm_vec3 dir =
+            vec3(sin_theta * cos_phi, cos_theta, sin_theta * sin_phi).normalized();
 
         pdf /= (2.f * sqr(M_PIf) * sin_theta);
         if (sin_theta == 0.f) {
@@ -105,7 +106,7 @@ public:
     };
 
 private:
-    mat4 to_world_transform = mat4(1.);
+    mat4 to_world_transform = mat4::identity();
     PiecewiseDist2D sampling_dist{};
 };
 

@@ -2,11 +2,11 @@
 #define PT_GEOMETRY_H
 
 #include <cuda/std/array>
-#include <cuda/std/optional>
 #include <cuda/std/utility>
 
 #include "../emitter.h"
 #include "../math/sampling.h"
+#include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 #include "../utils/um_vector.h"
 
@@ -23,8 +23,8 @@ struct ShapeIndex {
 };
 
 struct ShapeSample {
-    vec3 pos;
-    vec3 normal;
+    point3 pos;
+    norm_vec3 normal;
     f32 pdf;
     f32 area;
 };
@@ -60,7 +60,7 @@ struct Mesh {
 // Used only for mesh creation
 struct MeshParams {
     UmVector<u32> *indices;
-    UmVector<vec3> *pos;
+    UmVector<point3> *pos;
     UmVector<vec3> *normals = nullptr; // may be null
     UmVector<vec2> *uvs = nullptr;     // may be null
     u32 material_id;
@@ -72,53 +72,53 @@ struct Meshes {
     UmVector<Mesh> meshes = UmVector<Mesh>();
 
     UmVector<u32> indices = UmVector<u32>();
-    UmVector<vec3> pos = UmVector<vec3>();
+    UmVector<point3> pos = UmVector<point3>();
     UmVector<vec3> normals = UmVector<vec3>();
     UmVector<vec2> uvs = UmVector<vec2>();
 
-    __host__ __device__ __forceinline__ uvec3
+    __host__ __device__ __forceinline__ CArray<u32, 3>
     get_tri_indices(u32 mesh_indices_index, u32 triangle) const {
         u32 index = triangle * 3;
         u32 i0 = indices[mesh_indices_index + index];
         u32 i1 = indices[mesh_indices_index + index + 1];
         u32 i2 = indices[mesh_indices_index + index + 2];
-        return uvec3(i0, i1, i2);
+        return {i0, i1, i2};
     };
 
-    __host__ __device__ __forceinline__ cuda::std::array<vec3, 3>
-    get_tri_pos(u32 mesh_pos_index, const uvec3 &tri_indices) const {
-        vec3 p0 = pos[mesh_pos_index + tri_indices.x];
-        vec3 p1 = pos[mesh_pos_index + tri_indices.y];
-        vec3 p2 = pos[mesh_pos_index + tri_indices.z];
+    __host__ __device__ __forceinline__ cuda::std::array<point3, 3>
+    get_tri_pos(u32 mesh_pos_index, const CArray<u32, 3> &tri_indices) const {
+        point3 p0 = pos[mesh_pos_index + tri_indices[0]];
+        point3 p1 = pos[mesh_pos_index + tri_indices[1]];
+        point3 p2 = pos[mesh_pos_index + tri_indices[2]];
         return {p0, p1, p2};
     };
 
     __host__ __device__ __forceinline__ f32
     calc_tri_area(u32 mesh_indices_index, u32 mesh_pos_index, u32 triangle) const {
-        uvec3 tri_indices = get_tri_indices(mesh_indices_index, triangle);
+        auto tri_indices = get_tri_indices(mesh_indices_index, triangle);
         const auto [p0, p1, p2] = get_tri_pos(mesh_pos_index, tri_indices);
         vec3 v1 = p1 - p0;
         vec3 v2 = p2 - p0;
-        vec3 cross = glm::cross(v1, v2);
-        return glm::length(cross) / 2.f;
+        vec3 cross = vec3::cross(v1, v2);
+        return cross.length() / 2.f;
     };
 
-    __device__ __forceinline__ static vec3
+    __device__ __forceinline__ static norm_vec3
     calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, const vec3 *normals,
-                const vec3 &bar, const vec3 &p0, const vec3 &p1, const vec3 &p2,
+                const vec3 &bar, const point3 &p0, const point3 &p1, const point3 &p2,
                 bool want_geometric_normal = false) {
         if (has_normals && !want_geometric_normal) {
             vec3 n0 = normals[i0];
             vec3 n1 = normals[i1];
             vec3 n2 = normals[i2];
-            return glm::normalize(barycentric_interp(bar, n0, n1, n2));
+            return barycentric_interp(bar, n0, n1, n2).normalized();
         } else {
             vec3 v0 = p1 - p0;
             vec3 v1 = p2 - p0;
-            vec3 normal = glm::normalize(cross(v0, v1));
-            if (glm::any(glm::isnan(normal))) {
+            norm_vec3 normal = vec3::cross(v0, v1).normalized();
+            if (normal.any_nan()) {
                 // TODO: Degenerate triangle hack...
-                normal = glm::normalize(vec3(0.5f, 0.3f, -0.7f));
+                normal = vec3(0.5f, 0.3f, -0.7f).normalized();
             }
 
             return normal;
@@ -144,13 +144,14 @@ struct Meshes {
         auto &mesh = meshes[si.index];
 
         const vec3 bar = sample_uniform_triangle(vec2(sample.y, sample.z));
-        uvec3 tri_indices = get_tri_indices(mesh.indices_index, si.triangle_index);
+        auto tri_indices = get_tri_indices(mesh.indices_index, si.triangle_index);
         const auto tri_pos = get_tri_pos(mesh.pos_index, tri_indices);
-        vec3 sampled_pos = barycentric_interp(bar, tri_pos[0], tri_pos[1], tri_pos[2]);
+        point3 sampled_pos = barycentric_interp(bar, tri_pos[0], tri_pos[1], tri_pos[2]);
 
-        vec3 normal = calc_normal(mesh.has_normals, tri_indices.x, tri_indices.y,
-                                  tri_indices.z, normals.get_ptr_to(mesh.normals_index),
-                                  bar, tri_pos[0], tri_pos[1], tri_pos[2]);
+        norm_vec3 normal =
+            calc_normal(mesh.has_normals, tri_indices[0], tri_indices[1], tri_indices[2],
+                        normals.get_ptr_to(mesh.normals_index), bar, tri_pos[0],
+                        tri_pos[1], tri_pos[2]);
 
         f32 area = calc_tri_area(mesh.indices_index, mesh.pos_index, si.triangle_index);
 
@@ -165,7 +166,7 @@ struct Meshes {
 
 // Used only for sphere creation
 struct SphereParams {
-    vec3 center;
+    point3 center;
     f32 radius;
     u32 material_id;
     COption<Emitter> emitter = {};
@@ -173,7 +174,7 @@ struct SphereParams {
 
 // OptiX requires SOA layout
 struct Spheres {
-    UmVector<vec3> centers = UmVector<vec3>();
+    UmVector<point3> centers = UmVector<point3>();
     UmVector<f32> radiuses = UmVector<f32>();
     UmVector<u32> material_ids = UmVector<u32>();
     UmVector<bool> has_light = UmVector<bool>();
@@ -181,12 +182,12 @@ struct Spheres {
     u32 num_spheres = 0;
 
     __device__ __forceinline__ ShapeSample
-    sample(u32 index, const vec3 &illuminated_pos, const vec3 &sample) const {
-        vec3 sample_dir = sample_uniform_sphere(sample);
-        vec3 center = centers[index];
+    sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) const {
+        vec3 sample_dir = sample_uniform_sphere(vec2(sample.x, sample.y));
+        point3 center = centers[index];
         f32 radius = radiuses[index];
 
-        vec3 pos = center + radius * sample_dir;
+        point3 pos = center + radius * sample_dir;
         f32 area = calc_sphere_area(radius);
 
         return ShapeSample{
@@ -208,10 +209,11 @@ struct Spheres {
         return calc_sphere_area(radius);
     }
 
-    __device__ __forceinline__ static vec3
-    calc_normal(const vec3 &pos, const vec3 &center, bool want_geometric_normal = false) {
+    __device__ __forceinline__ static norm_vec3
+    calc_normal(const point3 &pos, const point3 &center,
+                bool want_geometric_normal = false) {
         // TODO: geometric normals calculation when using normal mapping
-        return glm::normalize(pos - center);
+        return (pos - center).normalized();
     }
 
     __device__ __forceinline__ static vec2
@@ -249,7 +251,7 @@ struct Geometry {
     }
 
     __device__ __forceinline__ ShapeSample
-    sample_shape(ShapeIndex si, const vec3 &pos, const vec3 &sample) const {
+    sample_shape(ShapeIndex si, const point3 &pos, const vec3 &sample) const {
         switch (si.type) {
         case ShapeType::Mesh:
             return meshes.sample(si, sample);

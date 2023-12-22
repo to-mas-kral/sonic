@@ -8,6 +8,7 @@
 
 #include "../framebuffer.h"
 #include "../utils/basic_types.h"
+#include "../math/vecmath.h"
 
 namespace ImageWriter {
 

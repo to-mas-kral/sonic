@@ -11,6 +11,7 @@
 #include "geometry/ray.h"
 #include "math/piecewise_dist.h"
 #include "utils/basic_types.h"
+#include "math/vecmath.h"
 #include "utils/cuda_box.h"
 #include "utils/cuda_err.h"
 #include "utils/um_vector.h"
