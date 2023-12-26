@@ -10,7 +10,7 @@
 /// Roulette is only applied after the first 3 bounces.
 /// Returns true if path should be terminated. If not, also returns roulette compensation.
 __device__ __forceinline__ COption<f32>
-russian_roulette(u32 depth, f32 u, const vec3 &throughput) {
+russian_roulette(u32 depth, f32 u, const spectral &throughput) {
     if (depth > 3) {
         f32 survival_prob = 1.f - max(throughput.max_component(), 0.05f);
 

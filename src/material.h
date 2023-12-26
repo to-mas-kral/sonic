@@ -1,6 +1,7 @@
 #ifndef PT_MATERIAL_H
 #define PT_MATERIAL_H
 
+#include "color/spectrum.h"
 #include "integrator/utils.h"
 #include "math/sampling.h"
 #include "math/vecmath.h"
@@ -13,20 +14,19 @@ enum class MaterialType : u8 {
 
 struct Material {
     static Material
-    make_diffuse(const vec3 &p_reflectance) {
-        return Material{
-            .type = MaterialType::Diffuse,
-            .diffuse = {
-                .reflectance = {p_reflectance.x, p_reflectance.y, p_reflectance.z},
-                .reflectance_tex_id = {},
-            }};
+    make_diffuse(const RgbSpectrum &p_reflectance) {
+        return Material{.type = MaterialType::Diffuse,
+                        .diffuse = {
+                            .reflectance = p_reflectance,
+                            .reflectance_tex_id = {},
+                        }};
     }
 
     static Material
     make_diffuse(u32 reflectance_tex_id) {
         return Material{.type = MaterialType::Diffuse,
                         .diffuse = {
-                            .reflectance = {0.f, 0.f, 0.f},
+                            .reflectance = RgbSpectrum{},
                             .reflectance_tex_id = reflectance_tex_id,
                         }};
     }
@@ -68,22 +68,27 @@ struct Material {
         }
     }
 
-    __device__ vec3
-    eval(const ShadingGeometry &sgeom, Texture *textures, const vec2 &uv) const {
+    __device__ spectral
+    eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas, Texture *textures,
+         const vec2 &uv) const {
         switch (type) {
         case MaterialType::Diffuse: {
-            vec3 refl = vec3(diffuse.reflectance[0], diffuse.reflectance[1],
-                             diffuse.reflectance[2]);
+            spectral refl{};
+
             if (diffuse.reflectance_tex_id.has_value()) {
                 auto tex_id = diffuse.reflectance_tex_id.value();
                 auto texture = &textures[tex_id];
-                refl = vec3(texture->fetch(uv));
+
+                auto sigmoid_coeff = texture->fetch(uv);
+                refl = RgbSpectrum::from_coeff(sigmoid_coeff).eval(lambdas);
+            } else {
+                refl = diffuse.reflectance.eval(lambdas);
             }
 
             return refl / M_PIf;
         }
         case MaterialType::Conductor:
-            return vec3(1.f) / abs(sgeom.cos_theta);
+            return spectral::ONE() / abs(sgeom.cos_theta);
         }
     }
 
@@ -101,7 +106,7 @@ struct Material {
     bool is_twosided = false;
     union {
         struct {
-            f32 reflectance[3] = {0.5f, 0.5f, 0.5f};
+            RgbSpectrum reflectance;
             COption<u32> reflectance_tex_id = {};
         } diffuse;
     };

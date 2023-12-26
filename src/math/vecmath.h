@@ -6,10 +6,10 @@
 
 // Vector3, Point3 and Tuple3 is inspired by PBRTv4...
 
-template <template <typename> typename Child, typename T> struct Tuple2 {
-    __host__ __device__ explicit Tuple2(T val) : x{val}, y{val} {}
+template <template <typename> typename Child, typename T> struct Tuple2Base {
+    __host__ __device__ explicit Tuple2Base(T val) : x{val}, y{val} {}
     __host__ __device__
-    Tuple2(T x, T y)
+    Tuple2Base(T x, T y)
         : x{x}, y{y} {}
 
     __host__ __device__ T
@@ -162,14 +162,14 @@ template <template <typename> typename Child, typename T> struct Tuple2 {
     T y;
 };
 
-template <typename T> struct Vector2 : public Tuple2<Vector2, T> {
-    using Tuple2<Vector2, T>::x;
-    using Tuple2<Vector2, T>::y;
+template <typename T> struct Vector2 : public Tuple2Base<Vector2, T> {
+    using Tuple2Base<Vector2, T>::x;
+    using Tuple2Base<Vector2, T>::y;
 
-    __host__ __device__ explicit Vector2(T val) : Tuple2<Vector2, T>(val) {}
+    __host__ __device__ explicit Vector2(T val) : Tuple2Base<Vector2, T>(val) {}
     __host__ __device__
     Vector2(T x, T y)
-        : Tuple2<Vector2, T>(x, y) {}
+        : Tuple2Base<Vector2, T>(x, y) {}
 
     __host__ __device__ T
     length_squared() const {
@@ -189,10 +189,10 @@ template <typename T> struct Vector2 : public Tuple2<Vector2, T> {
 
 struct NormalizedVector3;
 
-template <template <typename> typename Child, typename T> struct Tuple3 {
-    __host__ __device__ explicit Tuple3(T val) : x{val}, y{val}, z{val} {}
+template <template <typename> typename Child, typename T> struct Tuple3Base {
+    __host__ __device__ explicit Tuple3Base(T val) : x{val}, y{val}, z{val} {}
     __host__ __device__
-    Tuple3(T x, T y, T z)
+    Tuple3Base(T x, T y, T z)
         : x{x}, y{y}, z{z} {}
 
     __device__ float3
@@ -363,15 +363,16 @@ template <template <typename> typename Child, typename T> struct Tuple3 {
     T z;
 };
 
-template <typename T> struct Vector3 : Tuple3<Vector3, T> {
-    using Tuple3<Vector3, T>::x;
-    using Tuple3<Vector3, T>::y;
-    using Tuple3<Vector3, T>::z;
+template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
+    using Tuple3Base<Vector3, T>::x;
+    using Tuple3Base<Vector3, T>::y;
+    using Tuple3Base<Vector3, T>::z;
 
-    __host__ __device__ explicit Vector3(T val) : Tuple3<Vector3, T>(val) {}
+    __host__ __device__ explicit Vector3(T val) : Tuple3Base<Vector3, T>(val) {}
+
     __host__ __device__
     Vector3(T x, T y, T z)
-        : Tuple3<Vector3, T>(x, y, z) {}
+        : Tuple3Base<Vector3, T>(x, y, z) {}
 
     __host__ __device__ T
     length_squared() const {
@@ -399,6 +400,14 @@ template <typename T> struct Vector3 : Tuple3<Vector3, T> {
 
     __host__ __device__ static Vector3
     reflect(const Vector3 &vec, const NormalizedVector3 &normal);
+};
+
+template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
+    __host__ __device__ explicit Tuple3(f32 val) : Tuple3Base<Tuple3, T>(val) {}
+
+    __host__ __device__
+    Tuple3(T x, T y, T z)
+        : Tuple3Base<Tuple3, T>(x, y, z) {}
 };
 
 struct NormalizedVector3 : Vector3<f32> {
@@ -435,11 +444,11 @@ Vector3<T>::reflect(const Vector3<T> &vec, const NormalizedVector3 &normal) {
     return -vec + normal * dot(normal, vec) * 2.f;
 }
 
-template <typename T = f32> struct Point3 : Tuple3<Point3, f32> {
-    __host__ __device__ explicit Point3(f32 val) : Tuple3(val) {}
+template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
+    __host__ __device__ explicit Point3(f32 val) : Tuple3Base(val) {}
     __host__ __device__
     Point3(f32 x, f32 y, f32 z)
-        : Tuple3(x, y, z) {}
+        : Tuple3Base(x, y, z) {}
 
     __host__ __device__ Vector3<f32>
     operator-(const Point3 &other) const {
@@ -613,6 +622,8 @@ using uvec3 = Vector3<u32>;
 using ivec2 = Vector2<i32>;
 using ivec3 = Vector3<i32>;
 
+// TODO: refactor some variables from vec3 to tuple3
+using tuple3 = Tuple3<f32>;
 using tuple4 = Tuple4<f32>;
 
 template <typename T>

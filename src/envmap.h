@@ -8,6 +8,8 @@
 #include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
+#include "color/rgb_spectrum.h"
+#include "color/spectrum.h"
 #include "geometry/ray.h"
 #include "math/vecmath.h"
 #include "texture.h"
@@ -24,6 +26,7 @@ calc_texture(int width, int height, f32 *img, cudaTextureObject_t tex_obj) {
             f32 up = (f32)u / (f32)width;
             auto elem = tex2D<float4>(tex_obj, up, vp);
 
+            // FIXME: this should calculate the power of the RGBSpectrum...
             img[u + v * width] = avg<f32>(elem.x, elem.y, elem.z);
             img[u + v * width] *= sin_theta;
         }
@@ -39,7 +42,8 @@ public:
     Envmap() : Texture(){};
 
     explicit Envmap(const std::string &texture_path, const mat4 &to_world_transform)
-        : Texture(texture_path), to_world_transform(to_world_transform.inverse()) {
+        : Texture(Texture::make(texture_path, true)),
+          to_world_transform(to_world_transform.inverse()) {
         UmVector<f32> img(width * height);
         img.assume_all_init();
 
@@ -48,8 +52,8 @@ public:
         sampling_dist = PiecewiseDist2D(img, width, height);
     };
 
-    __device__ __forceinline__ vec3
-    get_ray_radiance(Ray &ray) const {
+    __device__ __forceinline__ spectral
+    get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
         // TODO: correct coordinates for environment mapping...
         /*Ray tray = Ray(ray);
         tray.dir = tray.dir.normalize();
@@ -62,16 +66,16 @@ public:
         uv *= pi_reciprocals;
         uv += 0.5;
 
-        auto ret = tex2D<float4>(tex_obj, uv.x, 1.f - uv.y);
-        return vec3(ret.x, ret.y, ret.z);
+        auto coeff = fetch(uv);
+        return RgbSpectrum::from_coeff(coeff).eval(lambdas);
     };
 
     /// Returns radiance, direction and pdf
-    __device__ __forceinline__ CTuple<vec3, norm_vec3, f32>
+    __device__ __forceinline__ CTuple<tuple3, norm_vec3, f32>
     sample(const vec2 &sample) const {
         auto [uv, pdf] = sampling_dist.sample(sample);
         if (pdf == 0.f) {
-            return {vec3(0.f), norm_vec3(0.f), pdf};
+            return {tuple3(0.f), norm_vec3(0.f), pdf};
         }
 
         f32 theta = uv[1] * M_PIf;

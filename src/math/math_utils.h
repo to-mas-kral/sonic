@@ -42,4 +42,14 @@ avg(Args... args) {
     return total / static_cast<T>(num_args);
 }
 
+namespace annie {
+
+template <typename T>
+__host__ __device__ T
+lerp(f32 t, const T &start, const T &end) {
+    return start * (1.f - t) + end * t;
+}
+
+} // namespace annie
+
 #endif // PT_MATH_UTILS_H

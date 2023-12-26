@@ -7,6 +7,7 @@
 #include "../render_context.h"
 #include "../utils/basic_types.h"
 
+// TODO: convert to const
 struct PtParams {
     Light *lights;
     Texture *textures;

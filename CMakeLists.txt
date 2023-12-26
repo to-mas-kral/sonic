@@ -54,9 +54,16 @@ add_executable(pt src/main.cu
         src/geometry/geometry.cu
 
         src/scene/light.h
+
+        src/color/rgb2spec.h
+        src/color/spectrum.h
+        src/color/cie_spectrums.h
+        src/color/spectrum_consts.h
+        src/color/rgb_spectrum.h
+        src/color/color_space.h
+        src/color/rgb_spectrum.cu
 )
 
-link_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-6.5.0-linux64/lib64/)
 include_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/)
 
 set_target_properties(pt PROPERTIES
@@ -72,9 +79,6 @@ target_compile_options(pt PRIVATE
 
 find_package(fmt CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE fmt::fmt)
-
-find_package(glm CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE glm::glm)
 
 find_package(tinyexr CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE unofficial::tinyexr::tinyexr)
@@ -121,7 +125,8 @@ set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCES_DIR}/)
 set(resource_dir ${CMAKE_SOURCE_DIR}/resources)
 set(package_dir ${CMAKE_BINARY_DIR}/package)
 
-install(TARGETS pt DESTINATION ${package_dir})
-install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${package_dir})
+#install(TARGETS pt DESTINATION ${package_dir})
+#install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${package_dir})
+#install(DIRECTORY ${resource_dir} DESTINATION ${package_dir})
 install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${CMAKE_BINARY_DIR})
-install(DIRECTORY ${resource_dir} DESTINATION ${package_dir})
+install(DIRECTORY ${resource_dir} DESTINATION ${CMAKE_BINARY_DIR})

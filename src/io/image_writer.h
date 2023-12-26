@@ -6,9 +6,10 @@
 #include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
+#include "../color/color_space.h"
 #include "../framebuffer.h"
-#include "../utils/basic_types.h"
 #include "../math/vecmath.h"
+#include "../utils/basic_types.h"
 
 namespace ImageWriter {
 
@@ -17,7 +18,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     auto width = fb.get_res_x();
     auto height = fb.get_res_y();
 
-    UmVector<vec3> &rgb = fb.get_pixels();
+    UmVector<vec3> &pixels = fb.get_pixels();
 
     EXRHeader header;
     InitEXRHeader(&header);
@@ -33,11 +34,12 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     images[2].resize(width * height);
 
     for (int i = 0; i < width * height; i++) {
-        vec3 col = rgb[i] / static_cast<float>(num_samples);
+        vec3 xyz = pixels[i] / static_cast<float>(num_samples);
+        tuple3 rgb = xyz_to_srgb(tuple3(xyz.x, xyz.y, xyz.z));
 
-        images[0][i] = col.x;
-        images[1][i] = col.y;
-        images[2][i] = col.z;
+        images[0][i] = rgb.x;
+        images[1][i] = rgb.y;
+        images[2][i] = rgb.z;
     }
 
     float *image_ptr[3];

@@ -4,6 +4,7 @@
 #include <optix.h>
 #include <optix_device.h>
 
+#include "../color/spectrum.h"
 #include "../integrator/utils.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
@@ -130,7 +131,8 @@ get_its(Scene *sc, u32 p1, u32 p2, u32 p3, u32 p4, HitType hit_type, Ray &ray) {
 __device__ __forceinline__ void
 light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
           const LightSample &light_sample, const ShapeSample &shape_sample,
-          const Material *material, vec3 *radiance, const vec3 &throughput) {
+          const Material *material, spectral *radiance, const spectral &throughput,
+          const SampledLambdas &lambdas) {
     point3 light_pos = shape_sample.pos;
     norm_vec3 pl = (light_pos - its.pos).normalized();
     f32 pl_mag_sq = (light_pos - its.pos).length_squared();
@@ -159,10 +161,11 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
             // https://www.pbr-book.org/4ed/Radiometry,_Spectra,_and_Color/Working_with_Radiometric_Integrals#IntegralsoverArea
             f32 pdf_light = shape_sample.pdf * light_sample.pdf * (pl_mag_sq / cos_light);
 
-            vec3 bxdf_light = material->eval(sgeom_light, params.textures, its.uv);
+            spectral bxdf_light =
+                material->eval(sgeom_light, lambdas, params.textures, its.uv);
             f32 weight_light = mis_power_heuristic(pdf_light, material->pdf(sgeom_light));
 
-            vec3 light_emission = light_sample.light.emitter.emission();
+            spectral light_emission = light_sample.light.emitter.emission(lambdas);
 
             *radiance += bxdf_light * sgeom_light.cos_theta * (1.f / pdf_light) *
                          light_emission * weight_light * throughput;
@@ -170,9 +173,9 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
     }
 }
 
-__device__ __forceinline__ vec3
-bxdf_mis(Scene *sc, const vec3 &throughput, const point3 &last_hit_pos, f32 last_pdf_bxdf,
-         const Intersection &its, const vec3 &emission) {
+__device__ __forceinline__ spectral
+bxdf_mis(Scene *sc, const spectral &throughput, const point3 &last_hit_pos,
+         f32 last_pdf_bxdf, const Intersection &its, const spectral &emission) {
     norm_vec3 pl_norm = (its.pos - last_hit_pos).normalized();
     f32 pl_mag_sq = (its.pos - last_hit_pos).length_squared();
     f32 cos_light = vec3::dot(its.normal, -pl_norm);
@@ -191,7 +194,7 @@ bxdf_mis(Scene *sc, const vec3 &throughput, const point3 &last_hit_pos, f32 last
                     (light_area * cos_light);
 
     f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_light);
-    return throughput * bxdf_weight * emission;
+    return throughput * emission * bxdf_weight;
 }
 
 extern "C" __global__ void
@@ -211,12 +214,14 @@ __raygen__rg() {
     auto ray =
         gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam, params.cam_to_world);
 
-    vec3 radiance = vec3(0.f);
+    SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
+
+    spectral radiance = spectral::ZERO();
+    spectral throughput = spectral::ONE();
     u32 depth = 1;
-    vec3 throughput = vec3(1.f);
+    f32 last_pdf_bxdf = 0.f;
     bool last_hit_specular = false;
     point3 last_hit_pos = point3(0.f);
-    f32 last_pdf_bxdf = 0.f;
 
     while (true) {
         u32 p0, p1, p2, p3, p4;
@@ -233,14 +238,14 @@ __raygen__rg() {
             auto material = &params.materials[its.material_id];
             bool is_frontfacing = vec3::dot(-ray.dir, its.normal) >= 0.f;
 
-            // FIXME: I'll have to handle two-sided materials...
+            // TODO: I'll have to handle two-sided materials...
             if (!is_frontfacing) {
                 its.normal = -its.normal;
                 its.geometric_normal = -its.geometric_normal;
             }
 
             if (its.has_light && is_frontfacing) {
-                vec3 emission = params.lights[its.light_id].emitter.emission();
+                spectral emission = params.lights[its.light_id].emitter.emission(lambdas);
 
                 if (depth == 1 || last_hit_specular) {
                     // Primary ray hit, can't apply MIS...
@@ -257,14 +262,10 @@ __raygen__rg() {
             Ray bxdf_ray = spawn_ray(its, sample_dir);
 
             f32 pdf = material->pdf(sgeom_bxdf, true);
-            vec3 bxdf = material->eval(sgeom_bxdf, params.textures, its.uv);
+            spectral bxdf = material->eval(sgeom_bxdf, lambdas, params.textures, its.uv);
             last_hit_specular = material->is_specular();
 
-            /*
-             * Envmap
-             * */
-
-            if (sc->has_envmap && !last_hit_specular) {
+            /*if (sc->has_envmap && !last_hit_specular) {
                 auto [envrad, envdir, envpdf] = sc->envmap.sample(sampler.sample2());
 
                 u32 did_hit_env_test = 1;
@@ -284,11 +285,7 @@ __raygen__rg() {
 
                     radiance += throughput * env_weight * envrad;
                 }
-            }
-
-            /*
-             * End envmap
-             * */
+            }*/
 
             if (!last_hit_specular) {
                 f32 light_sample = sampler.sample();
@@ -299,7 +296,7 @@ __raygen__rg() {
                         sampled_light.value().light.shape, its.pos, shape_rng);
 
                     light_mis(its, ray, bxdf_ray, sampled_light.value(), shape_sample,
-                              material, &radiance, throughput);
+                              material, &radiance, throughput, lambdas);
                 }
             }
 
@@ -327,23 +324,23 @@ __raygen__rg() {
                 break;
             } else {
                 const Envmap *envmap = &sc->envmap;
-                vec3 envrad = envmap->get_ray_radiance(ray);
+                spectral envrad = envmap->get_ray_radiance(ray, lambdas);
 
-                if (depth == 1) {
-                    radiance += envrad;
-                } else {
+                /*if (depth == 1) {*/
+                radiance += envrad;
+                /*} else {
                     f32 env_pdf = envmap->pdf(ray.dir);
                     f32 env_weight = mis_power_heuristic(last_pdf_bxdf, env_pdf);
 
                     radiance += throughput * env_weight * envrad;
-                }
+                }*/
 
                 break;
             }
         }
     }
 
-    params.fb->get_pixels()[pixel_index] += radiance;
+    params.fb->get_pixels()[pixel_index] += lambdas.to_xyz(radiance);
 }
 
 extern "C" __global__ void

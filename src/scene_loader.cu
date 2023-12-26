@@ -2,12 +2,13 @@
 
 #include <array>
 #include <ranges>
+#include <utility>
 
 #include <fmt/core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
+#include "color/rgb_spectrum.h"
 #include "math/vecmath.h"
 #include "tiny_obj_loader.h"
-#include <utility>
 
 using str = std::string_view;
 
@@ -48,8 +49,7 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
             auto [mat, _] = load_material(sc, bsdf_node);
             mat_id = sc->add_material(std::move(mat));
         } else {
-            spdlog::error("Shape has no material");
-            throw;
+            throw std::runtime_error("Shape has no material");
         }
 
         auto transform_node = shape.child("transform");
@@ -73,8 +73,7 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
         } else if (type == "sphere") {
             load_sphere(shape, mat_id, transform, emitter, sc);
         } else {
-            spdlog::error("Unknown shape type: {}", type);
-            throw;
+            throw std::runtime_error(fmt::format("Unknown shape type: {}", type));
         }
     }
 }
@@ -109,7 +108,7 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     }
 
     // Default material - 50% reflectance
-    Material mat = Material::make_diffuse(vec3(0.5, 0.5, 0.5));
+    Material mat = Material::make_diffuse(RgbSpectrum::make(tuple3(0.5f)));
 
     if (type == "diffuse") {
         auto reflectance_node = bsdf.find_child([](pugi::xml_node node) {
@@ -128,13 +127,13 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
             });
 
             auto file_path = filename_node.attribute("value").as_string();
-            auto texture = Texture(this->scene_base_path + "/" + file_path);
+            auto texture = Texture::make(this->scene_base_path + "/" + file_path, true);
 
             u32 tex_id = sc->add_texture(std::move(texture));
             mat = Material::make_diffuse(tex_id);
         } else {
-            vec3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
-            mat = Material::make_diffuse(rgb);
+            tuple3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
+            mat = Material::make_diffuse(RgbSpectrum::make(rgb));
         }
     } else if (type == "conductor") {
         mat = Material::make_conductor();
@@ -167,8 +166,7 @@ SceneLoader::parse_transform(pugi::xml_node transform_node) {
             int i = 0;
             for (f32 f : floats) {
                 if (i > 15) {
-                    spdlog::error("Wrong matrix element count");
-                    throw;
+                    throw std::runtime_error("Wrong matrix element count");
                 }
 
                 mat[i] = f;
@@ -193,33 +191,30 @@ SceneLoader::parse_transform(pugi::xml_node transform_node) {
                 }
                 cur_transform = cur_transform.compose(trans);
             } else {
-                spdlog::error("rotate along arbitrary axis not implemented");
-                throw;
+                throw std::runtime_error("Rotate along arbitrary axis not implemented");
             }
         } else {
-            spdlog::error("Unknown transform type");
-            throw;
+            throw std::runtime_error(fmt::format("Unknown transform type: {}", name));
         }
     }
 
     return cur_transform;
 }
 
-vec3
+tuple3
 SceneLoader::parse_rgb(const std::string &str) {
     auto floats = std::views::transform(std::views::split(str, ' '), [](auto v) {
         auto c = v | std::views::common;
         return std::stof(std::string(c.begin(), c.end()));
     });
 
-    vec3 rgb(0.);
+    tuple3 rgb(0.);
 
     int i = 0;
     for (f32 f : floats) {
         rgb[i] = f;
         if (i > 2) {
-            spdlog::error("Wrong rgb element count");
-            throw;
+            throw std::runtime_error("Wrong rgb element count");
         }
 
         i++;
@@ -232,17 +227,17 @@ Emitter
 SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
     str type = emitter_node.attribute("type").as_string();
     if (type != "area") {
-        spdlog::error("Unknown emitter type");
-        throw;
+        throw std::runtime_error(fmt::format("Unknown emitter type: {}", type));
     }
 
     auto rgb_node = emitter_node.child("rgb");
     if (!rgb_node) {
-        spdlog::error("Emitter doesn't have rgb");
-        throw;
+        throw std::runtime_error("Emitter doesn't have rgb");
     }
 
-    vec3 emittance = parse_rgb(rgb_node.attribute("value").as_string());
+    tuple3 emittance_rgb = parse_rgb(rgb_node.attribute("value").as_string());
+    auto emittance = RgbSpectrumIlluminant::make(emittance_rgb, ColorSpace::sRGB);
+
     return Emitter(emittance);
 }
 
@@ -366,9 +361,11 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
 
     if (!reader.ParseFromFile(file_path, reader_config)) {
         if (!reader.Error().empty()) {
-            spdlog::error("Error reading obj file: '{}'", reader.Error());
+            throw std::runtime_error(
+                fmt::format("Error reading obj file: '{}'", reader.Error()));
+        } else {
+            throw std::runtime_error("Error reading obj file");
         }
-        throw;
     }
 
     if (!reader.Warning().empty()) {
