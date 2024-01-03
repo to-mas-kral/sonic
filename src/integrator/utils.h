@@ -70,9 +70,9 @@ offset_ray(const point3 &p, const norm_vec3 &n) {
 }
 
 __device__ __forceinline__ Ray
-spawn_ray(Intersection &its, const norm_vec3 &dir) {
-    point3 offset_orig = offset_ray(its.pos, its.geometric_normal);
-    return Ray(offset_orig, dir);
+spawn_ray(Intersection &its, const norm_vec3 &spawn_ray_normal, const norm_vec3 &wi) {
+    point3 offset_orig = offset_ray(its.pos, spawn_ray_normal);
+    return Ray(offset_orig, wi);
 }
 
 struct ShadingGeometry {

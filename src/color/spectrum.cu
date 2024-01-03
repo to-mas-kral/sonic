@@ -1,6 +1,6 @@
 
 #include "rgb2spec.h"
-#include "rgb_spectrum.h"
+#include "spectrum.h"
 
 static const RGB2Spec rgb2spec = RGB2Spec("resources/rgb2spec.out");
 

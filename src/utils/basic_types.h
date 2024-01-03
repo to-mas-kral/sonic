@@ -22,5 +22,6 @@ template <typename T> using COption = cuda::std::optional<T>;
 template <typename T> using CSpan = cuda::std::span<T>;
 template <typename... T> using CTuple = cuda::std::tuple<T...>;
 template <typename T, u32 N> using CArray = cuda::std::array<T, N>;
+constexpr cuda::std::nullopt_t none = cuda::std::nullopt;
 
 #endif // PT_BASIC_TYPES_H

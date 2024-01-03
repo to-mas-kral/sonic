@@ -1,202 +1,20 @@
 #ifndef PT_SPECTRUM_H
 #define PT_SPECTRUM_H
 
-#include "../math/math_utils.h"
-#include "../math/vecmath.h"
-#include "../utils/basic_types.h"
-#include "../utils/um_vector.h"
-#include "cie_spectrums.h"
-
-__device__ constexpr u32 N_SPECTRUM_SAMPLES = 4;
-__device__ constexpr f32 PDF =
-    1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
-
-struct SpectralQuantity {
-    SpectralQuantity() = default;
-
-    __host__ __device__ explicit SpectralQuantity(
-        const CArray<f32, N_SPECTRUM_SAMPLES> &p_vals)
-        : vals(p_vals) {}
-
-    __host__ __device__ f32
-    average() {
-        f32 sum = 0.f;
-        for (auto v : vals) {
-            sum += v;
-        }
-
-        return sum / static_cast<f32>(N_SPECTRUM_SAMPLES);
-    }
-
-    __host__ __device__ f32
-    max_component() const {
-        f32 max = cuda::std::numeric_limits<f32>::min();
-        for (f32 v : vals) {
-            if (v > max) {
-                max = v;
-            }
-        }
-
-        return max;
-    }
-
-    __host__ __device__ void
-    div_pdf(f32 pdf) {
-        for (f32 &v : vals) {
-            if (pdf != 0.f) {
-                v /= pdf;
-            }
-        }
-    }
-
-    __host__ __device__ static SpectralQuantity
-    ONE() {
-        SpectralQuantity sq{};
-        sq.vals.fill(1.f);
-        return sq;
-    }
-
-    __host__ __device__ static SpectralQuantity
-    ZERO() {
-        SpectralQuantity sq{};
-        sq.vals.fill(0.f);
-        return sq;
-    }
-
-    __host__ __device__ SpectralQuantity
-    operator+(const SpectralQuantity &other) const {
-        SpectralQuantity sq{};
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            sq.vals[i] = vals[i] + other.vals[i];
-        }
-
-        return sq;
-    }
-
-    __host__ __device__ SpectralQuantity &
-    operator+=(const SpectralQuantity &other) {
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            vals[i] += other.vals[i];
-        }
-
-        return *this;
-    }
-
-    __host__ __device__ SpectralQuantity
-    operator*(const SpectralQuantity &other) const {
-        SpectralQuantity sq{};
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            sq.vals[i] = vals[i] * other.vals[i];
-        }
-
-        return sq;
-    }
-
-    __host__ __device__ SpectralQuantity &
-    operator*=(const SpectralQuantity &other) {
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            vals[i] *= other.vals[i];
-        }
-
-        return *this;
-    }
-
-    __host__ __device__ SpectralQuantity
-    operator*(f32 val) const {
-        SpectralQuantity sq{};
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            sq.vals[i] = vals[i] * val;
-        }
-
-        return sq;
-    }
-
-    __host__ __device__ SpectralQuantity &
-    operator*=(f32 val) {
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            vals[i] *= val;
-        }
-
-        return *this;
-    }
-
-    __host__ __device__ SpectralQuantity
-    operator/(f32 div) const {
-        SpectralQuantity sq{};
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            sq.vals[i] = vals[i] / div;
-        }
-
-        return sq;
-    }
-
-    __host__ __device__ f32 &
-    operator[](u32 index) {
-        return vals[index];
-    }
-
-    CArray<f32, N_SPECTRUM_SAMPLES> vals;
-};
-
-struct SampledLambdas {
-    __host__ __device__ static SampledLambdas
-    new_sample_uniform(f32 rand) {
-        SampledLambdas sl{};
-
-        f32 lambda_min = static_cast<f32>(LAMBDA_MIN);
-        f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
-
-        // Sample first wavelength
-        sl.lambdas[0] = annie::lerp(rand, lambda_min, lambda_max);
-
-        if constexpr (N_SPECTRUM_SAMPLES > 1) {
-            // Initialize remaining wavelenghts
-            f32 delta = (lambda_max - lambda_min) / static_cast<f32>(N_SPECTRUM_SAMPLES);
-
-            for (int i = 1; i < N_SPECTRUM_SAMPLES; i++) {
-                sl.lambdas[i] = sl.lambdas[i - 1] + delta;
-                if (sl.lambdas[i] > lambda_max) {
-                    sl.lambdas[i] = lambda_min + (sl.lambdas[i] - lambda_max);
-                }
-            }
-        }
-
-        return sl;
-    }
-
-    __host__ __device__ vec3
-    to_xyz(const SpectralQuantity &radiance);
-
-    __host__ __device__ const f32 &
-    operator[](u32 index) const {
-        return lambdas[index];
-    }
-
-    CArray<f32, N_SPECTRUM_SAMPLES> lambdas;
-};
+#include "color_space.h"
+#include "rgb2spec.h"
+#include "sampled_spectrum.h"
 
 class DenseSpectrum {
 public:
-    __host__ __device__ constexpr static DenseSpectrum
-    from_static(const CArray<f32, LAMBDA_RANGE> &data) {
+    constexpr static DenseSpectrum
+    make(const CArray<f32, LAMBDA_RANGE> &data) {
         DenseSpectrum ds{};
         ds.vals = data.data();
-        ds.is_static = true;
 
         return ds;
     }
 
-    __host__ static DenseSpectrum
-    make(const UmVector<f32> &&data) {
-        DenseSpectrum ds{};
-
-        throw std::runtime_error(
-            "Loading dense spectra from dynamically loaded data is not implemented yet");
-
-        return ds;
-    }
-
-    // TODO: should be linearly interpolated or not ?
     __host__ __device__ f32
     eval_single(f32 lambda) const {
         assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
@@ -204,9 +22,9 @@ public:
         return vals[index];
     }
 
-    __host__ __device__ inline SpectralQuantity
+    __host__ __device__ inline SampledSpectrum
     eval(const SampledLambdas &sl) const {
-        SpectralQuantity sq{};
+        SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             sq[i] = eval_single(sl.lambdas[i]);
         }
@@ -216,23 +34,18 @@ public:
 
 private:
     const f32 *vals;
-    bool is_static;
 };
 
-using spectral = SpectralQuantity;
-
-__device__ const DenseSpectrum CIE_X = DenseSpectrum::from_static(CIE_X_RAW);
-__device__ const DenseSpectrum CIE_Y = DenseSpectrum::from_static(CIE_Y_RAW);
-__device__ const DenseSpectrum CIE_Z = DenseSpectrum::from_static(CIE_Z_RAW);
+__device__ const DenseSpectrum CIE_X = DenseSpectrum::make(CIE_X_RAW);
+__device__ const DenseSpectrum CIE_Y = DenseSpectrum::make(CIE_Y_RAW);
+__device__ const DenseSpectrum CIE_Z = DenseSpectrum::make(CIE_Z_RAW);
+__device__ const DenseSpectrum CIE_65 = DenseSpectrum::make(CIE_D65_RAW);
 
 __host__ __device__ inline vec3
-SampledLambdas::to_xyz(const SpectralQuantity &radiance) {
-    SpectralQuantity x =
-        CIE_X.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
-    SpectralQuantity y =
-        CIE_Y.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
-    SpectralQuantity z =
-        CIE_Z.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
+SampledLambdas::to_xyz(const SampledSpectrum &radiance) {
+    SampledSpectrum x = CIE_X.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
+    SampledSpectrum y = CIE_Y.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
+    SampledSpectrum z = CIE_Z.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
 
     x.div_pdf(PDF);
     y.div_pdf(PDF);
@@ -243,5 +56,222 @@ SampledLambdas::to_xyz(const SpectralQuantity &radiance) {
     f32 z_xyz = z.average() / CIE_Y_INTEGRAL;
     return vec3(x_xyz, y_xyz, z_xyz);
 }
+
+class PiecewiseSpectrum {
+public:
+    static PiecewiseSpectrum
+    make(const CSpan<f32> &data) {
+        PiecewiseSpectrum ds{};
+
+        if (data.size() % 2 != 0 || data.size() < 2) {
+            throw std::runtime_error("Piecewise spectrum data is wrong");
+        }
+
+        ds.vals = data.data();
+        ds.size_half = data.size() / 2;
+
+        return ds;
+    }
+
+    __host__ __device__ f32
+    eval_single(f32 lambda) const {
+        assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
+        u32 index =
+            binary_search_interval(size_half, [&](size_t i) { return vals[i]; }, lambda);
+        return vals[(size_half) + index];
+    }
+
+    __host__ __device__ inline SampledSpectrum
+    eval(const SampledLambdas &sl) const {
+        SampledSpectrum sq{};
+        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+            sq[i] = eval_single(sl.lambdas[i]);
+        }
+
+        return sq;
+    }
+
+private:
+    const f32 *vals;
+    u32 size_half;
+};
+
+class ConstantSpectrum {
+public:
+    __host__ __device__ static constexpr ConstantSpectrum
+    make(f32 val) {
+        ConstantSpectrum cs{};
+        cs.val = val;
+        return cs;
+    }
+
+    __host__ __device__ f32
+    eval_single(f32 lambda) const {
+        return val;
+    }
+
+    __host__ __device__ inline SampledSpectrum
+    eval(const SampledLambdas &sl) const {
+        return SampledSpectrum::make_constant(val);
+    }
+
+private:
+    f32 val;
+};
+
+/// Bounded reflectance spectrum [0; 1]
+struct RgbSpectrum {
+    static RgbSpectrum
+    make(const tuple3 &rgb);
+
+    __host__ __device__ static RgbSpectrum
+    from_coeff(const tuple3 &sigmoig_coeff) {
+        return RgbSpectrum{
+            .sigmoid_coeff = sigmoig_coeff,
+        };
+    }
+
+    static RgbSpectrum
+    make_empty() {
+        return RgbSpectrum{
+            .sigmoid_coeff = tuple3(0.f),
+        };
+    }
+
+    __host__ __device__ f32
+    eval_single(f32 lambda) const {
+        return RGB2Spec::eval(sigmoid_coeff, lambda);
+    }
+
+    __host__ __device__ spectral
+    eval(const SampledLambdas &lambdas) const {
+        spectral sq{};
+        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+            sq[i] = eval_single(lambdas[i]);
+        }
+
+        return sq;
+    }
+
+    tuple3 sigmoid_coeff = tuple3(0.f);
+};
+
+struct RgbSpectrumUnbounded : public RgbSpectrum {
+    static RgbSpectrumUnbounded
+    make(const tuple3 &rgb);
+
+    __host__ __device__ f32
+    eval_single(f32 lambda) const {
+        return scale * RGB2Spec::eval(sigmoid_coeff, lambda);
+    }
+
+    __host__ __device__ spectral
+    eval(const SampledLambdas &lambdas) const {
+        spectral sq{};
+        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+            sq[i] = eval_single(lambdas[i]);
+        }
+
+        return sq;
+    }
+
+    f32 scale = 1.f;
+};
+
+struct RgbSpectrumIlluminant : public RgbSpectrumUnbounded {
+    static RgbSpectrumIlluminant
+    make(const tuple3 &rgb, ColorSpace color_space);
+
+    __host__ __device__ f32
+    eval_single(f32 lambda) const {
+        f32 res = scale * RGB2Spec::eval(sigmoid_coeff, lambda);
+        const DenseSpectrum *illuminant = nullptr;
+        switch (color_space) {
+        case ColorSpace::sRGB:
+            illuminant = &CIE_65;
+            break;
+        default:
+            assert(false);
+        }
+
+        /// TODO: this is a hack for normalizing the D65 illuminant to having a luminance
+        /// of 1
+        res *= illuminant->eval_single(lambda) * (CIE_Y_INTEGRAL / 10789.7637f);
+
+        return res;
+    }
+
+    __host__ __device__ spectral
+    eval(const SampledLambdas &lambdas) const {
+        spectral sq{};
+        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+            sq[i] = eval_single(lambdas[i]);
+        }
+
+        return sq;
+    }
+
+    // TODO: best to store this out-of-band in the case if illuminant textures...
+    ColorSpace color_space = ColorSpace::sRGB;
+};
+
+enum class SpectrumType {
+    Constant,
+    Dense,
+    PiecewiseLinear,
+    Rgb,
+};
+
+struct Spectrum {
+    explicit Spectrum(DenseSpectrum ds) : type{SpectrumType::Dense}, dense_spectrum{ds} {}
+
+    explicit Spectrum(PiecewiseSpectrum ps)
+        : type{SpectrumType::PiecewiseLinear}, piecewise_spectrum{ps} {}
+
+    explicit Spectrum(ConstantSpectrum cs)
+        : type{SpectrumType::Constant}, constant_spectrum{cs} {}
+
+    explicit Spectrum(RgbSpectrum rs) : type{SpectrumType::Rgb}, rgb_spectrum{rs} {}
+
+    __host__ __device__ SampledSpectrum
+    eval(const SampledLambdas &lambdas) const {
+        switch (type) {
+        case SpectrumType::Constant:
+            return constant_spectrum.eval(lambdas);
+        case SpectrumType::Dense:
+            return dense_spectrum.eval(lambdas);
+        case SpectrumType::PiecewiseLinear:
+            return piecewise_spectrum.eval(lambdas);
+        case SpectrumType::Rgb:
+            return rgb_spectrum.eval(lambdas);
+        default:
+            assert(false);
+        }
+    }
+
+    __host__ __device__ f32
+    eval_single(f32 lambda) const {
+        switch (type) {
+        case SpectrumType::Constant:
+            return constant_spectrum.eval_single(lambda);
+        case SpectrumType::Dense:
+            return dense_spectrum.eval_single(lambda);
+        case SpectrumType::PiecewiseLinear:
+            return piecewise_spectrum.eval_single(lambda);
+        case SpectrumType::Rgb:
+            return rgb_spectrum.eval_single(lambda);
+        default:
+            assert(false);
+        }
+    }
+
+    SpectrumType type;
+    union {
+        DenseSpectrum dense_spectrum;
+        PiecewiseSpectrum piecewise_spectrum;
+        ConstantSpectrum constant_spectrum{};
+        RgbSpectrum rgb_spectrum;
+    };
+};
 
 #endif // PT_SPECTRUM_H

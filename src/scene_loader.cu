@@ -4,10 +4,11 @@
 #include <ranges>
 #include <utility>
 
+#include "color/spectral_data.h"
+#include "color/spectrum.h"
+#include "math/vecmath.h"
 #include <fmt/core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "color/rgb_spectrum.h"
-#include "math/vecmath.h"
 #include "tiny_obj_loader.h"
 
 using str = std::string_view;
@@ -132,11 +133,31 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
             u32 tex_id = sc->add_texture(std::move(texture));
             mat = Material::make_diffuse(tex_id);
         } else {
-            tuple3 rgb = parse_rgb(reflectance_node.attribute("value").as_string());
+            tuple3 rgb = parse_tuple3(reflectance_node.attribute("value").as_string());
             mat = Material::make_diffuse(RgbSpectrum::make(rgb));
         }
     } else if (type == "conductor") {
         mat = Material::make_conductor();
+    } else if (type == "dielectric") {
+        auto ext_ior = AIR_ETA;
+        auto int_ior = GLASS_BK7_ETA;
+        spdlog::info("Mitsuba dielectric IORs are ignored for now");
+
+        auto transmittance_node = bsdf.find_child([](pugi::xml_node node) {
+            return node.find_attribute([](pugi::xml_attribute attr) {
+                return str(attr.name()) == "name" &&
+                       str(attr.as_string()) == "specular_transmittance";
+            });
+        });
+
+        Spectrum specular_transmittance = Spectrum(ConstantSpectrum::make(1.f));
+        if (transmittance_node) {
+            tuple3 rgb = parse_tuple3(transmittance_node.attribute("value").as_string());
+            specular_transmittance = Spectrum(RgbSpectrum::make(rgb));
+        }
+
+        mat = Material::make_dielectric(Spectrum(ext_ior), Spectrum(int_ior),
+                                        specular_transmittance);
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
     }
@@ -202,7 +223,7 @@ SceneLoader::parse_transform(pugi::xml_node transform_node) {
 }
 
 tuple3
-SceneLoader::parse_rgb(const std::string &str) {
+SceneLoader::parse_tuple3(const std::string &str) {
     auto floats = std::views::transform(std::views::split(str, ' '), [](auto v) {
         auto c = v | std::views::common;
         return std::stof(std::string(c.begin(), c.end()));
@@ -214,7 +235,7 @@ SceneLoader::parse_rgb(const std::string &str) {
     for (f32 f : floats) {
         rgb[i] = f;
         if (i > 2) {
-            throw std::runtime_error("Wrong rgb element count");
+            throw std::runtime_error("Wrong tuple3 element count");
         }
 
         i++;
@@ -235,7 +256,7 @@ SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
         throw std::runtime_error("Emitter doesn't have rgb");
     }
 
-    tuple3 emittance_rgb = parse_rgb(rgb_node.attribute("value").as_string());
+    tuple3 emittance_rgb = parse_tuple3(rgb_node.attribute("value").as_string());
     auto emittance = RgbSpectrumIlluminant::make(emittance_rgb, ColorSpace::sRGB);
 
     return Emitter(emittance);
@@ -390,15 +411,21 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     UmVector<vec2> uvs{};
     UmVector<u32> indices{};
 
-    assert(shapes.size() == 1);
+    if (shapes.size() != 1) {
+        throw std::runtime_error(
+            fmt::format("OBJ doesn't have exactly one shape: {}", file_path));
+    }
     auto shape = &shapes[0];
 
     // Wavefront OBJ format is so cursed....
     // Load indices
     for (size_t f = 0; f < shape->mesh.num_face_vertices.size(); f++) {
         auto fv = size_t(shape->mesh.num_face_vertices[f]);
-        // Triangulation should take care of this...
-        assert(fv == 3);
+        if (fv != 3) {
+            // Triangulation should take care of this...
+            throw std::runtime_error(
+                fmt::format("OBJ file has non-triangle faces: {}", file_path));
+        }
 
         int i0 = shape->mesh.indices[3 * f].vertex_index;
         int i1 = shape->mesh.indices[3 * f + 1].vertex_index;
@@ -406,9 +433,13 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
 
         for (int i = 0; i < 3; i++) {
             auto ind = shape->mesh.indices[3 * f + i];
-            assert(ind.vertex_index == ind.normal_index &&
-                   ind.vertex_index == ind.texcoord_index &&
-                   ind.vertex_index == ind.texcoord_index);
+            bool matching_indices = (ind.vertex_index == ind.normal_index &&
+                                     ind.vertex_index == ind.texcoord_index);
+
+            if (!matching_indices) {
+                throw std::runtime_error(
+                    fmt::format("OBJ file doesn't have correct indices: {}", file_path));
+            }
         }
 
         indices.push(i0);
@@ -420,8 +451,15 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     size_t normals_size = attrib.normals.size() / 3;
     size_t uvs_size = attrib.texcoords.size() / 2;
 
-    assert(pos_size >= 3);
-    assert(pos_size == normals_size && pos_size == uvs_size);
+    if (pos_size < 3) {
+        throw std::runtime_error(
+            fmt::format("OBJ file doesn't have enough vertices: {}", file_path));
+    }
+
+    if (pos_size != normals_size || pos_size != uvs_size) {
+        throw std::runtime_error(fmt::format(
+            "OBJ file has non-matching number of vertex attributes: {}", file_path));
+    }
 
     // Copy vertices
     for (int v = 0; v < pos_size; v++) {
@@ -430,7 +468,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         tinyobj::real_t z = attrib.vertices[3 * v + 2];
 
         point3 vert_pos = point3(x, y, z);
-        pos.push(std::move(vert_pos));
+        pos.push(vert_pos);
 
         if (!face_normals) {
             tinyobj::real_t nx = attrib.normals[3 * v];
@@ -438,14 +476,14 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
             tinyobj::real_t nz = attrib.normals[3 * v + 2];
 
             vec3 vert_normal = vec3(nx, ny, nz);
-            normals.push(std::move(vert_normal));
+            normals.push(vert_normal);
         }
 
         tinyobj::real_t tx = attrib.texcoords[2 * v];
         tinyobj::real_t ty = attrib.texcoords[2 * v + 1];
 
         vec2 uv = vec2(tx, ty);
-        uvs.push(std::move(uv));
+        uvs.push(uv);
     }
 
     for (int i = 0; i < pos.size(); i++) {

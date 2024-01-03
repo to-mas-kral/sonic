@@ -32,7 +32,8 @@ public:
     explicit SceneLoader(std::string scene_path) {
         pugi::xml_parse_result result = doc.load_file(scene_path.data());
         if (!result) {
-            throw;
+            throw std::runtime_error(
+                fmt::format("Couldn't find scene XML file: {}", scene_path));
         }
 
         auto path = std::filesystem::path(scene_path);
@@ -65,7 +66,7 @@ private:
     load_materials(pugi::xml_node scene_node, Scene *sc);
 
     static tuple3
-    parse_rgb(const std::string &str);
+    parse_tuple3(const std::string &str);
 
     static mat4
     parse_transform(pugi::xml_node transform_node);

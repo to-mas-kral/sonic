@@ -3,9 +3,7 @@
 
 #include "../math/transform.h"
 #include "../utils/basic_types.h"
-#include "spectrum.h"
-
-__device__ const DenseSpectrum CIE_65 = DenseSpectrum::from_static(CIE_D65_RAW);
+#include "sampled_spectrum.h"
 
 enum class ColorSpace : u8 {
     sRGB,

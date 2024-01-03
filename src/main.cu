@@ -77,7 +77,7 @@ main(int argc, char **argv) {
         try {
             scene_loader = SceneLoader(scene_path);
         } catch (const std::exception &e) {
-            spdlog::error("Error while parsing the scene file");
+            spdlog::error("Error while loading the scene: {}", e.what());
             return 1;
         }
         auto attrib_result = scene_loader.load_scene_attribs();

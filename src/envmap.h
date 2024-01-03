@@ -8,8 +8,8 @@
 #include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
-#include "color/rgb_spectrum.h"
 #include "color/spectrum.h"
+#include "color/sampled_spectrum.h"
 #include "geometry/ray.h"
 #include "math/vecmath.h"
 #include "texture.h"

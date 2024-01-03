@@ -1,8 +1,8 @@
 #ifndef PT_EMITTER_H
 #define PT_EMITTER_H
 
-#include "color/rgb_spectrum.h"
 #include "color/spectrum.h"
+#include "color/sampled_spectrum.h"
 #include "math/math_utils.h"
 #include "math/vecmath.h"
 #include "utils/basic_types.h"

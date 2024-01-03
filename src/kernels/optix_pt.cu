@@ -4,7 +4,7 @@
 #include <optix.h>
 #include <optix_device.h>
 
-#include "../color/spectrum.h"
+#include "../color/sampled_spectrum.h"
 #include "../integrator/utils.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
@@ -231,7 +231,7 @@ __raygen__rg() {
 
         HitType hit_type{p0};
         if (hit_type != HitType::Miss) {
-            auto bsdf_sample = sampler.sample2();
+            auto bsdf_sample_rand = sampler.sample2();
             auto rr_sample = sampler.sample();
             Intersection its = get_its(sc, p1, p2, p3, p4, hit_type, ray);
 
@@ -256,13 +256,15 @@ __raygen__rg() {
                 }
             }
 
-            norm_vec3 sample_dir = material->sample(its.normal, -ray.dir, bsdf_sample);
-            auto sgeom_bxdf = get_shading_geom(its.normal, sample_dir, -ray.dir);
+            auto bsdf_sample =
+                material->sample(its.normal, -ray.dir, bsdf_sample_rand, lambdas,
+                                 params.textures, its.uv, is_frontfacing);
+            auto sgeom_bxdf = get_shading_geom(its.normal, bsdf_sample.wi, -ray.dir);
 
-            Ray bxdf_ray = spawn_ray(its, sample_dir);
+            auto spawn_ray_normal =
+                (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
+            Ray bxdf_ray = spawn_ray(its, spawn_ray_normal, bsdf_sample.wi);
 
-            f32 pdf = material->pdf(sgeom_bxdf, true);
-            spectral bxdf = material->eval(sgeom_bxdf, lambdas, params.textures, its.uv);
             last_hit_specular = material->is_specular();
 
             /*if (sc->has_envmap && !last_hit_specular) {
@@ -295,6 +297,7 @@ __raygen__rg() {
                     auto shape_sample = sc->geometry.sample_shape(
                         sampled_light.value().light.shape, its.pos, shape_rng);
 
+                    // TODO: don't pass bxdf_ray in the future...
                     light_mis(its, ray, bxdf_ray, sampled_light.value(), shape_sample,
                               material, &radiance, throughput, lambdas);
                 }
@@ -306,13 +309,14 @@ __raygen__rg() {
             }
 
             auto roulette_compensation = rr.value();
-            throughput *=
-                bxdf * sgeom_bxdf.cos_theta * (1.f / (pdf * roulette_compensation));
+            throughput *= bsdf_sample.bsdf * sgeom_bxdf.cos_theta *
+                          (1.f / (bsdf_sample.pdf * roulette_compensation));
 
             ray = bxdf_ray;
             last_hit_pos = its.pos;
-            last_pdf_bxdf = pdf;
+            last_pdf_bxdf = bsdf_sample.pdf;
             depth++;
+
             if (depth == 64) {
                 // FIXME: specular infinite path caused by self-intersections
                 break;

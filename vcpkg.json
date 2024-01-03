@@ -30,5 +30,8 @@
   }, {
     "name" : "minifb",
     "version>=" : "2023-02-03"
+  }, {
+    "name" : "catch2",
+    "version>=" : "3.5.0"
   } ]
 }

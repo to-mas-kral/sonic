@@ -9,7 +9,8 @@ set(CMAKE_CUDA_ARCHITECTURES 75)
 
 #[[Main executable]]
 
-add_executable(pt src/main.cu
+add_executable(pt
+        src/main.cu
         src/render_context.h
         src/framebuffer.h
         src/camera.h
@@ -32,6 +33,7 @@ add_executable(pt src/main.cu
         src/utils/um_vector.h
         src/utils/cuda_err.h
         src/utils/sampler.h
+        src/utils/algs.h
 
         src/io/image_writer.h
         src/io/progress_bar.h
@@ -56,12 +58,13 @@ add_executable(pt src/main.cu
         src/scene/light.h
 
         src/color/rgb2spec.h
-        src/color/spectrum.h
+        src/color/sampled_spectrum.h
         src/color/cie_spectrums.h
         src/color/spectrum_consts.h
-        src/color/rgb_spectrum.h
         src/color/color_space.h
-        src/color/rgb_spectrum.cu
+        src/color/spectrum.cu
+        src/color/spectral_data.h
+        src/color/spectrum.h
 )
 
 include_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/)
@@ -130,3 +133,14 @@ set(package_dir ${CMAKE_BINARY_DIR}/package)
 #install(DIRECTORY ${resource_dir} DESTINATION ${package_dir})
 install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${CMAKE_BINARY_DIR})
 install(DIRECTORY ${resource_dir} DESTINATION ${CMAKE_BINARY_DIR})
+
+
+#[[Tests]]
+
+add_executable(tests
+        src/utils/tests.cu
+)
+
+find_package(Catch2 3 REQUIRED)
+target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
+

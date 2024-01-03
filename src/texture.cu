@@ -2,7 +2,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include "color/rgb_spectrum.h"
+#include "color/spectrum.h"
 #include "texture.h"
 
 void
