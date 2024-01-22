@@ -8,7 +8,7 @@
 
 const f32 EPS = 0.00001f;
 
-__device__ inline f32
+__host__ __device__ inline f32
 safe_sqrt(f32 v) {
     // Sanity check
     assert(v >= -EPS);
@@ -17,7 +17,7 @@ safe_sqrt(f32 v) {
 }
 
 template <typename T>
-__host__ __device__ f32
+__host__ __device__ T
 sqr(T v) {
     return v * v;
 }

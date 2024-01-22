@@ -9,16 +9,17 @@
 
 #include <pugixml.hpp>
 
-#include "envmap.h"
-#include "math/vecmath.h"
-#include "scene.h"
-#include "texture.h"
-#include "utils/basic_types.h"
+#include "../envmap.h"
+#include "../math/vecmath.h"
+#include "../scene.h"
+#include "../texture.h"
+#include "../utils/basic_types.h"
 
 struct SceneAttribs {
-    u32 resx{};
-    u32 resy{};
-    f32 fov{};
+    u32 resx = 1280;
+    u32 resy = 720;
+    f32 fov = 30.f;
+    u32 max_depth = 0;
     mat4 camera_to_world = mat4::identity();
 };
 
@@ -83,6 +84,18 @@ private:
     std::string scene_base_path;
     pugi::xml_document doc;
     std::unordered_map<std::string, u32> materials;
+    Material
+    load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf);
+    Material
+    load_conductor_material(const pugi::xml_node &bsdf) const;
+    Material
+    load_dielectric_material(const pugi::xml_node &bsdf) const;
+    Material
+    load_roughconductor_material(const pugi::xml_node &bsdf) const;
+    static mat4
+    parse_transform_matrix(const pugi::xml_node &matrix_node);
+    static mat4
+    parse_transform_rotate(const pugi::xml_node &transform_node);
 };
 
 #endif // PT_SCENE_LOADER_H

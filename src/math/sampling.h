@@ -11,7 +11,7 @@
  * All sampling code was taken from Physically Based Rendering, 4th edition
  * */
 
-__device__ inline vec2
+__host__ __device__ inline vec2
 sample_uniform_disk_concentric(const vec2 &u) {
     vec2 u_offset = (2.f * u) - vec2(1.f, 1.f);
 
@@ -31,19 +31,29 @@ sample_uniform_disk_concentric(const vec2 &u) {
     return r * vec2(cos(theta), sin(theta));
 }
 
-__device__ inline norm_vec3
+__host__ __device__ inline norm_vec3
 sample_cosine_hemisphere(const vec2 &sample) {
     vec2 d = sample_uniform_disk_concentric(sample);
     f32 z = safe_sqrt(1.f - d.x * d.x - d.y * d.y);
     return norm_vec3(d.x, d.y, z);
 }
 
-__device__ __forceinline__ vec3
+// z-up
+__host__ __device__ __forceinline__ vec3
 sample_uniform_sphere(const vec2 &sample) {
     f32 z = 1.f - 2.f * sample.x;
     f32 r = sqrt(max(1.f - sqr(z), 0.f));
     f32 phi = 2.f * M_PIf * sample.y;
     return vec3(r * cos(phi), r * sin(phi), z).normalized();
+}
+
+// z-up
+__host__ __device__ __forceinline__ vec3
+sample_uniform_hemisphere(const vec2 &sample) {
+    f32 z = sample.x;
+    f32 r = sqrt(max(1.f - sqr(z), 0.f));
+    f32 phi = 2 * M_PIf * sample.y;
+    return vec3(r * std::cos(phi), r * std::sin(phi), z).normalized();
 }
 
 /// Taken from PBRT - UniformSampleTriangle.

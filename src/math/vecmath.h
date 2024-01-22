@@ -412,12 +412,12 @@ template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
 
 struct NormalizedVector3 : Vector3<f32> {
     __host__ __device__ explicit NormalizedVector3(f32 val) : Vector3(val) {
-        assert(length() == 1.f);
+        assert(abs(Vector3::length() - 1.f) < 0.0001f);
     }
     __host__ __device__
     NormalizedVector3(f32 x, f32 y, f32 z)
         : Vector3(x, y, z) {
-        assert(length() == 1.f);
+        assert(abs(Vector3::length() - 1.f) < 0.0001f);
     }
 
     __host__ __device__ f32
@@ -644,20 +644,24 @@ vec_to_float3(const vec3 &v) {
 /// Taken from: Building an Orthonormal Basis, Revisited
 /// Tom Duff, James Burgess, Per Christensen, Christophe Hery, Andrew Kensler, Max Liani,
 /// and Ryusuke Villemin
-__device__ inline CTuple<vec3, vec3, vec3>
+__host__ __device__ inline CTuple<vec3, vec3, vec3>
 coordinate_system(vec3 v1) {
     f32 sign = copysign(1.f, v1.z);
     f32 a = -1.f / (sign + v1.z);
     f32 b = v1.x * v1.y * a;
 
     vec3 v2 = vec3(1.f + sign * sqr(v1.x) * a, sign * b, -sign * v1.x);
-    vec3 v3 = norm_vec3(b, sign + sqr(v1.y) * a, -v1.y);
+    vec3 v3 = vec3(b, sign + sqr(v1.y) * a, -v1.y);
+
+    assert(abs(vec3::dot(v1, v2)) < 0.00001f);
+    assert(abs(vec3::dot(v1, v3)) < 0.00001f);
+    assert(abs(vec3::dot(v2, v3)) < 0.00001f);
 
     return {v1, v2, v3};
 }
 
 /// Transforms dir into the basis of the normal
-__device__ inline norm_vec3
+__host__ __device__ inline norm_vec3
 orient_dir(const vec3 &dir, const norm_vec3 &normal) {
     auto [_, b1, b2] = coordinate_system(normal);
     norm_vec3 sample_dir = (b1 * dir.x + b2 * dir.y + normal * dir.z).normalized();

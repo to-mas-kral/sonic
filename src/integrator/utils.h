@@ -3,6 +3,7 @@
 
 #include <cuda/std/optional>
 
+#include "../geometry/ray.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
@@ -76,9 +77,39 @@ spawn_ray(Intersection &its, const norm_vec3 &spawn_ray_normal, const norm_vec3 
 }
 
 struct ShadingGeometry {
+    ///  w_i is incident direction and w_o is outgoing direction.
+    ///  w_o goes "towards the viewer" and w_i "towards the light"
+    __host__ __device__ __forceinline__ static ShadingGeometry
+    make(const norm_vec3 &normal, const norm_vec3 &wi, const norm_vec3 &wo) {
+        // TODO: what to do when cos_theta is 0 ? this minimum value is a band-aid
+        /*The f() function performs the required coordinate frame conversion and then
+         * queries the BxDF. The rare case in which the wo direction lies exactly in the
+         * surface’s tangent plane often leads to not-a-number (NaN) values in BxDF
+         * implementations that further propagate and may eventually contaminate the
+         * rendered image. The BSDF avoids this case by immediately returning a
+         * zero-valued SampledSpectrum. */
+        f32 cos_theta = max(vec3::dot(normal, wi), 0.0001f);
+        norm_vec3 h = (wi + wo).normalized();
+        f32 noh = vec3::dot(normal, h);
+        f32 nowo = vec3::dot(normal, wo);
+        f32 nowi = vec3::dot(normal, wi);
+        f32 howo = vec3::dot(h, wo);
+
+        return ShadingGeometry{
+            .cos_theta = cos_theta,
+            .nowo = nowo,
+            .nowi = nowi,
+            .noh = noh,
+            .howo = howo,
+            .h = h,
+        };
+    }
+
     f32 cos_theta;
     /// Dot product between normal and w_o.
     f32 nowo;
+    /// Dot product between normal and w_i.
+    f32 nowi;
     /// Dot product between normal and halfway vector.
     f32 noh;
     /// Dot product between halfway vector and w_o.
@@ -86,31 +117,6 @@ struct ShadingGeometry {
     /// Halfway vector
     norm_vec3 h;
 };
-
-///  Following PBRT, w_i is incident direction and w_o is outgoing direction.
-///  w_o goes "towards the viewer" and w_i "towards the light"
-__device__ __forceinline__ ShadingGeometry
-get_shading_geom(const norm_vec3 &normal, const norm_vec3 &w_i, const norm_vec3 &w_o) {
-    // TODO: what to do when cos_theta is 0 ? this minimum value is a band-aid
-    /*The f() function performs the required coordinate frame conversion and then queries
-     * the BxDF. The rare case in which the wo direction lies exactly in the surface’s
-     * tangent plane often leads to not-a-number (NaN) values in BxDF implementations that
-     * further propagate and may eventually contaminate the rendered image. The BSDF
-     * avoids this case by immediately returning a zero-valued SampledSpectrum. */
-    f32 cos_theta = max(vec3::dot(normal, w_i), 0.0001f);
-    norm_vec3 h = (w_i + w_o).normalized();
-    f32 noh = vec3::dot(normal, h);
-    f32 nowo = vec3::dot(normal, w_o);
-    f32 howo = vec3::dot(h, w_o);
-
-    return ShadingGeometry{
-        .cos_theta = cos_theta,
-        .nowo = nowo,
-        .noh = noh,
-        .howo = howo,
-        .h = h,
-    };
-}
 
 /// Specific case where 1 sample is taken from each distribution.
 __device__ __forceinline__ f32

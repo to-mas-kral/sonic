@@ -1,17 +1,39 @@
 #include "scene_loader.h"
 
-#include <array>
 #include <ranges>
 #include <utility>
 
-#include "color/spectral_data.h"
-#include "color/spectrum.h"
-#include "math/vecmath.h"
+#include "../color/spectral_data.h"
+#include "../color/spectrum.h"
+#include "../math/vecmath.h"
 #include <fmt/core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
 using str = std::string_view;
+
+pugi::xml_node
+child_node(const pugi::xml_node parent, const std::string &name) {
+    auto node = parent.find_child([&](pugi::xml_node node) {
+        return node.find_attribute([&](pugi::xml_attribute attr) {
+            return str(attr.name()) == "name" && str(attr.as_string()) == name;
+        });
+    });
+
+    return node;
+}
+
+pugi::xml_attribute
+child_node_attr(const pugi::xml_node parent, const std::string &node_name,
+                const std::string &attr) {
+    auto node = parent.find_child([&](pugi::xml_node node) {
+        return node.find_attribute([&](pugi::xml_attribute attr) {
+            return str(attr.name()) == "name" && str(attr.as_string()) == node_name;
+        });
+    });
+
+    return node.attribute(attr.data());
+}
 
 void
 SceneLoader::load_scene(Scene *sc) {
@@ -25,9 +47,8 @@ SceneLoader::load_scene(Scene *sc) {
         std::string filename = envmap_node.child("string").attribute("value").as_string();
         auto file_path = scene_base_path + "/" + filename;
 
-        auto to_world_transform = mat4::identity();
         auto transform_node = envmap_node.child("transform");
-        to_world_transform = parse_transform(transform_node);
+        auto to_world_transform = parse_transform(transform_node);
 
         auto envmap = Envmap(file_path, to_world_transform);
         sc->set_envmap(std::move(envmap));
@@ -112,52 +133,13 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     Material mat = Material::make_diffuse(RgbSpectrum::make(tuple3(0.5f)));
 
     if (type == "diffuse") {
-        auto reflectance_node = bsdf.find_child([](pugi::xml_node node) {
-            return node.find_attribute([](pugi::xml_attribute attr) {
-                return str(attr.name()) == "name" &&
-                       str(attr.as_string()) == "reflectance";
-            });
-        });
-
-        if (str(reflectance_node.name()) == "texture") {
-            auto filename_node = reflectance_node.find_child([](pugi::xml_node node) {
-                return node.find_attribute([](pugi::xml_attribute attr) {
-                    return str(attr.name()) == "name" &&
-                           str(attr.as_string()) == "filename";
-                });
-            });
-
-            auto file_path = filename_node.attribute("value").as_string();
-            auto texture = Texture::make(this->scene_base_path + "/" + file_path, true);
-
-            u32 tex_id = sc->add_texture(std::move(texture));
-            mat = Material::make_diffuse(tex_id);
-        } else {
-            tuple3 rgb = parse_tuple3(reflectance_node.attribute("value").as_string());
-            mat = Material::make_diffuse(RgbSpectrum::make(rgb));
-        }
+        mat = load_diffuse_material(sc, bsdf);
     } else if (type == "conductor") {
-        mat = Material::make_conductor();
+        mat = load_conductor_material(bsdf);
     } else if (type == "dielectric") {
-        auto ext_ior = AIR_ETA;
-        auto int_ior = GLASS_BK7_ETA;
-        spdlog::info("Mitsuba dielectric IORs are ignored for now");
-
-        auto transmittance_node = bsdf.find_child([](pugi::xml_node node) {
-            return node.find_attribute([](pugi::xml_attribute attr) {
-                return str(attr.name()) == "name" &&
-                       str(attr.as_string()) == "specular_transmittance";
-            });
-        });
-
-        Spectrum specular_transmittance = Spectrum(ConstantSpectrum::make(1.f));
-        if (transmittance_node) {
-            tuple3 rgb = parse_tuple3(transmittance_node.attribute("value").as_string());
-            specular_transmittance = Spectrum(RgbSpectrum::make(rgb));
-        }
-
-        mat = Material::make_dielectric(Spectrum(ext_ior), Spectrum(int_ior),
-                                        specular_transmittance);
+        mat = load_dielectric_material(bsdf);
+    } else if (type == "roughconductor") {
+        mat = load_roughconductor_material(bsdf);
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
     }
@@ -167,59 +149,139 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     return {mat, id};
 }
 
+Material
+SceneLoader::load_conductor_material(const pugi::xml_node &bsdf) const {
+    tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
+    tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
+
+    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta));
+    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k));
+
+    return Material::make_conductor(eta_spectrum, k_spectrum);
+}
+
+Material
+SceneLoader::load_roughconductor_material(const pugi::xml_node &bsdf) const {
+    f32 alpha = child_node_attr(bsdf, "alpha", "value").as_float();
+    tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
+    tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
+
+    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta));
+    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k));
+
+    return Material::make_rough_conductor(alpha, eta_spectrum, k_spectrum);
+}
+
+Material
+SceneLoader::load_dielectric_material(const pugi::xml_node &bsdf) const {
+    Spectrum int_ior(GLASS_BK7_ETA);
+    Spectrum ext_ior(AIR_ETA);
+
+    auto int_ior_node = child_node(bsdf, "int_ior");
+    if (int_ior_node) {
+        int_ior =
+            Spectrum(ConstantSpectrum::make(int_ior_node.attribute("value").as_float()));
+    }
+
+    auto ext_ior_node = child_node(bsdf, "ext_ior");
+    if (ext_ior_node) {
+        ext_ior =
+            Spectrum(ConstantSpectrum::make(ext_ior_node.attribute("value").as_float()));
+    }
+
+    auto transmittance_node = child_node(bsdf, "specular_transmittance");
+
+    Spectrum specular_transmittance(ConstantSpectrum::make(1.f));
+    if (transmittance_node) {
+        tuple3 rgb = parse_tuple3(transmittance_node.attribute("value").as_string());
+        specular_transmittance = Spectrum(RgbSpectrum::make(rgb));
+    }
+
+    return Material::make_dielectric(ext_ior, int_ior, specular_transmittance);
+}
+
+Material
+SceneLoader::load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf) {
+    auto reflectance_node = child_node(bsdf, "reflectance");
+    if (str(reflectance_node.name()) == "texture") {
+        auto filename_node = child_node(reflectance_node, "filename");
+        auto file_path = filename_node.attribute("value").as_string();
+        auto texture = Texture::make(this->scene_base_path + "/" + file_path, true);
+
+        u32 tex_id = sc->add_texture(std::move(texture));
+        return Material::make_diffuse(tex_id);
+    } else {
+        tuple3 rgb = parse_tuple3(reflectance_node.attribute("value").as_string());
+        return Material::make_diffuse(RgbSpectrum::make(rgb));
+    }
+}
+
 mat4
 SceneLoader::parse_transform(pugi::xml_node transform_node) {
-    mat4 cur_transform = mat4::identity();
+    mat4 composed_transform = mat4::identity();
 
-    for (auto child_node : transform_node.children()) {
-        str name = child_node.name();
+    for (auto subtransform_node : transform_node.children()) {
+        str name = subtransform_node.name();
 
+        mat4 transform;
         if (name == "matrix") {
-            str matrix_str = child_node.attribute("value").as_string();
-
-            auto floats =
-                std::views::transform(std::views::split(matrix_str, ' '), [](auto v) {
-                    auto c = v | std::views::common;
-                    return std::stof(std::string(c.begin(), c.end()));
-                });
-
-            CArray<f32, 16> mat{};
-            int i = 0;
-            for (f32 f : floats) {
-                if (i > 15) {
-                    throw std::runtime_error("Wrong matrix element count");
-                }
-
-                mat[i] = f;
-
-                i++;
-            }
-
-            // matrices are stored in column-majorm, but Mitsuba's format is row-major...
-            cur_transform = cur_transform.compose(mat4::from_elements(mat).transpose());
+            transform = parse_transform_matrix(subtransform_node);
         } else if (name == "rotate") {
-            auto angle_attr = child_node.attribute("angle");
-            if (angle_attr) {
-                f32 angle = to_rad(angle_attr.as_float());
-
-                mat4 trans = mat4::identity();
-                if (child_node.attribute("y")) {
-                    trans = mat4::from_euler_y(angle);
-                } else if (child_node.attribute("x")) {
-                    trans = mat4::from_euler_x(angle);
-                } else if (child_node.attribute("z")) {
-                    trans = mat4::from_euler_z(angle);
-                }
-                cur_transform = cur_transform.compose(trans);
-            } else {
-                throw std::runtime_error("Rotate along arbitrary axis not implemented");
-            }
+            transform = parse_transform_rotate(subtransform_node);
         } else {
             throw std::runtime_error(fmt::format("Unknown transform type: {}", name));
         }
+
+        composed_transform = composed_transform.compose(transform);
     }
 
-    return cur_transform;
+    return composed_transform;
+}
+
+mat4
+SceneLoader::parse_transform_rotate(const pugi::xml_node &transform_node) {
+    mat4 transform;
+    auto angle_attr = transform_node.attribute("angle");
+    if (angle_attr) {
+        f32 angle = to_rad(angle_attr.as_float());
+
+        if (transform_node.attribute("y")) {
+            transform = mat4::from_euler_y(angle);
+        } else if (transform_node.attribute("x")) {
+            transform = mat4::from_euler_x(angle);
+        } else if (transform_node.attribute("z")) {
+            transform = mat4::from_euler_z(angle);
+        }
+    } else {
+        throw std::runtime_error("Rotate along arbitrary axis not implemented");
+    }
+
+    return transform;
+}
+
+mat4
+SceneLoader::parse_transform_matrix(const pugi::xml_node &matrix_node) {
+    str matrix_str = matrix_node.attribute("value").as_string();
+
+    auto floats = std::views::transform(std::views::split(matrix_str, ' '), [](auto v) {
+        auto c = v | std::views::common;
+        return std::stof(std::string(c.begin(), c.end()));
+    });
+
+    CArray<f32, 16> mat{};
+    int i = 0;
+    for (f32 f : floats) {
+        if (i > 15) {
+            throw std::runtime_error("Wrong matrix element count");
+        }
+
+        mat[i] = f;
+
+        i++;
+    }
+
+    // matrices are stored in column-majorm, but Mitsuba's format is row-major...
+    return mat4::from_elements(mat).transpose();
 }
 
 tuple3
@@ -345,19 +407,9 @@ SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
 void
 SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
                          COption<Emitter> emitter, Scene *sc) {
-    auto radius_node = node.find_child([](pugi::xml_node node) {
-        return node.find_attribute([](pugi::xml_attribute attr) {
-            return str(attr.name()) == "name" && str(attr.as_string()) == "radius";
-        });
-    });
-
+    auto radius_node = child_node(node, "radius");
     f32 radius = radius_node.attribute("value").as_float();
-
-    auto center_node = node.find_child([](pugi::xml_node node) {
-        return node.find_attribute([](pugi::xml_attribute attr) {
-            return str(attr.name()) == "name" && str(attr.as_string()) == "center";
-        });
-    });
+    auto center_node = child_node(node, "center");
 
     f32 x = center_node.attribute("x").as_float();
     f32 y = center_node.attribute("y").as_float();
@@ -394,11 +446,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     }
 
     bool face_normals = false;
-    auto face_normals_node = shape_node.find_child([](pugi::xml_node node) {
-        return node.find_attribute([](pugi::xml_attribute attr) {
-            return str(attr.name()) == "name" && str(attr.value()) == "face_normals";
-        });
-    });
+    auto face_normals_node = child_node(shape_node, "face_normals");
     if (face_normals_node) {
         face_normals = face_normals_node.attribute("value").as_bool();
     }
@@ -515,9 +563,11 @@ SceneLoader::load_scene_attribs() {
     for (pugi::xml_node def : scene.children("default")) {
         str name = def.attribute("name").as_string();
         if (name == "resx") {
-            attribs.resx = def.attribute("value").as_int();
+            attribs.resx = def.attribute("value").as_uint();
         } else if (name == "resy") {
-            attribs.resy = def.attribute("value").as_int();
+            attribs.resy = def.attribute("value").as_uint();
+        } else if (name == "max_depth") {
+            attribs.max_depth = def.attribute("value").as_uint();
         }
     }
 
@@ -534,5 +584,5 @@ SceneLoader::load_scene_attribs() {
         attribs.camera_to_world = parse_transform(transform);
     }
 
-    return std::make_optional<SceneAttribs>(attribs);
+    return attribs;
 }

@@ -4,9 +4,11 @@
 #include "../utils/basic_types.h"
 #include "sampled_spectrum.h"
 
+// TODO: figure out static GPU data
+
 /// Data from: https://refractiveindex.info/?shelf=glass&book=BK7&page=SCHOTT (public
 /// domain)
-const static UmVector<f32> GLASS_BK7_ETA_RAW = UmVector{
+/*const UmVector<f32> GLASS_BK7_ETA_RAW = UmVector{
     300.f,
     322.f,
     344.f,
@@ -66,11 +68,13 @@ const static UmVector<f32> GLASS_BK7_ETA_RAW = UmVector{
     1.5094591800239f,
     1.5090939781792f,
     1.5087426727363f,
-};
+};*/
 
 const ConstantSpectrum AIR_ETA = ConstantSpectrum::make(1.000277f);
 
-const PiecewiseSpectrum GLASS_BK7_ETA = PiecewiseSpectrum::make(
-    CSpan<f32>(GLASS_BK7_ETA_RAW.get_ptr(), GLASS_BK7_ETA_RAW.size()));
+const ConstantSpectrum GLASS_BK7_ETA = ConstantSpectrum::make(1.530277f);
+
+/*const PiecewiseSpectrum GLASS_BK7_ETA = PiecewiseSpectrum::make(
+    CSpan<f32>(GLASS_BK7_ETA_RAW.get_ptr(), GLASS_BK7_ETA_RAW.size()));*/
 
 #endif // PT_SPECTRAL_DATA_H

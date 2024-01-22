@@ -18,6 +18,7 @@ struct PtParams {
     OptixTraversableHandle gas_handle;
     mat4 cam_to_world;
     u32 frame;
+    u32 max_depth;
 };
 
 struct PtRayGenData {};

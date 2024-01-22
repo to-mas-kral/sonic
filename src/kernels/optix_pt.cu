@@ -128,28 +128,27 @@ get_its(Scene *sc, u32 p1, u32 p2, u32 p3, u32 p4, HitType hit_type, Ray &ray) {
 }
 
 // Multisple Importance Sampling for lights
-__device__ __forceinline__ void
-light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
-          const LightSample &light_sample, const ShapeSample &shape_sample,
-          const Material *material, spectral *radiance, const spectral &throughput,
+__device__ __forceinline__ spectral
+light_mis(const Intersection &its, const Ray &traced_ray, const LightSample &light_sample,
+          const norm_vec3 &geom_normal, const ShapeSample &shape_sample,
+          const Material *material, const spectral &throughput,
           const SampledLambdas &lambdas) {
     point3 light_pos = shape_sample.pos;
     norm_vec3 pl = (light_pos - its.pos).normalized();
     f32 pl_mag_sq = (light_pos - its.pos).length_squared();
-    f32 cos_light = max(vec3::dot(shape_sample.normal, -pl), 0.000001f);
+    f32 cos_light = vec3::dot(shape_sample.normal, -pl);
 
-    auto sgeom_light = get_shading_geom(its.normal, pl, -traced_ray.dir);
+    auto sgeom_light = ShadingGeometry::make(its.normal, pl, -traced_ray.dir);
 
     // Quickly precheck if light is reachable
-    if (sgeom_light.cos_theta > 0.f && cos_light > 0.f) {
+    if (sgeom_light.nowi > 0.f && cos_light > 0.f) {
         f32 pl_mag = (light_pos - its.pos).length();
 
-        // Use the origin of the BXDF ray, which is already offset from the surface so
-        // that it doesn't self-intersect.
-        vec3 lrd = (light_pos - bxdf_ray.o).normalized();
+        point3 ray_orig = offset_ray(its.pos, geom_normal);
+        vec3 lrd = (light_pos - ray_orig).normalized();
         u32 did_hit = 1;
         // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
-        optixTrace(params.gas_handle, bxdf_ray.o.as_float3(), vec_to_float3(lrd), 0.f,
+        optixTrace(params.gas_handle, ray_orig.as_float3(), lrd.as_float3(), 0.f,
                    pl_mag - 0.001f, 0.0f, OptixVisibilityMask(255),
                    OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT |
                        OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
@@ -163,14 +162,19 @@ light_mis(const Intersection &its, const Ray &traced_ray, const Ray &bxdf_ray,
 
             spectral bxdf_light =
                 material->eval(sgeom_light, lambdas, params.textures, its.uv);
-            f32 weight_light = mis_power_heuristic(pdf_light, material->pdf(sgeom_light));
+            f32 mat_pdf = material->pdf(sgeom_light);
+            assert(mat_pdf > 0.f);
+
+            f32 weight_light = mis_power_heuristic(pdf_light, mat_pdf);
 
             spectral light_emission = light_sample.light.emitter.emission(lambdas);
 
-            *radiance += bxdf_light * sgeom_light.cos_theta * (1.f / pdf_light) *
-                         light_emission * weight_light * throughput;
+            return bxdf_light * sgeom_light.nowi * (1.f / pdf_light) * light_emission *
+                   weight_light * throughput;
         }
     }
+
+    return spectral::ZERO();
 }
 
 __device__ __forceinline__ spectral
@@ -184,11 +188,11 @@ bxdf_mis(Scene *sc, const spectral &throughput, const point3 &last_hit_pos,
     // from the probability distribution of the BXDF of the *preceding*
     // hit.
 
-    // CHECK!!!: currently calculating the shape PDF by assuming pdf = 1. / area
+    // TODO!!!: currently calculating the shape PDF by assuming pdf = 1. / area
     //  will have to change with non-uniform sampling !
     f32 light_area = sc->geometry.shape_area(sc->lights[its.light_id].shape);
 
-    // pdf_light is the probability of this light being sampled from the
+    // pdf_light is the probability of this point being sampled from the
     // probability distribution of the lights.
     f32 pdf_light = sc->light_sampler.light_sample_pdf(its.light_id) * pl_mag_sq /
                     (light_area * cos_light);
@@ -221,7 +225,7 @@ __raygen__rg() {
     u32 depth = 1;
     f32 last_pdf_bxdf = 0.f;
     bool last_hit_specular = false;
-    point3 last_hit_pos = point3(0.f);
+    point3 last_hit_pos(0.f);
 
     while (true) {
         u32 p0, p1, p2, p3, p4;
@@ -256,39 +260,12 @@ __raygen__rg() {
                 }
             }
 
-            auto bsdf_sample =
-                material->sample(its.normal, -ray.dir, bsdf_sample_rand, lambdas,
-                                 params.textures, its.uv, is_frontfacing);
-            auto sgeom_bxdf = get_shading_geom(its.normal, bsdf_sample.wi, -ray.dir);
+            // Do this before light sampling, because that "extends the path"
+            if (params.max_depth > 0 && depth >= params.max_depth) {
+                break;
+            }
 
-            auto spawn_ray_normal =
-                (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
-            Ray bxdf_ray = spawn_ray(its, spawn_ray_normal, bsdf_sample.wi);
-
-            last_hit_specular = material->is_specular();
-
-            /*if (sc->has_envmap && !last_hit_specular) {
-                auto [envrad, envdir, envpdf] = sc->envmap.sample(sampler.sample2());
-
-                u32 did_hit_env_test = 1;
-                // https://www.willusher.io/graphics/2019/09/06/faster-shadow-rays-on-rtx
-                optixTrace(params.gas_handle, bxdf_ray.o.as_float3(),
-                           vec_to_float3(envdir), 0.f, 1e16f, 0.0f,
-                           OptixVisibilityMask(255),
-                           OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT |
-                               OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
-                           0, 1, 0, did_hit_env_test);
-
-                if (!did_hit_env_test) {
-                    auto sgeom_env = get_shading_geom(its.normal, envdir, -ray.dir);
-
-                    f32 env_weight =
-                        mis_power_heuristic(envpdf, material->pdf(sgeom_env));
-
-                    radiance += throughput * env_weight * envrad;
-                }
-            }*/
-
+            last_hit_specular = material->is_dirac_delta();
             if (!last_hit_specular) {
                 f32 light_sample = sampler.sample();
                 auto sampled_light = sc->sample_lights(light_sample);
@@ -297,11 +274,27 @@ __raygen__rg() {
                     auto shape_sample = sc->geometry.sample_shape(
                         sampled_light.value().light.shape, its.pos, shape_rng);
 
-                    // TODO: don't pass bxdf_ray in the future...
-                    light_mis(its, ray, bxdf_ray, sampled_light.value(), shape_sample,
-                              material, &radiance, throughput, lambdas);
+                    radiance +=
+                        light_mis(its, ray, sampled_light.value(), its.geometric_normal,
+                                  shape_sample, material, throughput, lambdas);
                 }
             }
+
+            auto bsdf_sample_opt =
+                material->sample(its.normal, -ray.dir, bsdf_sample_rand, lambdas,
+                                 params.textures, its.uv, is_frontfacing);
+
+            if (!bsdf_sample_opt.has_value()) {
+                break;
+            }
+            auto bsdf_sample = bsdf_sample_opt.value();
+            assert(bsdf_sample.pdf > 0.f);
+
+            auto sgeom_bxdf = ShadingGeometry::make(its.normal, bsdf_sample.wi, -ray.dir);
+
+            auto spawn_ray_normal =
+                (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
+            Ray bxdf_ray = spawn_ray(its, spawn_ray_normal, bsdf_sample.wi);
 
             auto rr = russian_roulette(depth, rr_sample, throughput);
             if (!rr.has_value()) {
@@ -317,12 +310,12 @@ __raygen__rg() {
             last_pdf_bxdf = bsdf_sample.pdf;
             depth++;
 
-            if (depth == 64) {
+            if (depth == 1024) {
+                printf("Specular infinite self-intersection path\n");
                 // FIXME: specular infinite path caused by self-intersections
                 break;
             }
         } else {
-            // OPTIMIZE: move into miss program to reduce divergence ?
             // Ray has escaped the scene
             if (!sc->has_envmap) {
                 break;
@@ -330,6 +323,7 @@ __raygen__rg() {
                 const Envmap *envmap = &sc->envmap;
                 spectral envrad = envmap->get_ray_radiance(ray, lambdas);
 
+                // TODO: do envmap sampling...
                 /*if (depth == 1) {*/
                 radiance += envrad;
                 /*} else {

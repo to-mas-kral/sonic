@@ -5,7 +5,7 @@
 #include "envmap.h"
 #include "geometry/geometry.h"
 #include "integrator/light_sampler.h"
-#include "material.h"
+#include "materials/material.h"
 #include "scene/light.h"
 #include "texture.h"
 

@@ -14,10 +14,10 @@ add_executable(pt
         src/render_context.h
         src/framebuffer.h
         src/camera.h
-        src/material.h
+        src/materials/material.h
         src/emitter.h
-        src/scene_loader.cu
-        src/scene_loader.h
+        src/io/scene_loader.cu
+        src/io/scene_loader.h
         src/envmap.h
         src/texture.h
         src/texture.cu
@@ -37,8 +37,6 @@ add_executable(pt
 
         src/io/image_writer.h
         src/io/progress_bar.h
-        src/io/window.cu
-        src/io/window.h
 
         src/kernels/raygen.h
         src/kernels/optix_pt.h
@@ -98,9 +96,6 @@ target_link_libraries(pt PRIVATE pugixml::pugixml)
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE spdlog::spdlog)
 
-find_package(minifb CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE minifb::minifb)
-
 #[[OptiX modules]]
 
 add_library(optix_pt OBJECT
@@ -138,9 +133,63 @@ install(DIRECTORY ${resource_dir} DESTINATION ${CMAKE_BINARY_DIR})
 #[[Tests]]
 
 add_executable(tests
+        src/render_context.h
+        src/framebuffer.h
+        src/camera.h
+        src/materials/material.h
+        src/emitter.h
+        src/io/scene_loader.cu
+        src/io/scene_loader.h
+        src/envmap.h
+        src/texture.h
+        src/texture.cu
+        src/scene.cu
+        src/scene.h
+
+        src/utils/basic_types.h
+        src/utils/um_vector.h
+        src/utils/cuda_err.h
+        src/utils/sampler.h
+        src/utils/algs.h
+
+        src/io/image_writer.h
+        src/io/progress_bar.h
+
+        src/kernels/raygen.h
+        src/kernels/optix_pt.h
+
+        src/math/sampling.h
+        src/math/vecmath.h
+        src/math/math_utils.h
+        src/math/transform.h
+
+        src/integrator/utils.h
+        src/integrator/light_sampler.cu
+        src/integrator/light_sampler.h
+
+        src/geometry/geometry.h
+        src/geometry/geometry.cu
+
+        src/scene/light.h
+
+        src/color/rgb2spec.h
+        src/color/sampled_spectrum.h
+        src/color/cie_spectrums.h
+        src/color/spectrum_consts.h
+        src/color/color_space.h
+        src/color/spectrum.cu
+        src/color/spectral_data.h
+        src/color/spectrum.h
+
         src/utils/tests.cu
+        src/materials/test_ggx.cu
 )
 
 find_package(Catch2 3 REQUIRED)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 
+target_link_libraries(tests PRIVATE pugixml::pugixml)
+
+target_link_libraries(tests PRIVATE fmt::fmt)
+
+target_link_libraries(tests PRIVATE unofficial::tinyexr::tinyexr)

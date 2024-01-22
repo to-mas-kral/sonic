@@ -149,7 +149,7 @@ private:
         return a * b + c;
     }
 
-    u32 res;
+    u32 res{};
     std::vector<f32> m_scale{};
     std::vector<f32> data{};
 };

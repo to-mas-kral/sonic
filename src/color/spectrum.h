@@ -220,6 +220,7 @@ enum class SpectrumType {
     Dense,
     PiecewiseLinear,
     Rgb,
+    RgbUnbounded,
 };
 
 struct Spectrum {
@@ -233,6 +234,9 @@ struct Spectrum {
 
     explicit Spectrum(RgbSpectrum rs) : type{SpectrumType::Rgb}, rgb_spectrum{rs} {}
 
+    explicit Spectrum(RgbSpectrumUnbounded rs)
+        : type{SpectrumType::RgbUnbounded}, rgb_spectrum_unbounded{rs} {}
+
     __host__ __device__ SampledSpectrum
     eval(const SampledLambdas &lambdas) const {
         switch (type) {
@@ -244,6 +248,8 @@ struct Spectrum {
             return piecewise_spectrum.eval(lambdas);
         case SpectrumType::Rgb:
             return rgb_spectrum.eval(lambdas);
+        case SpectrumType::RgbUnbounded:
+            return rgb_spectrum_unbounded.eval(lambdas);
         default:
             assert(false);
         }
@@ -260,6 +266,8 @@ struct Spectrum {
             return piecewise_spectrum.eval_single(lambda);
         case SpectrumType::Rgb:
             return rgb_spectrum.eval_single(lambda);
+        case SpectrumType::RgbUnbounded:
+            return rgb_spectrum_unbounded.eval_single(lambda);
         default:
             assert(false);
         }
@@ -271,6 +279,7 @@ struct Spectrum {
         PiecewiseSpectrum piecewise_spectrum;
         ConstantSpectrum constant_spectrum{};
         RgbSpectrum rgb_spectrum;
+        RgbSpectrumUnbounded rgb_spectrum_unbounded;
     };
 };
 

@@ -67,7 +67,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     for (int i = 0; i < header.num_channels; i++) {
         header.pixel_types[i] = TINYEXR_PIXELTYPE_FLOAT; // pixel type of input image
         header.requested_pixel_types[i] =
-            TINYEXR_PIXELTYPE_HALF; // pixel type of output image to be stored in .EXR
+            TINYEXR_PIXELTYPE_FLOAT; // pixel type of output image to be stored in .EXR
     }
 
     const char *err;

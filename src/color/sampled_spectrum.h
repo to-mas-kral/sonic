@@ -8,7 +8,7 @@
 #include "../utils/um_vector.h"
 #include "cie_spectrums.h"
 
-__device__ constexpr u32 N_SPECTRUM_SAMPLES = 1;
+__device__ constexpr u32 N_SPECTRUM_SAMPLES = 4;
 __device__ constexpr f32 PDF =
     1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
@@ -179,6 +179,13 @@ struct SampledLambdas {
             }
         }
 
+        return sl;
+    }
+
+    __host__ __device__ static SampledLambdas
+    new_mock() {
+        SampledLambdas sl{};
+        sl.lambdas.fill(400.f);
         return sl;
     }
 

@@ -3,8 +3,8 @@
 
 #include "camera.h"
 #include "framebuffer.h"
+#include "io/scene_loader.h"
 #include "scene.h"
-#include "scene_loader.h"
 #include "utils/basic_types.h"
 
 /// Render Context is a collection of data needed for the render kernels to to their

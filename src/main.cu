@@ -11,12 +11,11 @@
 
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
-#include "io/window.h"
+#include "io/scene_loader.h"
 #include "optix_as.h"
 #include "optix_common.h"
 #include "optix_renderer.h"
 #include "render_context.h"
-#include "scene_loader.h"
 #include "utils/cuda_err.h"
 
 // FIXME: there is a memory error in OptiX sphere acceleration creation, but seems to be
@@ -63,6 +62,9 @@ main(int argc, char **argv) {
 
         CLI11_PARSE(app, argc, argv)
 
+        std::string output_filename =
+            std::filesystem::path(scene_path).filename().stem().string() + ".exr";
+
         spdlog::set_level(spdlog::level::info);
 
         if (silent) {
@@ -86,11 +88,6 @@ main(int argc, char **argv) {
             return 1;
         }
         SceneAttribs attribs = attrib_result.value();
-
-        /*
-         * Window setup
-         * */
-        auto window = Window(attribs.resx, attribs.resy);
 
         /*
          * Set up render context
@@ -137,6 +134,7 @@ main(int argc, char **argv) {
         params.textures = rc->scene.textures.get_ptr();
         params.cam_to_world = rc->attribs.camera_to_world;
         params.frame = 1;
+        params.max_depth = rc->attribs.max_depth;
         optix_renderer.update_params(params);
 
         ProgressBar pb;
@@ -152,20 +150,17 @@ main(int argc, char **argv) {
 
             // Update the framebuffer when the number of samples doubles...
             if (std::popcount(s) == 1) {
-                window.update(rc->fb, s);
-                ImageWriter::write_framebuffer("out.exr", rc->fb, s);
+                ImageWriter::write_framebuffer(output_filename, rc->fb, s);
             }
 
             pb.print(s, spp, elapsed);
         }
 
-        ImageWriter::write_framebuffer("out.exr", rc->fb, spp);
+        ImageWriter::write_framebuffer(output_filename, rc->fb, spp);
 
         /*
          * Clean up and exit
          * */
-
-        window.close();
 
         cudaDeviceSynchronize();
 
