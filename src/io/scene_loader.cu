@@ -134,23 +134,66 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
 
     if (type == "diffuse") {
         mat = load_diffuse_material(sc, bsdf);
+        mat.is_twosided = is_twosided;
+    } else if (type == "plastic") {
+        mat = load_plastic_material(bsdf);
+        mat.is_twosided = is_twosided;
     } else if (type == "conductor") {
         mat = load_conductor_material(bsdf);
+        mat.is_twosided = is_twosided;
     } else if (type == "dielectric") {
         mat = load_dielectric_material(bsdf);
+        mat.is_twosided = true;
     } else if (type == "roughconductor") {
         mat = load_roughconductor_material(bsdf);
+        mat.is_twosided = is_twosided;
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
     }
-
-    mat.is_twosided = is_twosided;
 
     return {mat, id};
 }
 
 Material
+SceneLoader::load_plastic_material(const pugi::xml_node &bsdf) const {
+    Spectrum int_ior(GLASS_BK7_ETA);
+    Spectrum ext_ior(AIR_ETA);
+
+    auto int_ior_node = child_node(bsdf, "int_ior");
+    if (int_ior_node) {
+        int_ior =
+            Spectrum(ConstantSpectrum::make(int_ior_node.attribute("value").as_float()));
+    }
+
+    auto ext_ior_node = child_node(bsdf, "ext_ior");
+    if (ext_ior_node) {
+        ext_ior =
+            Spectrum(ConstantSpectrum::make(ext_ior_node.attribute("value").as_float()));
+    }
+
+    Spectrum diffuse_reflectance(ConstantSpectrum::make(0.5f));
+
+    auto reflectance_node = child_node(bsdf, "diffuse_reflectance");
+    if (reflectance_node) {
+        tuple3 rgb = parse_tuple3(reflectance_node.attribute("value").as_string());
+        diffuse_reflectance = Spectrum(RgbSpectrum::make(rgb));
+    }
+
+    return Material::make_plastic(ext_ior, int_ior, diffuse_reflectance);
+}
+
+Material
 SceneLoader::load_conductor_material(const pugi::xml_node &bsdf) const {
+    auto mat_node = child_node(bsdf, "material");
+    if (mat_node) {
+        if (mat_node.attribute("value").as_string() == str("none")) {
+            return Material::make_conductor_perfect();
+        } else {
+            throw std::runtime_error(
+                "Named material for rough conductors aren't implemented yet");
+        }
+    }
+
     tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
     tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
 

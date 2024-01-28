@@ -3,6 +3,7 @@
 
 #include <optix_types.h>
 
+#include "../integrator/integrator_type.h"
 #include "../optix_common.h"
 #include "../render_context.h"
 #include "../utils/basic_types.h"
@@ -19,6 +20,7 @@ struct PtParams {
     mat4 cam_to_world;
     u32 frame;
     u32 max_depth;
+    IntegratorType integrator_type;
 };
 
 struct PtRayGenData {};

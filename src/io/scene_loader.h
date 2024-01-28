@@ -84,16 +84,25 @@ private:
     std::string scene_base_path;
     pugi::xml_document doc;
     std::unordered_map<std::string, u32> materials;
+
     Material
     load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf);
+
+    Material
+    load_plastic_material(const pugi::xml_node &bsdf) const;
+
     Material
     load_conductor_material(const pugi::xml_node &bsdf) const;
+
     Material
     load_dielectric_material(const pugi::xml_node &bsdf) const;
+
     Material
     load_roughconductor_material(const pugi::xml_node &bsdf) const;
+
     static mat4
     parse_transform_matrix(const pugi::xml_node &matrix_node);
+
     static mat4
     parse_transform_rotate(const pugi::xml_node &transform_node);
 };

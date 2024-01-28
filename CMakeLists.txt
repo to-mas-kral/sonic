@@ -63,6 +63,9 @@ add_executable(pt
         src/color/spectrum.cu
         src/color/spectral_data.h
         src/color/spectrum.h
+        src/materials/plastic.h
+        src/materials/common.h
+        src/integrator/integrator_type.h
 )
 
 include_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/)
@@ -106,10 +109,6 @@ target_link_libraries(optix_pt PRIVATE fmt::fmt)
 
 set_property(TARGET optix_pt PROPERTY CUDA_PTX_COMPILATION ON)
 
-set_target_properties(optix_pt PROPERTIES
-        OUTPUT_NAME "optix_raycast.ptx"
-)
-
 target_compile_options(optix_pt PRIVATE
         -ptx -lineinfo --use_fast_math --relocatable-device-code=true --keep-device-functions
 )
@@ -118,17 +117,19 @@ add_dependencies(pt optix_pt)
 
 #[[Packaging]]
 
-set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCES_DIR}/)
+set(OPTIX_PT_OBJECT_FILE $<TARGET_OBJECTS:optix_pt>)
 
-set(resource_dir ${CMAKE_SOURCE_DIR}/resources)
-set(package_dir ${CMAKE_BINARY_DIR}/package)
+# Create a custom target to handle the post-build command
+# Just having the copy command somehow doesn't work for OBJECT libraries...
+add_custom_target(optix_pt_post_build
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${OPTIX_PT_OBJECT_FILE}
+        ${CMAKE_BINARY_DIR}/optix_pt.ptx
+        COMMENT "Copying optix_pt.cu to ${CMAKE_BINARY_DIR}/optix_pt.ptx"
+        DEPENDS optix_pt
+)
 
-#install(TARGETS pt DESTINATION ${package_dir})
-#install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${package_dir})
-#install(DIRECTORY ${resource_dir} DESTINATION ${package_dir})
-install(FILES ${CMAKE_BINARY_DIR}/CMakeFiles/optix_pt.dir/src/kernels/optix_pt.ptx DESTINATION ${CMAKE_BINARY_DIR})
-install(DIRECTORY ${resource_dir} DESTINATION ${CMAKE_BINARY_DIR})
-
+add_dependencies(pt optix_pt_post_build)
 
 #[[Tests]]
 

@@ -91,6 +91,25 @@ struct SampledSpectrum {
     }
 
     __host__ __device__ SampledSpectrum
+    operator-(const SampledSpectrum &other) const {
+        SampledSpectrum sq{};
+        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+            sq.vals[i] = vals[i] - other.vals[i];
+        }
+
+        return sq;
+    }
+
+    __host__ __device__ SampledSpectrum &
+    operator-=(const SampledSpectrum &other) {
+        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+            vals[i] -= other.vals[i];
+        }
+
+        return *this;
+    }
+
+    __host__ __device__ SampledSpectrum
     operator*(const SampledSpectrum &other) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {

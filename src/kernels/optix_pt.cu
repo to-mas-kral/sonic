@@ -162,7 +162,7 @@ light_mis(const Intersection &its, const Ray &traced_ray, const LightSample &lig
 
             spectral bxdf_light =
                 material->eval(sgeom_light, lambdas, params.textures, its.uv);
-            f32 mat_pdf = material->pdf(sgeom_light);
+            f32 mat_pdf = material->pdf(sgeom_light, lambdas);
             assert(mat_pdf > 0.f);
 
             f32 weight_light = mis_power_heuristic(pdf_light, mat_pdf);
@@ -235,14 +235,17 @@ __raygen__rg() {
 
         HitType hit_type{p0};
         if (hit_type != HitType::Miss) {
-            auto bsdf_sample_rand = sampler.sample2();
+            auto bsdf_sample_rand = sampler.sample3();
             auto rr_sample = sampler.sample();
             Intersection its = get_its(sc, p1, p2, p3, p4, hit_type, ray);
 
             auto material = &params.materials[its.material_id];
             bool is_frontfacing = vec3::dot(-ray.dir, its.normal) >= 0.f;
 
-            // TODO: I'll have to handle two-sided materials...
+            if (!is_frontfacing && !material->is_twosided) {
+                break;
+            }
+
             if (!is_frontfacing) {
                 its.normal = -its.normal;
                 its.geometric_normal = -its.geometric_normal;
@@ -251,12 +254,17 @@ __raygen__rg() {
             if (its.has_light && is_frontfacing) {
                 spectral emission = params.lights[its.light_id].emitter.emission(lambdas);
 
-                if (depth == 1 || last_hit_specular) {
+                if (params.integrator_type == IntegratorType::Naive || depth == 1 ||
+                    last_hit_specular) {
                     // Primary ray hit, can't apply MIS...
                     radiance += throughput * emission;
                 } else {
-                    radiance += bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its,
-                                         emission);
+                    auto bxdf_mis_contrib = bxdf_mis(sc, throughput, last_hit_pos,
+                                                     last_pdf_bxdf, its, emission);
+
+                    assert(bxdf_mis_contrib[0] >= 0.f);
+
+                    radiance += bxdf_mis_contrib;
                 }
             }
 
@@ -266,7 +274,7 @@ __raygen__rg() {
             }
 
             last_hit_specular = material->is_dirac_delta();
-            if (!last_hit_specular) {
+            if (params.integrator_type != IntegratorType::Naive && !last_hit_specular) {
                 f32 light_sample = sampler.sample();
                 auto sampled_light = sc->sample_lights(light_sample);
                 if (sampled_light.has_value()) {
@@ -274,9 +282,14 @@ __raygen__rg() {
                     auto shape_sample = sc->geometry.sample_shape(
                         sampled_light.value().light.shape, its.pos, shape_rng);
 
-                    radiance +=
+                    auto light_mis_contrib =
                         light_mis(its, ray, sampled_light.value(), its.geometric_normal,
                                   shape_sample, material, throughput, lambdas);
+
+                    // TODO: compare operator overload
+                    assert(light_mis_contrib[0] >= 0.f);
+
+                    radiance += light_mis_contrib;
                 }
             }
 
@@ -289,6 +302,7 @@ __raygen__rg() {
             }
             auto bsdf_sample = bsdf_sample_opt.value();
             assert(bsdf_sample.pdf > 0.f);
+            assert(bsdf_sample.bsdf[0] >= 0.f);
 
             auto sgeom_bxdf = ShadingGeometry::make(its.normal, bsdf_sample.wi, -ray.dir);
 

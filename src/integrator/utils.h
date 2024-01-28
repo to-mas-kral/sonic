@@ -3,6 +3,7 @@
 
 #include <cuda/std/optional>
 
+#include "../color/sampled_spectrum.h"
 #include "../geometry/ray.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"

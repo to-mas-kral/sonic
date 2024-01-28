@@ -8,21 +8,18 @@
 #include "../math/vecmath.h"
 #include "../texture.h"
 #include "../utils/basic_types.h"
+#include "bsdf_sample.h"
+#include "common.h"
+#include "plastic.h"
 
 #include <cuda/std/complex>
 
 enum class MaterialType : u8 {
     Diffuse,
+    Plastic,
     Conductor,
     RoughConductor,
     Dielectric,
-};
-
-struct BSDFSample {
-    spectral bsdf;
-    norm_vec3 wi;
-    f32 pdf;
-    bool did_refract = false;
 };
 
 struct Material {
@@ -58,8 +55,19 @@ struct Material {
     make_conductor(Spectrum eta, Spectrum k) {
         return Material{.type = MaterialType::Conductor,
                         .conductor = {
+                            .perfect = false,
                             .eta = eta,
                             .k = k,
+                        }};
+    }
+
+    static Material
+    make_conductor_perfect() {
+        return Material{.type = MaterialType::Conductor,
+                        .conductor = {
+                            .perfect = true,
+                            .eta = Spectrum(ConstantSpectrum::make(0.f)),
+                            .k = Spectrum(ConstantSpectrum::make(0.f)),
                         }};
     }
 
@@ -86,6 +94,16 @@ struct Material {
         }
     }
 
+    static Material
+    make_plastic(Spectrum ext_ior, Spectrum int_ior, Spectrum diffuse_reflectance) {
+        return Material{.type = MaterialType::Plastic,
+                        .plastic = {
+                            .ext_ior = ext_ior,
+                            .int_ior = int_ior,
+                            .diffuse_reflectance = diffuse_reflectance,
+                        }};
+    }
+
     __device__ BSDFSample
     sample_diffuse(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &sample,
                    const SampledLambdas &lambdas, const Texture *textures,
@@ -94,9 +112,9 @@ struct Material {
         norm_vec3 wi = orient_dir(sample_dir, normal);
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
         return BSDFSample{
-            .bsdf = eval(sgeom, lambdas, textures, uv),
+            .bsdf = eval_diffuse(sgeom, lambdas, textures, uv),
             .wi = wi,
-            .pdf = pdf(sgeom),
+            .pdf = pdf_diffuse(sgeom),
             .did_refract = false,
         };
     }
@@ -108,7 +126,7 @@ struct Material {
         norm_vec3 wi = vec3::reflect(wo, normal).normalized();
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
         return BSDFSample{
-            .bsdf = eval(sgeom, lambdas, textures, uv),
+            .bsdf = eval_conductor(sgeom, lambdas, textures, uv),
             .wi = wi,
             .pdf = 1.f,
             .did_refract = false,
@@ -129,25 +147,6 @@ struct Material {
 
         f32 cos_theta_t = sqrt(1.f - sin2_theta_t);
         return (-wo / rel_ior) + normal * ((cos_theta_i / rel_ior) - cos_theta_t);
-    }
-
-    /// Taken from PBRTv4
-    __device__ static f32
-    fresnel_dielectric(f32 rel_ior, f32 cos_theta_i) {
-        f32 sin2_theta_i = 1.f - sqr(cos_theta_i);
-        f32 sin2_theta_t = sin2_theta_i / sqr(rel_ior);
-        if (sin2_theta_t >= 1.f) {
-            // Total internal reflection
-            return 1.f;
-        } else {
-            f32 cos_theta_t = sqrt(1.f - sin2_theta_t);
-
-            f32 r_parl = (rel_ior * cos_theta_i - cos_theta_t) /
-                         (rel_ior * cos_theta_i + cos_theta_t);
-            f32 r_perp = (cos_theta_i - rel_ior * cos_theta_t) /
-                         (cos_theta_i + rel_ior * cos_theta_t);
-            return (sqr(r_parl) + sqr(r_perp)) / 2.f;
-        }
     }
 
     __device__ BSDFSample
@@ -343,7 +342,7 @@ struct Material {
         auto s = BSDFSample{
             .bsdf = eval_torrance_sparrow(sgeom, lambdas),
             .wi = wi,
-            .pdf = pdf(sgeom),
+            .pdf = pdf_roughconductor(sgeom),
             .did_refract = false,
         };
 
@@ -351,19 +350,23 @@ struct Material {
     }
 
     __device__ COption<BSDFSample>
-    sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &sample,
+    sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
            const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv,
            bool is_frontfacing) const {
         switch (type) {
         case MaterialType::Diffuse:
-            return sample_diffuse(normal, wo, sample, lambdas, textures, uv);
+            return sample_diffuse(normal, wo, vec2(sample.x, sample.y), lambdas, textures,
+                                  uv);
+        case MaterialType::Plastic:
+            return plastic.sample(normal, wo, sample, lambdas);
         case MaterialType::Conductor:
             return sample_conductor(normal, wo, lambdas, textures, uv);
         case MaterialType::RoughConductor:
-            return sample_trowbridge_reitz(normal, wo, sample, lambdas, textures, uv);
+            return sample_trowbridge_reitz(normal, wo, vec2(sample.x, sample.y), lambdas,
+                                           textures, uv);
         case MaterialType::Dielectric:
-            return sample_dielectric(normal, wo, sample, lambdas, textures, uv,
-                                     is_frontfacing);
+            return sample_dielectric(normal, wo, vec2(sample.x, sample.y), lambdas,
+                                     textures, uv, is_frontfacing);
         }
     }
 
@@ -397,10 +400,12 @@ struct Material {
 
     // Probability density function of sampling the BRDF
     __host__ __device__ f32
-    pdf(const ShadingGeometry &sgeom) const {
+    pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ) const {
         switch (type) {
         case MaterialType::Diffuse:
             return pdf_diffuse(sgeom);
+        case MaterialType::Plastic:
+            return plastic.pdf(sgeom, λ);
         case MaterialType::Conductor:
             return pdf_conductor();
         case MaterialType::RoughConductor:
@@ -432,16 +437,20 @@ struct Material {
     __device__ spectral
     eval_conductor(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
                    const Texture *textures, const vec2 &uv) const {
-        // TODO: have to store the current IOR... when it isn't 1...
-        spectral rel_ior = rough_conductor.eta.eval(lambdas);
-        spectral k = rough_conductor.k.eval(lambdas);
+        if (conductor.perfect) {
+            return spectral::ONE() / sgeom.cos_theta;
+        } else {
+            // TODO: have to store the current IOR... when it isn't 1...
+            spectral rel_ior = conductor.eta.eval(lambdas);
+            spectral k = conductor.k.eval(lambdas);
 
-        spectral fresnel = spectral::ZERO();
-        for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-            fresnel[i] =
-                fresnel_conductor(cuda::std::complex<f32>(rel_ior[i], k[i]), sgeom.howo);
+            spectral fresnel = spectral::ZERO();
+            for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+                fresnel[i] = fresnel_conductor(cuda::std::complex<f32>(rel_ior[i], k[i]),
+                                               sgeom.howo);
+            }
+            return fresnel / sgeom.cos_theta;
         }
-        return fresnel / sgeom.cos_theta;
     }
 
     __device__ spectral
@@ -457,6 +466,8 @@ struct Material {
         switch (type) {
         case MaterialType::Diffuse:
             return eval_diffuse(sgeom, lambdas, textures, uv);
+        case MaterialType::Plastic:
+            return plastic.eval(sgeom, lambdas);
         case MaterialType::RoughConductor:
             return eval_torrance_sparrow(sgeom, lambdas);
         case MaterialType::Conductor:
@@ -471,6 +482,8 @@ struct Material {
         switch (type) {
         case MaterialType::Diffuse:
             return false;
+        case MaterialType::Plastic:
+            return PlasticMaterial::is_dirac_delta();
         case MaterialType::Conductor:
             return true;
         case MaterialType::RoughConductor:
@@ -489,6 +502,7 @@ struct Material {
             RgbSpectrum reflectance;
             COption<u32> reflectance_tex_id = {};
         } diffuse;
+        PlasticMaterial plastic;
         struct {
             Spectrum int_ior;
             Spectrum ext_ior;
@@ -502,6 +516,8 @@ struct Material {
             f32 alpha;
         } rough_conductor;
         struct {
+            // No Fresnel calculations, perfect reflector...
+            bool perfect;
             // real part of the IOR
             Spectrum eta;
             // absorption coefficient

@@ -113,13 +113,14 @@ generate_w() {
 
 TEST_CASE("diffuse PDF", "[diffuse_pdf]") {
     Material mat = Material::make_diffuse(RgbSpectrum::make(tuple3(0.5f, 0.5f, 0.9f)));
+    auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
     norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
 
     test_spherical_function(Domain::Sphere, [&](const norm_vec3 &wi) {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 pdf = mat.pdf(sgeom);
+        f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
     });
 }
@@ -128,13 +129,14 @@ TEST_CASE("GGX VNDF PDF alpha=0.1", "[ggx_vndf_pdf_alpha_0_1]") {
     auto eta = Spectrum(RgbSpectrumUnbounded::make(tuple3(0.200438, 0.924033, 1.10221)));
     auto k = Spectrum(RgbSpectrumUnbounded::make(tuple3(3.91295, 2.45285, 2.14219)));
     Material mat = Material::make_rough_conductor(0.1f, eta, k);
+    auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
     norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
 
     test_spherical_function(Domain::Sphere, [&](const norm_vec3 &wi) {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 pdf = mat.pdf(sgeom);
+        f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
     });
 }
@@ -143,13 +145,14 @@ TEST_CASE("GGX VNDF PDF alpha=0.25", "[ggx_vndf_pdf_alpha_0_25]") {
     auto eta = Spectrum(RgbSpectrumUnbounded::make(tuple3(0.200438, 0.924033, 1.10221)));
     auto k = Spectrum(RgbSpectrumUnbounded::make(tuple3(3.91295, 2.45285, 2.14219)));
     Material mat = Material::make_rough_conductor(0.25f, eta, k);
+    auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
     norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
 
     test_spherical_function(Domain::Sphere, [&](const norm_vec3 &wi) {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 pdf = mat.pdf(sgeom);
+        f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
     });
 }
@@ -158,13 +161,14 @@ TEST_CASE("GGX VNDF PDF alpha=0.50", "[ggx_vndf_pdf_alpha_0_5]") {
     auto eta = Spectrum(RgbSpectrumUnbounded::make(tuple3(0.200438, 0.924033, 1.10221)));
     auto k = Spectrum(RgbSpectrumUnbounded::make(tuple3(3.91295, 2.45285, 2.14219)));
     Material mat = Material::make_rough_conductor(0.5f, eta, k);
+    auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
     norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
 
     test_spherical_function(Domain::Sphere, [&](const norm_vec3 &wi) {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 pdf = mat.pdf(sgeom);
+        f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
     });
 }
@@ -173,13 +177,14 @@ TEST_CASE("GGX VNDF PDF alpha=0.75", "[ggx_vndf_pdf_alpha_0_75]") {
     auto eta = Spectrum(RgbSpectrumUnbounded::make(tuple3(0.200438, 0.924033, 1.10221)));
     auto k = Spectrum(RgbSpectrumUnbounded::make(tuple3(3.91295, 2.45285, 2.14219)));
     Material mat = Material::make_rough_conductor(0.75f, eta, k);
+    auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
     norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
 
     test_spherical_function(Domain::Sphere, [&](const norm_vec3 &wi) {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 pdf = mat.pdf(sgeom);
+        f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
     });
 }
@@ -188,13 +193,14 @@ TEST_CASE("GGX VNDF PDF alpha=1", "[ggx_vndf_pdf_alpha_1]") {
     auto eta = Spectrum(RgbSpectrumUnbounded::make(tuple3(0.200438, 0.924033, 1.10221)));
     auto k = Spectrum(RgbSpectrumUnbounded::make(tuple3(3.91295, 2.45285, 2.14219)));
     Material mat = Material::make_rough_conductor(1.f, eta, k);
+    auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
     norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
 
     test_spherical_function(Domain::Sphere, [&](const norm_vec3 &wi) {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 pdf = mat.pdf(sgeom);
+        f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
     });
 }

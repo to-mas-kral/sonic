@@ -9,6 +9,7 @@
 #include <optix_host.h>
 #include <optix_stubs.h>
 
+#include "integrator/integrator_type.h"
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
 #include "io/scene_loader.h"
@@ -52,13 +53,20 @@ main(int argc, char **argv) {
         u32 spp = 32;
         bool silent = false;
         std::string scene_path{};
+        IntegratorType integrator_type;
 
         CLI::App app{"A CUDA path-tracer project for PGRF3 by Tomáš Král, 2023."};
         // argv = app.ensure_utf8(argv);
 
+        std::map<std::string, IntegratorType> map{{"naive", IntegratorType::Naive},
+                                                  {"mis_nee", IntegratorType::MISNEE}};
+
         app.add_option("--samples", spp, "Samples per pixel (SPP).");
         app.add_option("-s,--scene", scene_path, "Path to the scene file.");
         app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
+        app.add_option("-i,--integrator", integrator_type, "Integrator")
+            ->transform(CLI::CheckedTransformer(map, CLI::ignore_case))
+            ->default_val(IntegratorType::MISNEE);
 
         CLI11_PARSE(app, argc, argv)
 
@@ -135,6 +143,7 @@ main(int argc, char **argv) {
         params.cam_to_world = rc->attribs.camera_to_world;
         params.frame = 1;
         params.max_depth = rc->attribs.max_depth;
+        params.integrator_type = integrator_type;
         optix_renderer.update_params(params);
 
         ProgressBar pb;
