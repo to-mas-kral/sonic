@@ -149,6 +149,7 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
         mat.is_twosided = is_twosided;
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
+        mat.is_twosided = is_twosided;
     }
 
     return {mat, id};

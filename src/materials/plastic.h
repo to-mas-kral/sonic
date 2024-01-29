@@ -2,6 +2,7 @@
 #define PT_PLASTIC_H
 
 #include "../color/spectrum.h"
+#include "../integrator/utils.h"
 #include "../math/sampling.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
@@ -23,7 +24,6 @@ struct PlasticMaterial {
     is_dirac_delta() {
         return true;
     }
-
     /// Math taken from:
     /// Physically Based Specular + Diffuse
     /// Jan van Bergen
