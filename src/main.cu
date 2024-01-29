@@ -117,20 +117,18 @@ main(int argc, char **argv) {
             spdlog::error("Error while loading the scene {}", e.what());
             return 1;
         }
-        spdlog::info("Scene loaded");
 
         rc->scene.init_light_sampler();
 
         spdlog::info("Creating OptiX acceleration structure");
         auto optix_as = OptixAS(&rc->scene, optix_context);
-        spdlog::info("OptiX acceleration structure initialized");
         auto optix_renderer = OptixRenderer(&rc->scene, optix_context, &optix_as);
 
         /*
          * Start rendering
          * */
 
-        spdlog::info("Rendering a {}x{} image at {} samples.", attribs.resx, attribs.resy,
+        spdlog::info("Rendering a {}x{} image at {} spp.", attribs.resx, attribs.resy,
                      spp);
 
         PtParams params{};

@@ -86,7 +86,7 @@ public:
                                                  &gas_buffer_sizes));
 
         f64 mbs = gas_buffer_sizes.outputSizeInBytes / 1024. / 1024.;
-        spdlog::info("OptiX acceleration structure size is {} MBs before compaction",
+        spdlog::trace("OptiX acceleration structure size is {} MBs before compaction",
                      mbs);
 
         CUdeviceptr d_temp_buffer_gas;
@@ -115,11 +115,11 @@ public:
                               sizeof(size_t), cudaMemcpyDeviceToHost))
 
         f64 mbs2 = compacted_size / 1024. / 1024.;
-        spdlog::info("OptiX acceleration structure size after compaction is {} MBs",
+        spdlog::trace("OptiX acceleration structure size after compaction is {} MBs",
                      mbs2);
 
         if (compacted_size < gas_buffer_sizes.outputSizeInBytes) {
-            spdlog::info("Compacting OptiX acceleration structure");
+            spdlog::trace("Compacting OptiX acceleration structure");
             CUdeviceptr d_compacted_output_buffer;
             CUDA_CHECK(cudaMalloc(reinterpret_cast<void **>(&d_compacted_output_buffer),
                                   compacted_size))
@@ -131,7 +131,7 @@ public:
             CUDA_CHECK(cudaFree(reinterpret_cast<void *>(*output_buffer)))
             *output_buffer = d_compacted_output_buffer;
 
-            spdlog::info("OptiX acceleration structure compacted");
+            spdlog::trace("OptiX acceleration structure compacted");
         }
 
         CUDA_CHECK(cudaFree(reinterpret_cast<void *>(d_temp_buffer_gas)))
