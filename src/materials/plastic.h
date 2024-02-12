@@ -28,7 +28,8 @@ struct PlasticMaterial {
     /// Physically Based Specular + Diffuse
     /// Jan van Bergen
     __device__ spectral
-    eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas) const {
+    eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
+         const Texture *textures, const vec2 &uv) const {
         f32 int_ior_s = int_ior.eval_single(lambdas[0]);
         f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
         /// This is external / internal !
@@ -47,16 +48,21 @@ struct PlasticMaterial {
             f32 cos_theta_in = sqrt(1.f - sqr(sin_theta_in));
             f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-            spectral α = diffuse_reflectance.eval(lambdas);
+            const Texture *texture = &textures[diffuse_reflectance_id];
+            tuple3 refl_sigmoid_coeff = texture->fetch(uv);
+            spectral α = RgbSpectrum::from_coeff(refl_sigmoid_coeff).eval(lambdas);
 
-            // clang-format off
-            f32 re = 0.919317f
-                 - (3.4793f / int_ior_s)
-                 + (6.75335f / cuda::std::pow(int_ior_s, 2))
-                 - (7.80989f / cuda::std::pow(int_ior_s, 3))
-                 + (4.98554f / cuda::std::pow(int_ior_s, 4))
-                 - (1.36881f / cuda::std::pow(int_ior_s, 5));
-            // clang-format on
+            f32 re = 0.919317f;
+            f32 ior_pow = int_ior_s;
+            re -= (3.4793f / ior_pow);
+            ior_pow *= ior_pow;
+            re += (6.75335f / ior_pow);
+            ior_pow *= ior_pow;
+            re -= (7.80989f / ior_pow);
+            ior_pow *= ior_pow;
+            re += (4.98554f / ior_pow);
+            ior_pow *= ior_pow;
+            re -= (1.36881f / ior_pow);
 
             f32 ri = 1.f - sqr(rel_ior) * (1.f - re);
 
@@ -71,7 +77,7 @@ struct PlasticMaterial {
 
     __device__ BSDFSample
     sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
-           const SampledLambdas &λ) const {
+           const SampledLambdas &λ, const Texture *textures, const vec2 &uv) const {
         f32 int_η = int_ior.eval_single(λ[0]);
         f32 ext_η = ext_ior.eval_single(λ[0]);
         f32 rel_η = int_η / ext_η;
@@ -99,7 +105,7 @@ struct PlasticMaterial {
             auto sgeom = ShadingGeometry::make(normal, ωi, ωo);
 
             return BSDFSample{
-                .bsdf = eval(sgeom, λ),
+                .bsdf = eval(sgeom, λ, textures, uv),
                 .wi = ωi,
                 .pdf = pdf(sgeom, λ),
                 .did_refract = false,
@@ -109,7 +115,7 @@ struct PlasticMaterial {
 
     Spectrum ext_ior;
     Spectrum int_ior;
-    Spectrum diffuse_reflectance;
+    u32 diffuse_reflectance_id;
 };
 
 #endif // PT_PLASTIC_H

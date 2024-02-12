@@ -37,12 +37,12 @@ calc_texture(int width, int height, f32 *img, cudaTextureObject_t tex_obj) {
  * https://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Sampling_Light_Sources#InfiniteAreaLight::Sample_Li
  * */
 
-class Envmap : Texture {
+class Envmap : ImageTexture {
 public:
-    Envmap() : Texture(){};
+    Envmap() : ImageTexture(){};
 
     explicit Envmap(const std::string &texture_path, const mat4 &to_world_transform)
-        : Texture(Texture::make(texture_path, true)),
+        : ImageTexture(ImageTexture::make(texture_path, true)),
           to_world_transform(to_world_transform.inverse()) {
         UmVector<f32> img(width * height);
         img.assume_all_init();

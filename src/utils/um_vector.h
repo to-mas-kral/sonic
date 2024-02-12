@@ -1,11 +1,13 @@
 #ifndef PT_UM_VECTOR_H
 #define PT_UM_VECTOR_H
 
+#include "basic_types.h"
+#include "cuda_err.h"
+
 #include <cstring>
 #include <cuda/std/cassert>
 
-#include "basic_types.h"
-#include "cuda_err.h"
+#include <type_traits>
 
 /// A "vector" data structure using Unified Memory.
 /// It is designed in a way that the amount of elements can only be modified in host code.
@@ -55,6 +57,13 @@ public:
     }
 
     __host__ ~UmVector() {
+        if (!std::is_trivially_destructible<T>::value) {
+            for (int i = 0; i < size(); i++) {
+                T &obj = (*this)[i];
+                obj.~T();
+            }
+        }
+
         if (mem != nullptr) {
             cudaDeviceSynchronize();
             CUDA_CHECK(cudaFree(mem))

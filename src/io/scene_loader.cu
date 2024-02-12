@@ -102,6 +102,10 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
 
 void
 SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
+    // HACK: default material
+    auto texture = Texture::make_constant_texture(RgbSpectrum::make(tuple3(0.5f)));
+    u32 tex_id = sc->add_texture(std::move(texture));
+
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
@@ -113,7 +117,7 @@ SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
 }
 
 std::tuple<Material, std::string>
-SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
+SceneLoader::load_material(Scene *scene, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
     std::string id = bsdf.attribute("id").as_string();
     bool is_twosided = false;
@@ -130,13 +134,16 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
     }
 
     // Default material - 50% reflectance
-    Material mat = Material::make_diffuse(RgbSpectrum::make(tuple3(0.5f)));
+    Material mat = Material::make_diffuse(0);
 
     if (type == "diffuse") {
-        mat = load_diffuse_material(sc, bsdf);
+        mat = load_diffuse_material(scene, bsdf);
         mat.is_twosided = is_twosided;
     } else if (type == "plastic") {
-        mat = load_plastic_material(bsdf);
+        mat = load_plastic_material(scene, bsdf);
+        mat.is_twosided = is_twosided;
+    } else if (type == "roughplastic") {
+        mat = load_roughp_lastic_material(scene, bsdf);
         mat.is_twosided = is_twosided;
     } else if (type == "conductor") {
         mat = load_conductor_material(bsdf);
@@ -156,9 +163,33 @@ SceneLoader::load_material(Scene *sc, pugi::xml_node &bsdf) {
 }
 
 Material
-SceneLoader::load_plastic_material(const pugi::xml_node &bsdf) const {
-    Spectrum int_ior(GLASS_BK7_ETA);
+SceneLoader::load_plastic_material(Scene *sc, const pugi::xml_node &bsdf) const {
+    Spectrum int_ior(POLYPROPYLENE_ETA);
     Spectrum ext_ior(AIR_ETA);
+
+    auto int_ior_node = child_node(bsdf, "int_ior");
+    if (int_ior_node) {
+        int_ior =
+            Spectrum(ConstantSpectrum::make(int_ior_node.attribute("value").as_float()));
+    }
+
+    auto ext_ior_node = child_node(bsdf, "ext_ior");
+    if (ext_ior_node) {
+        ext_ior =
+            Spectrum(ConstantSpectrum::make(ext_ior_node.attribute("value").as_float()));
+    }
+
+    auto reflectance_node = child_node(bsdf, "reflectance");
+    u32 diffuse_reflectance_id = load_texture(sc, reflectance_node);
+    return Material::make_plastic(ext_ior, int_ior, diffuse_reflectance_id);
+}
+
+Material
+SceneLoader::load_roughp_lastic_material(Scene *sc, const pugi::xml_node &bsdf) const {
+    Spectrum int_ior(POLYPROPYLENE_ETA);
+    Spectrum ext_ior(AIR_ETA);
+
+    // TODO: nonlinear default is false
 
     auto int_ior_node = child_node(bsdf, "int_ior");
     if (int_ior_node) {
@@ -174,13 +205,12 @@ SceneLoader::load_plastic_material(const pugi::xml_node &bsdf) const {
 
     Spectrum diffuse_reflectance(ConstantSpectrum::make(0.5f));
 
-    auto reflectance_node = child_node(bsdf, "diffuse_reflectance");
-    if (reflectance_node) {
-        tuple3 rgb = parse_tuple3(reflectance_node.attribute("value").as_string());
-        diffuse_reflectance = Spectrum(RgbSpectrum::make(rgb));
-    }
+    auto reflectance_node = child_node(bsdf, "reflectance");
+    u32 diffuse_reflectance_id = load_texture(sc, reflectance_node);
 
-    return Material::make_plastic(ext_ior, int_ior, diffuse_reflectance);
+    f32 alpha = child_node_attr(bsdf, "alpha", "value").as_float();
+
+    return Material::make_rough_plastic(alpha, ext_ior, int_ior, diffuse_reflectance_id);
 }
 
 Material
@@ -244,20 +274,30 @@ SceneLoader::load_dielectric_material(const pugi::xml_node &bsdf) const {
     return Material::make_dielectric(ext_ior, int_ior, specular_transmittance);
 }
 
+u32
+SceneLoader::load_texture(Scene *sc, const pugi::xml_node &texture_node) const {
+    if (str(texture_node.name()) == "texture") {
+        auto filename_node = child_node(texture_node, "filename");
+        auto file_name = filename_node.attribute("value").as_string();
+        auto file_path = this->scene_base_path + "/" + file_name;
+
+        auto texture = Texture::make_image_texture(file_path, true, sc->texture_alloc);
+
+        u32 tex_id = sc->add_texture(std::move(texture));
+        return tex_id;
+    } else {
+        tuple3 rgb = parse_tuple3(texture_node.attribute("value").as_string());
+        auto texture = Texture::make_constant_texture(RgbSpectrum::make(rgb));
+        u32 tex_id = sc->add_texture(std::move(texture));
+        return tex_id;
+    }
+}
+
 Material
 SceneLoader::load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf) {
     auto reflectance_node = child_node(bsdf, "reflectance");
-    if (str(reflectance_node.name()) == "texture") {
-        auto filename_node = child_node(reflectance_node, "filename");
-        auto file_path = filename_node.attribute("value").as_string();
-        auto texture = Texture::make(this->scene_base_path + "/" + file_path, true);
-
-        u32 tex_id = sc->add_texture(std::move(texture));
-        return Material::make_diffuse(tex_id);
-    } else {
-        tuple3 rgb = parse_tuple3(reflectance_node.attribute("value").as_string());
-        return Material::make_diffuse(RgbSpectrum::make(rgb));
-    }
+    u32 tex_id = load_texture(sc, reflectance_node);
+    return Material::make_diffuse(tex_id);
 }
 
 mat4

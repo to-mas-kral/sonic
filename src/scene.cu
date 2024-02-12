@@ -52,3 +52,10 @@ Scene::add_sphere(SphereParams sp) {
 
     geometry.add_sphere(sp, light_id);
 }
+
+Scene::~Scene() {
+    for (int i = 0; i < textures.size(); i++) {
+        Texture &tex = textures[i];
+        tex.free();
+    }
+}

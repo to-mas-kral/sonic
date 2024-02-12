@@ -8,9 +8,13 @@
 #include "materials/material.h"
 #include "scene/light.h"
 #include "texture.h"
+#include "utils/chunk_allocator.h"
 
 struct Scene {
     Scene() = default;
+
+    ~Scene();
+
     void
     set_envmap(Envmap &&a_envmap) {
         envmap = std::move(a_envmap);
@@ -39,6 +43,7 @@ struct Scene {
     LightSampler light_sampler{};
     UmVector<Light> lights{};
 
+    UnifiedMemoryChunkAllocator<ImageTexture> texture_alloc{};
     UmVector<Texture> textures = UmVector<Texture>();
     UmVector<Material> materials = UmVector<Material>();
 

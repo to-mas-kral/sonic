@@ -319,65 +319,11 @@ struct SquareMatrix3 {
         return new_mat;
     }
 
-    /// code for inverse() adapted from GLM.
+    /*/// code for inverse() adapted from GLM.
     __host__ __device__ SquareMatrix3
     inverse() const {
-        printf("\n3x3 matrix inverse is unimplmemented\n");
-        assert(false);
-        /*f32 coef00 = mat[2][2] * mat[3][3] - mat[3][2] * mat[2][3];
-        f32 coef02 = mat[1][2] * mat[3][3] - mat[3][2] * mat[1][3];
-        f32 coef03 = mat[1][2] * mat[2][3] - mat[2][2] * mat[1][3];
 
-        f32 coef04 = mat[2][1] * mat[3][3] - mat[3][1] * mat[2][3];
-        f32 coef06 = mat[1][1] * mat[3][3] - mat[3][1] * mat[1][3];
-        f32 coef07 = mat[1][1] * mat[2][3] - mat[2][1] * mat[1][3];
-
-        f32 coef08 = mat[2][1] * mat[3][2] - mat[3][1] * mat[2][2];
-        f32 coef10 = mat[1][1] * mat[3][2] - mat[3][1] * mat[1][2];
-        f32 coef11 = mat[1][1] * mat[2][2] - mat[2][1] * mat[1][2];
-
-        f32 coef12 = mat[2][0] * mat[3][3] - mat[3][0] * mat[2][3];
-        f32 coef14 = mat[1][0] * mat[3][3] - mat[3][0] * mat[1][3];
-        f32 coef15 = mat[1][0] * mat[2][3] - mat[2][0] * mat[1][3];
-
-        f32 coef16 = mat[2][0] * mat[3][2] - mat[3][0] * mat[2][2];
-        f32 coef18 = mat[1][0] * mat[3][2] - mat[3][0] * mat[1][2];
-        f32 coef19 = mat[1][0] * mat[2][2] - mat[2][0] * mat[1][2];
-
-        f32 coef20 = mat[2][0] * mat[3][1] - mat[3][0] * mat[2][1];
-        f32 coef22 = mat[1][0] * mat[3][1] - mat[3][0] * mat[1][1];
-        f32 coef23 = mat[1][0] * mat[2][1] - mat[2][0] * mat[1][1];
-
-        tuple4 fac0(coef00, coef00, coef02, coef03);
-        tuple4 fac1(coef04, coef04, coef06, coef07);
-        tuple4 fac2(coef08, coef08, coef10, coef11);
-        tuple4 fac3(coef12, coef12, coef14, coef15);
-        tuple4 fac4(coef16, coef16, coef18, coef19);
-        tuple4 fac5(coef20, coef20, coef22, coef23);
-
-        tuple4 vec_0 = tuple4(mat[1][0], mat[0][0], mat[0][0], mat[0][0]);
-        tuple4 vec_1 = tuple4(mat[1][1], mat[0][1], mat[0][1], mat[0][1]);
-        tuple4 vec_2 = tuple4(mat[1][2], mat[0][2], mat[0][2], mat[0][2]);
-        tuple4 vec_3 = tuple4(mat[1][3], mat[0][3], mat[0][3], mat[0][3]);
-
-        tuple4 sign_a(+1.f, -1.f, +1.f, -1.f);
-        tuple4 sign_b(-1.f, +1.f, -1.f, +1.f);
-
-        tuple4 inv0 = tuple4(vec_1 * fac0 - vec_2 * fac1 + vec_3 * fac2) * sign_a;
-        tuple4 inv1 = tuple4(vec_0 * fac0 - vec_2 * fac3 + vec_3 * fac4) * sign_b;
-        tuple4 inv2 = tuple4(vec_0 * fac1 - vec_1 * fac3 + vec_3 * fac5) * sign_a;
-        tuple4 inv3 = tuple4(vec_0 * fac2 - vec_1 * fac4 + vec_2 * fac5) * sign_b;
-
-        tuple4 row0 = tuple4(inv0.x, inv1.x, inv2.x, inv3.x);
-
-        tuple4 dot0 = tuple4(tuple4(mat[0][0], mat[0][1], mat[0][2], mat[0][3]) * row0);
-        f32 dot1 = (dot0.x + dot0.y) + (dot0.z + dot0.w);
-
-        f32 one_over_determinant = 1.f / dot1;
-
-        auto inverse_mat = SquareMatrix3::from_columns(inv0, inv1, inv2, inv3);
-        return inverse_mat * one_over_determinant;*/
-    }
+    }*/
 
     __host__ __device__ SquareMatrix3
     operator*(f32 mul) {

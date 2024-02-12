@@ -79,7 +79,7 @@ private:
     load_shapes(Scene *sc, const pugi::xml_node &scene);
 
     std::tuple<Material, std::string>
-    load_material(Scene *sc, pugi::xml_node &bsdf);
+    load_material(Scene *scene, pugi::xml_node &bsdf);
 
     std::string scene_base_path;
     pugi::xml_document doc;
@@ -89,7 +89,10 @@ private:
     load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf);
 
     Material
-    load_plastic_material(const pugi::xml_node &bsdf) const;
+    load_plastic_material(Scene *sc, const pugi::xml_node &bsdf) const;
+
+    Material
+    load_roughp_lastic_material(Scene *sc, const pugi::xml_node &bsdf) const;
 
     Material
     load_conductor_material(const pugi::xml_node &bsdf) const;
@@ -105,6 +108,9 @@ private:
 
     static mat4
     parse_transform_rotate(const pugi::xml_node &transform_node);
+
+    u32
+    load_texture(Scene *sc, const pugi::xml_node &texture_node) const;
 };
 
 #endif // PT_SCENE_LOADER_H

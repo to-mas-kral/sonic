@@ -34,6 +34,7 @@ add_executable(pt
         src/utils/cuda_err.h
         src/utils/sampler.h
         src/utils/algs.h
+        src/utils/chunk_allocator.h
 
         src/io/image_writer.h
         src/io/progress_bar.h
@@ -49,6 +50,7 @@ add_executable(pt
         src/integrator/utils.h
         src/integrator/light_sampler.cu
         src/integrator/light_sampler.h
+        src/integrator/integrator_type.h
 
         src/geometry/geometry.h
         src/geometry/geometry.cu
@@ -63,9 +65,15 @@ add_executable(pt
         src/color/spectrum.cu
         src/color/spectral_data.h
         src/color/spectrum.h
+
         src/materials/plastic.h
         src/materials/common.h
-        src/integrator/integrator_type.h
+        src/materials/diffuse.h
+        src/materials/dielectric.h
+        src/materials/conductor.h
+        src/materials/rough_conductor.h
+        src/materials/trowbridge_reitz_ggx.h
+        src/materials/rough_plastic.h
 )
 
 include_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/)

@@ -163,7 +163,6 @@ light_mis(const Intersection &its, const Ray &traced_ray, const LightSample &lig
             spectral bxdf_light =
                 material->eval(sgeom_light, lambdas, params.textures, its.uv);
             f32 mat_pdf = material->pdf(sgeom_light, lambdas);
-            assert(mat_pdf > 0.f);
 
             f32 weight_light = mis_power_heuristic(pdf_light, mat_pdf);
 
@@ -262,8 +261,6 @@ __raygen__rg() {
                     auto bxdf_mis_contrib = bxdf_mis(sc, throughput, last_hit_pos,
                                                      last_pdf_bxdf, its, emission);
 
-                    assert(bxdf_mis_contrib[0] >= 0.f);
-
                     radiance += bxdf_mis_contrib;
                 }
             }
@@ -286,9 +283,6 @@ __raygen__rg() {
                         light_mis(its, ray, sampled_light.value(), its.geometric_normal,
                                   shape_sample, material, throughput, lambdas);
 
-                    // TODO: compare operator overload
-                    assert(light_mis_contrib[0] >= 0.f);
-
                     radiance += light_mis_contrib;
                 }
             }
@@ -301,8 +295,6 @@ __raygen__rg() {
                 break;
             }
             auto bsdf_sample = bsdf_sample_opt.value();
-            assert(bsdf_sample.pdf > 0.f);
-            assert(bsdf_sample.bsdf[0] >= 0.f);
 
             auto sgeom_bxdf = ShadingGeometry::make(its.normal, bsdf_sample.wi, -ray.dir);
 

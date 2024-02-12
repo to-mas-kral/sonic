@@ -19,7 +19,7 @@ transform_rgb_to_spectrum(f32 *pixels, i32 width, i32 height, i32 num_channels) 
     }
 }
 
-Texture
+ImageTexture
 load_exr_texture(const std::string &texture_path, bool is_rgb) {
     f32 *pixels = nullptr;
     cudaArray_t texture_storage_array = nullptr;
@@ -68,10 +68,10 @@ load_exr_texture(const std::string &texture_path, bool is_rgb) {
 
     CUDA_CHECK(cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, nullptr))
 
-    return Texture(tex_obj, texture_storage_array, width, height);
+    return ImageTexture(tex_obj, texture_storage_array, width, height);
 }
 
-Texture
+ImageTexture
 load_other_format_texture(const std::string &texture_path, bool is_rgb) {
     cudaArray_t texture_storage_array = nullptr;
     cudaTextureObject_t tex_obj = 0;
@@ -185,51 +185,14 @@ load_other_format_texture(const std::string &texture_path, bool is_rgb) {
 
     CUDA_CHECK(cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, nullptr));
 
-    return Texture(tex_obj, texture_storage_array, width, height);
+    return ImageTexture(tex_obj, texture_storage_array, width, height);
 }
 
-Texture
-Texture::make(const std::string &texture_path, bool is_rgb) {
+ImageTexture
+ImageTexture::make(const std::string &texture_path, bool is_rgb) {
     if (texture_path.ends_with(".exr")) {
         return load_exr_texture(texture_path, is_rgb);
     } else {
         return load_other_format_texture(texture_path, is_rgb);
-    }
-}
-
-Texture::Texture(Texture &&other) noexcept {
-    tex_obj = other.tex_obj;
-    texture_storage_array = other.texture_storage_array;
-    width = other.width;
-    height = other.height;
-
-    other.tex_obj = 0;
-    other.texture_storage_array = nullptr;
-    other.width = 0;
-    other.height = 0;
-}
-
-Texture &
-Texture::operator=(Texture &&other) noexcept {
-    width = other.width;
-    height = other.height;
-    tex_obj = other.tex_obj;
-    texture_storage_array = other.texture_storage_array;
-
-    other.tex_obj = 0;
-    other.texture_storage_array = nullptr;
-    other.width = 0;
-    other.height = 0;
-
-    return *this;
-}
-
-Texture::~Texture() {
-    if (tex_obj != 0) {
-        cudaDestroyTextureObject(tex_obj);
-    }
-
-    if (texture_storage_array != nullptr) {
-        cudaFreeArray(texture_storage_array);
     }
 }

@@ -74,6 +74,8 @@ const ConstantSpectrum AIR_ETA = ConstantSpectrum::make(1.000277f);
 
 const ConstantSpectrum GLASS_BK7_ETA = ConstantSpectrum::make(1.530277f);
 
+const ConstantSpectrum POLYPROPYLENE_ETA = ConstantSpectrum::make(1.49f);
+
 /*const PiecewiseSpectrum GLASS_BK7_ETA = PiecewiseSpectrum::make(
     CSpan<f32>(GLASS_BK7_ETA_RAW.get_ptr(), GLASS_BK7_ETA_RAW.size()));*/
 
