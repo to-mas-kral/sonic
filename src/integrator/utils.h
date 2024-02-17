@@ -27,56 +27,6 @@ russian_roulette(u32 depth, f32 u, const spectral &throughput) {
     }
 }
 
-struct Intersection {
-    u32 material_id;
-    u32 light_id;
-    bool has_light;
-    /// "shading" normal affected by interpolation or normal maps
-    norm_vec3 normal;
-    /// "true" normal, always perpendicular to the geometry, used for self-intersection
-    /// avoidance
-    norm_vec3 geometric_normal;
-    point3 pos;
-    vec2 uv;
-};
-
-__device__ __forceinline__ constexpr float
-origin() {
-    return 1.0f / 32.0f;
-}
-
-__device__ __forceinline__ constexpr float
-float_scale() {
-    return 1.0f / 65536.0f;
-}
-
-__device__ __forceinline__ constexpr float
-int_scale() {
-    return 256.0f;
-}
-
-// Taken from GPU Gems - Chapter 6 - A Fast and Robust Method for Avoiding
-// Self-Intersection - Carsten Wächter and Nikolaus Binder - NVIDIA
-/// Normal points outward for rays exiting the surface, else is flipped.
-__device__ __forceinline__ point3
-offset_ray(const point3 &p, const norm_vec3 &n) {
-    ivec3 of_i(int_scale() * n.x, int_scale() * n.y, int_scale() * n.z);
-
-    point3 p_i(__int_as_float(__float_as_int(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
-               __int_as_float(__float_as_int(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
-               __int_as_float(__float_as_int(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
-
-    return point3(fabsf(p.x) < origin() ? p.x + float_scale() * n.x : p_i.x,
-                  fabsf(p.y) < origin() ? p.y + float_scale() * n.y : p_i.y,
-                  fabsf(p.z) < origin() ? p.z + float_scale() * n.z : p_i.z);
-}
-
-__device__ __forceinline__ Ray
-spawn_ray(Intersection &its, const norm_vec3 &spawn_ray_normal, const norm_vec3 &wi) {
-    point3 offset_orig = offset_ray(its.pos, spawn_ray_normal);
-    return Ray(offset_orig, wi);
-}
-
 struct ShadingGeometry {
     ///  w_i is incident direction and w_o is outgoing direction.
     ///  w_o goes "towards the viewer" and w_i "towards the light"

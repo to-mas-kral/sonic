@@ -22,13 +22,26 @@ draw_vec <- function(vec, color, orig = c(0, 0, 0)) {
   )
 }
 
-wo_dir = c(-0.415600, 0.881494, 0.224153)
-wi_dir=c(-0.580490, 0.809596, -0.087099)
-normal_dir=c(-0.999731, -0.019059,-0.013196)
-geom_normal_dir=c(-0.848574, -0.434451, -0.301950)
-wi_offset=c(-0.000013, -0.000013, -0.000009)
-last_hit_pos=c(-0.000096, 0.000162, 0.000035)
-its_pos=c(0.565741, 1.960749, -1.756458)
+normal_shade_dir = c(0.000000, 0.000000, 1.000000)
+wo_shade_dir = c(0.006536, -0.182330, 0.983216)
+wm_shade_dir = c(-0.036927, -0.464259, 0.884929)
+wo_dir = c(-0.091345, -0.979384, -0.180174)
+wi_dir = c(-0.076787, -0.701959, -0.708066)
+normal_dir = c(-0.121888, -0.992544, 0.000000)
+spawn_normal_dir = c(-0.121888, -0.992544, 0.000000)
+wm_dir = c(-0.088075, -0.880761, -0.465298)
+
+normal_shade <- matrix(normal_shade_dir, nrow = 1, ncol = 3)
+rownames(normal_shade) <- c("normal_shade")
+draw_vec(normal_shade, "red")
+
+wo_shade <- matrix(wo_shade_dir, nrow = 1, ncol = 3)
+rownames(wo_shade) <- c("wo_shade")
+draw_vec(wo_shade, "blue")
+
+wm_shade <- matrix(wm_shade_dir, nrow = 1, ncol = 3)
+rownames(wm_shade) <- c("wm_shade")
+draw_vec(wm_shade, "orange")
 
 wo <- matrix(wo_dir, nrow = 1, ncol = 3)
 rownames(wo) <- c("wo")
@@ -36,25 +49,27 @@ rownames(wo) <- c("wo")
 wi <- matrix(wi_dir, nrow = 1, ncol = 3)
 rownames(wi) <- c("wi")
 
+wm <- matrix(wm_dir, nrow = 1, ncol = 3)
+rownames(wm) <- c("wm")
+
 normal <- matrix(normal_dir, nrow = 1, ncol = 3)
 rownames(normal) <- c("n")
 
-geom_normal <- matrix(geom_normal_dir, nrow = 1, ncol = 3)
-rownames(geom_normal) <- c("geom_n")
+spawn_normal <- matrix(spawn_normal_dir, nrow = 1, ncol = 3)
+rownames(spawn_normal) <- c("geom_n")
 
 planes3d(normal[1, 1], normal[1, 2], normal[1, 3], 0, alpha = 0.7, color = "grey")
-points3d(wi_offset, color = "magenta")
-points3d(last_hit_pos, color = "green")
 points3d(c(0, 0, 0))
 
 # Hack for having wider plane
 points3d(c(-1, -1, -1))
 points3d(c(1, 1, 1))
 
+draw_vec(wi, "yellow")
 draw_vec(wo, "blue")
-draw_vec(wi, "orange", orig = wi_offset)
 draw_vec(normal, "red")
-draw_vec(geom_normal, "red")
+#draw_vec(spawn_normal, "red")
+draw_vec(wm, "orange")
 
 rgl.bringtotop()
 

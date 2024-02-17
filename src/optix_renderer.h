@@ -1,7 +1,7 @@
 #ifndef PT_OPTIX_RENDERER_H
 #define PT_OPTIX_RENDERER_H
 
-#include "kernels/optix_pt.h"
+#include "integrator/optix_pt.h"
 #include "optix_as.h"
 #include "scene.h"
 #include "utils/cuda_box.h"

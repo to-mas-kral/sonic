@@ -12,8 +12,7 @@ struct DielectricMaterial {
     __device__ static spectral
     eval() {
         // This should only be evaluated during sampling
-        assert(false);
-        return spectral::make_constant(NAN);
+        return spectral::ZERO();
     }
 
     __device__ BSDFSample

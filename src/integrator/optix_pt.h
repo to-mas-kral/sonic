@@ -1,12 +1,12 @@
 #ifndef PT_OPTIX_PT_H
 #define PT_OPTIX_PT_H
 
-#include <optix_types.h>
+#include "../../../../ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/optix_types.h"
 
-#include "../integrator/integrator_type.h"
 #include "../optix_common.h"
 #include "../render_context.h"
 #include "../utils/basic_types.h"
+#include "integrator_type.h"
 
 // TODO: convert to const
 struct PtParams {

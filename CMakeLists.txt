@@ -39,8 +39,8 @@ add_executable(pt
         src/io/image_writer.h
         src/io/progress_bar.h
 
-        src/kernels/raygen.h
-        src/kernels/optix_pt.h
+        src/integrator/raygen.h
+        src/integrator/optix_pt.h
 
         src/math/sampling.h
         src/math/vecmath.h
@@ -51,6 +51,9 @@ add_executable(pt
         src/integrator/light_sampler.cu
         src/integrator/light_sampler.h
         src/integrator/integrator_type.h
+        src/integrator/mis_nee_integrator.h
+        src/integrator/intersection.h
+        src/integrator/bdpt_nee_integrator.h
 
         src/geometry/geometry.h
         src/geometry/geometry.cu
@@ -110,7 +113,8 @@ target_link_libraries(pt PRIVATE spdlog::spdlog)
 #[[OptiX modules]]
 
 add_library(optix_pt OBJECT
-        src/kernels/optix_pt.cu
+        src/integrator/optix_pt.cu
+        src/integrator/hit_type.h
 )
 
 target_link_libraries(optix_pt PRIVATE fmt::fmt)
@@ -164,8 +168,8 @@ add_executable(tests
         src/io/image_writer.h
         src/io/progress_bar.h
 
-        src/kernels/raygen.h
-        src/kernels/optix_pt.h
+        src/integrator/raygen.h
+        src/integrator/optix_pt.h
 
         src/math/sampling.h
         src/math/vecmath.h

@@ -59,7 +59,8 @@ main(int argc, char **argv) {
         // argv = app.ensure_utf8(argv);
 
         std::map<std::string, IntegratorType> map{{"naive", IntegratorType::Naive},
-                                                  {"mis_nee", IntegratorType::MISNEE}};
+                                                  {"mis_nee", IntegratorType::MISNEE},
+                                                  {"bdpt_nee", IntegratorType::BDPTNEE}};
 
         app.add_option("--samples", spp, "Samples per pixel (SPP).");
         app.add_option("-s,--scene", scene_path, "Path to the scene file.");
