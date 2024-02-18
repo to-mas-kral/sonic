@@ -110,6 +110,13 @@ add_custom_command(
         DEPENDS rgb2spec_opt
 )
 
+add_custom_target(
+        run_rgb2spec_opt
+        DEPENDS ${CMAKE_BINARY_DIR}/rgb2spec.out
+)
+
+add_dependencies(pt run_rgb2spec_opt)
+
 #[[Tests]]
 
 add_executable(tests
