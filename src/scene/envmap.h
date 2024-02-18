@@ -8,14 +8,11 @@
 #include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
-#include "color/spectrum.h"
-#include "color/sampled_spectrum.h"
-#include "geometry/ray.h"
-#include "math/vecmath.h"
+#include "../color/sampled_spectrum.h"
+#include "../color/spectrum.h"
+#include "../geometry/ray.h"
+#include "../math/vecmath.h"
 #include "texture.h"
-#include "utils/basic_types.h"
-#include "utils/cuda_err.h"
-#include "utils/um_vector.h"
 
 /*__global__ static void
 calc_texture(int width, int height, f32 *img, cudaTextureObject_t tex_obj) {
@@ -44,15 +41,14 @@ public:
     explicit Envmap(const std::string &texture_path, const mat4 &to_world_transform)
         : ImageTexture(ImageTexture::make(texture_path, true)),
           to_world_transform(to_world_transform.inverse()) {
-        UmVector<f32> img(width * height);
-        img.assume_all_init();
+        std::vector<f32> img(width * height, 0.f);
 
         /*calc_texture<<<1, 1>>>(width, height, img.get_ptr(), tex_obj);
         CUDA_CHECK(cudaDeviceSynchronize())*/
         sampling_dist = PiecewiseDist2D(img, width, height);
     };
 
-    __device__ __forceinline__ spectral
+    spectral
     get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
         // TODO: correct coordinates for environment mapping...
         /*Ray tray = Ray(ray);
@@ -62,7 +58,7 @@ public:
         // Mapping from ray direction to UV on equirectangular texture
         // (1 / 2pi, 1 / pi)
         const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
-        vec2 uv = vec2(atan2(-ray.dir.z, -ray.dir.x), asin(ray.dir.y));
+        vec2 uv = vec2(std::atan2(-ray.dir.z, -ray.dir.x), std::asin(ray.dir.y));
         uv *= pi_reciprocals;
         uv += 0.5;
 
@@ -71,8 +67,8 @@ public:
     };
 
     /// Returns radiance, direction and pdf
-    __device__ __forceinline__ CTuple<tuple3, norm_vec3, f32>
-    sample(const vec2 &sample) const {
+    Tuple<tuple3, norm_vec3, f32>
+    sample(const vec2 &sample) {
         auto [uv, pdf] = sampling_dist.sample(sample);
         if (pdf == 0.f) {
             return {tuple3(0.f), norm_vec3(0.f), pdf};
@@ -80,10 +76,10 @@ public:
 
         f32 theta = uv[1] * M_PIf;
         f32 phi = uv[0] * 2.f * M_PIf;
-        f32 sin_theta = sin(theta);
-        f32 cos_theta = cos(theta);
-        f32 sin_phi = sin(phi);
-        f32 cos_phi = cos(phi);
+        f32 sin_theta = std::sin(theta);
+        f32 cos_theta = std::cos(theta);
+        f32 sin_phi = std::sin(phi);
+        f32 cos_phi = std::cos(phi);
         norm_vec3 dir =
             vec3(sin_theta * cos_phi, cos_theta, sin_theta * sin_phi).normalized();
 
@@ -95,16 +91,16 @@ public:
         return {fetch(uv), dir, pdf};
     };
 
-    __device__ __forceinline__ f32
-    pdf(const vec3 &dir) const {
+    f32
+    pdf(const vec3 &dir) {
         const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
-        vec2 uv = vec2(atan2(-dir.z, -dir.x), asin(dir.y));
+        vec2 uv = vec2(std::atan2(-dir.z, -dir.x), std::asin(dir.y));
         uv *= pi_reciprocals;
         uv += 0.5;
         uv.y = -uv.y;
 
         f32 theta = uv[1] * M_PIf;
-        f32 sin_theta = sin(theta);
+        f32 sin_theta = std::sin(theta);
 
         return sampling_dist.pdf(uv) / (2.f * sqr(M_PIf) * sin_theta);
     };

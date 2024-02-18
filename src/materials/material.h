@@ -4,7 +4,7 @@
 #include "../color/sampled_spectrum.h"
 #include "../color/spectrum.h"
 #include "../integrator/utils.h"
-#include "../texture.h"
+#include "../scene/texture.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
 #include "common.h"
@@ -113,7 +113,7 @@ struct Material {
         }
     }
 
-    __device__ COption<BSDFSample>
+    Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
            const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv,
            bool is_frontfacing) const {
@@ -137,7 +137,7 @@ struct Material {
     }
 
     // Probability density function of sampling the BRDF
-    __host__ __device__ f32
+    f32
     pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ) const {
         switch (type) {
         case MaterialType::Diffuse:
@@ -155,7 +155,7 @@ struct Material {
         }
     }
 
-    __device__ spectral
+    spectral
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
          const Texture *textures, const vec2 &uv) const {
         switch (type) {
@@ -174,7 +174,7 @@ struct Material {
         }
     }
 
-    __device__ bool
+    bool
     is_dirac_delta() const {
         switch (type) {
         case MaterialType::Diffuse:

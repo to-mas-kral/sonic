@@ -1,8 +1,8 @@
 
-#include "rgb2spec.h"
 #include "spectrum.h"
+#include "rgb2spec.h"
 
-static const RGB2Spec rgb2spec = RGB2Spec("resources/rgb2spec.out");
+static const RGB2Spec rgb2spec = RGB2Spec("rgb2spec.out");
 
 RgbSpectrum
 RgbSpectrum::make(const tuple3 &rgb) {

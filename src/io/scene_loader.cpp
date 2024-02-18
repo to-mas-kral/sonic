@@ -4,8 +4,6 @@
 #include <utility>
 
 #include "../color/spectral_data.h"
-#include "../color/spectrum.h"
-#include "../math/vecmath.h"
 #include <fmt/core.h>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -81,7 +79,7 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
         }
 
         auto emitter_node = shape.child("emitter");
-        COption<Emitter> emitter = {};
+        Option<Emitter> emitter = {};
         if (emitter_node) {
             emitter = load_emitter(emitter_node, sc);
         }
@@ -116,7 +114,7 @@ SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
     }
 }
 
-std::tuple<Material, std::string>
+Tuple<Material, std::string>
 SceneLoader::load_material(Scene *scene, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
     std::string id = bsdf.attribute("id").as_string();
@@ -352,7 +350,7 @@ SceneLoader::parse_transform_matrix(const pugi::xml_node &matrix_node) {
         return std::stof(std::string(c.begin(), c.end()));
     });
 
-    CArray<f32, 16> mat{};
+    Array<f32, 16> mat{};
     int i = 0;
     for (f32 f : floats) {
         if (i > 15) {
@@ -410,9 +408,9 @@ SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
 
 void
 SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                            COption<Emitter> emitter, Scene *sc) {
+                            Option<Emitter> emitter, Scene *sc) {
     // clang-format off
-    UmVector<point3> pos = {
+    std::vector<point3> pos = {
         point3(-1.,  -1., 0.),
         point3( 1.,  -1., 0.),
         point3( 1.,   1., 0.),
@@ -424,7 +422,7 @@ SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transf
      * |    |
      * 0 -- 1
      * */
-    UmVector<u32> indices{
+    std::vector<u32> indices{
         0, 1, 2, 0, 2, 3,
     };
     // clang-format on
@@ -445,9 +443,9 @@ SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transf
 
 void
 SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                       COption<Emitter> emitter, Scene *sc) {
+                       Option<Emitter> emitter, Scene *sc) {
     // clang-format off
-    UmVector<point3> pos = {
+    std::vector<point3> pos = {
         point3(-1.,  -1.,  1.),
         point3( 1.,  -1.,  1.),
         point3( 1.,   1.,  1.),
@@ -464,7 +462,7 @@ SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
      * |    |         |    |
      * 0 -- 1         4 -- 5
      * */
-    UmVector<u32> indices{
+    std::vector<u32> indices{
         0, 1, 2, 0, 2, 3,
         1, 5, 6, 1, 6, 2,
         3, 2, 6, 3, 6, 7,
@@ -490,7 +488,7 @@ SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
 
 void
 SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
-                         COption<Emitter> emitter, Scene *sc) {
+                         Option<Emitter> emitter, Scene *sc) {
     auto radius_node = child_node(node, "radius");
     f32 radius = radius_node.attribute("value").as_float();
     auto center_node = child_node(node, "center");
@@ -506,7 +504,7 @@ SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
 
 void
 SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                      COption<Emitter> emitter, Scene *sc) {
+                      Option<Emitter> emitter, Scene *sc) {
     std::string filename = shape_node.child("string").attribute("value").as_string();
     auto file_path = scene_base_path + "/" + filename;
 
@@ -538,10 +536,10 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     auto &attrib = reader.GetAttrib();
     auto &shapes = reader.GetShapes();
 
-    UmVector<point3> pos{};
-    UmVector<vec3> normals{};
-    UmVector<vec2> uvs{};
-    UmVector<u32> indices{};
+    std::vector<point3> pos{};
+    std::vector<vec3> normals{};
+    std::vector<vec2> uvs{};
+    std::vector<u32> indices{};
 
     if (shapes.size() != 1) {
         throw std::runtime_error(
@@ -574,9 +572,9 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
             }
         }
 
-        indices.push(i0);
-        indices.push(i1);
-        indices.push(i2);
+        indices.push_back(i0);
+        indices.push_back(i1);
+        indices.push_back(i2);
     }
 
     size_t pos_size = attrib.vertices.size() / 3;
@@ -600,7 +598,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         tinyobj::real_t z = attrib.vertices[3 * v + 2];
 
         point3 vert_pos = point3(x, y, z);
-        pos.push(vert_pos);
+        pos.push_back(vert_pos);
 
         if (!face_normals) {
             tinyobj::real_t nx = attrib.normals[3 * v];
@@ -608,23 +606,23 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
             tinyobj::real_t nz = attrib.normals[3 * v + 2];
 
             vec3 vert_normal = vec3(nx, ny, nz);
-            normals.push(vert_normal);
+            normals.push_back(vert_normal);
         }
 
         tinyobj::real_t tx = attrib.texcoords[2 * v];
         tinyobj::real_t ty = attrib.texcoords[2 * v + 1];
 
         vec2 uv = vec2(tx, ty);
-        uvs.push(uv);
+        uvs.push_back(uv);
     }
 
-    for (int i = 0; i < pos.size(); i++) {
-        pos[i] = transform.transform_point(pos[i]);
+    for (auto &po : pos) {
+        po = transform.transform_point(po);
     }
 
     auto inv_trans = transform.transpose().inverse();
-    for (int i = 0; i < normals.size(); i++) {
-        normals[i] = inv_trans.transform_vec(normals[i]);
+    for (auto &normal : normals) {
+        normal = inv_trans.transform_vec(normal);
     }
 
     MeshParams mp = {
@@ -639,7 +637,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
     sc->add_mesh(mp);
 }
 
-std::optional<SceneAttribs>
+Option<SceneAttribs>
 SceneLoader::load_scene_attribs() {
     SceneAttribs attribs;
     auto scene = doc.child("scene");

@@ -5,7 +5,7 @@
 #include "../utils/basic_types.h"
 
 struct RoughPlasticMaterial {
-    __host__ __device__ f32
+    f32
     pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ) const {
         f32 int_η = int_ior.eval_single(λ[0]);
         f32 ext_η = ext_ior.eval_single(λ[0]);
@@ -19,7 +19,7 @@ struct RoughPlasticMaterial {
         return diffuse_pdf + microfacet_pdf;
     }
 
-    __device__ spectral
+    spectral
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
          const Texture *textures, const vec2 &uv) const {
         f32 int_ior_s = int_ior.eval_single(lambdas[0]);
@@ -74,7 +74,7 @@ struct RoughPlasticMaterial {
         return brdf;
     }
 
-    __device__ COption<BSDFSample>
+    Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
            const SampledLambdas &λ, const Texture *textures, const vec2 &uv) const {
         f32 int_η = int_ior.eval_single(λ[0]);

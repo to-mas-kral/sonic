@@ -7,17 +7,15 @@
 
 class Ray {
 public:
-    __device__
-    Ray(const point3 &origin, const norm_vec3 &direction)
-        : o(origin), dir(direction) {}
+    Ray(const point3 &origin, const norm_vec3 &direction) : o(origin), dir(direction) {}
 
-    __device__ void
+    void
     transform(const mat4 &transform) {
         o = transform.transform_point(o);
         dir = transform.transform_vec(dir).normalized();
     }
 
-    __device__ point3
+    point3
     at(f32 t) const {
         return o + (t * dir);
     }

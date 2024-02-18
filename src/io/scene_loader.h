@@ -2,17 +2,15 @@
 #define PT_SCENE_LOADER_H
 
 #include <filesystem>
-#include <optional>
 #include <string>
-#include <tuple>
 #include <unordered_map>
 
 #include <pugixml.hpp>
 
-#include "../envmap.h"
 #include "../math/vecmath.h"
-#include "../scene.h"
-#include "../texture.h"
+#include "../scene/envmap.h"
+#include "../scene/scene.h"
+#include "../scene/texture.h"
 #include "../utils/basic_types.h"
 
 struct SceneAttribs {
@@ -49,18 +47,18 @@ public:
 private:
     static void
     load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                   COption<Emitter>, Scene *sc);
+                   Option<Emitter>, Scene *sc);
 
     static void
     load_cube(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-              COption<Emitter>, Scene *sc);
+              Option<Emitter>, Scene *sc);
 
     void
     load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-             COption<Emitter>, Scene *sc);
+             Option<Emitter>, Scene *sc);
 
     void
-    load_sphere(pugi::xml_node node, u32 id, mat4 mat_1, COption<Emitter> emitter_id,
+    load_sphere(pugi::xml_node node, u32 id, mat4 mat_1, Option<Emitter> emitter_id,
                 Scene *sc);
 
     void
@@ -80,10 +78,6 @@ private:
 
     std::tuple<Material, std::string>
     load_material(Scene *scene, pugi::xml_node &bsdf);
-
-    std::string scene_base_path;
-    pugi::xml_document doc;
-    std::unordered_map<std::string, u32> materials;
 
     Material
     load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf);
@@ -111,6 +105,10 @@ private:
 
     u32
     load_texture(Scene *sc, const pugi::xml_node &texture_node) const;
+
+    std::string scene_base_path;
+    pugi::xml_document doc;
+    std::unordered_map<std::string, u32> materials;
 };
 
 #endif // PT_SCENE_LOADER_H

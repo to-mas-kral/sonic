@@ -5,7 +5,7 @@
 #include "basic_types.h"
 
 // This RNG implementation was taken from Ray Tracing Gems II
-__device__ __forceinline__ u32
+inline u32
 jenkins_hash(u32 x) {
     x += x << 10;
     x ^= x >> 6;
@@ -16,18 +16,18 @@ jenkins_hash(u32 x) {
     return x;
 }
 
-__device__ __forceinline__ u32
+inline u32
 init_rng(const uvec2 &pixel, const uvec2 &resolution, u32 frame) {
     u32 rngState = (pixel.x + (pixel.y * resolution.x)) ^ jenkins_hash(frame);
     return jenkins_hash(rngState);
 }
 
-__device__ __forceinline__ f32
+inline f32
 rng_uint_to_float(u32 x) {
-    return __uint_as_float(0x3f800000 | (x >> 9)) - 1.f;
+    return std::bit_cast<f32>(0x3f800000 | (x >> 9)) - 1.f;
 }
 
-__device__ __forceinline__ u32
+inline u32
 xorshift(u32 &rng_state) {
     rng_state ^= rng_state << 13;
     rng_state ^= rng_state >> 17;
@@ -36,7 +36,7 @@ xorshift(u32 &rng_state) {
     return rng_state;
 }
 
-__device__ __forceinline__ f32
+inline f32
 rng(u32 &rngState) {
     return rng_uint_to_float(xorshift(rngState));
 }
@@ -45,17 +45,17 @@ class Sampler {
 public:
     Sampler() = default;
 
-    __device__ __forceinline__ f32
+    inline void
     init_frame(const uvec2 &pixel, const uvec2 &resolution, u32 frame) {
         rand_state = init_rng(pixel, resolution, frame);
     }
 
-    __device__ __forceinline__ f32
+    inline f32
     sample() {
         return rng(rand_state);
     }
 
-    __device__ __forceinline__ vec2
+    inline vec2
     sample2() {
         // The order has to be right...
         auto r1 = rng(rand_state);
@@ -63,7 +63,7 @@ public:
         return vec2(r1, r2);
     }
 
-    __device__ __forceinline__ vec3
+    inline vec3
     sample3() {
         auto r1 = rng(rand_state);
         auto r2 = rng(rand_state);

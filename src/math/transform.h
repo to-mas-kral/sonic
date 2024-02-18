@@ -7,7 +7,6 @@
 struct SquareMatrix4 {
     SquareMatrix4() = default;
 
-    __host__ __device__
     // clang-format off
     SquareMatrix4(f32 m00, f32 m01, f32 m02, f32 m03,
                     f32 m10, f32 m11, f32 m12, f32 m13,
@@ -35,7 +34,7 @@ struct SquareMatrix4 {
         mat[3][3] = m33;
     }
 
-    __host__ __device__ static SquareMatrix4
+    static SquareMatrix4
     from_columns(const tuple4 &c0, const tuple4 &c1, const tuple4 &c2, const tuple4 &c3) {
         // clang-format off
         return SquareMatrix4(c0.x,  c0.y,  c0.z, c0.w,
@@ -46,8 +45,8 @@ struct SquareMatrix4 {
     }
 
     /// Column-major order !
-    __host__ __device__ static SquareMatrix4
-    from_elements(const CArray<f32, 16> &columns) {
+    static SquareMatrix4
+    from_elements(const Array<f32, 16> &columns) {
         // clang-format off
         return SquareMatrix4(columns[0],  columns[1],  columns[2],  columns[3],
                              columns[4],  columns[5],  columns[6],  columns[7],
@@ -56,7 +55,7 @@ struct SquareMatrix4 {
         // clang-format on
     }
 
-    __host__ __device__ SquareMatrix4
+    SquareMatrix4
     transpose() const {
         SquareMatrix4 new_mat{};
         new_mat.mat[0][0] = mat[0][0];
@@ -83,7 +82,7 @@ struct SquareMatrix4 {
     }
 
     /// code for inverse() adapted from GLM.
-    __host__ __device__ SquareMatrix4
+    SquareMatrix4
     inverse() const {
         f32 coef00 = mat[2][2] * mat[3][3] - mat[3][2] * mat[2][3];
         f32 coef02 = mat[1][2] * mat[3][3] - mat[3][2] * mat[1][3];
@@ -140,7 +139,7 @@ struct SquareMatrix4 {
         return inverse_mat * one_over_determinant;
     }
 
-    __host__ __device__ SquareMatrix4
+    SquareMatrix4
     operator*(f32 mul) {
         auto new_mat = *this;
 
@@ -154,12 +153,12 @@ struct SquareMatrix4 {
     };
 
     /// *this* transform is performed first
-    __host__ __device__ SquareMatrix4
+    SquareMatrix4
     compose(const SquareMatrix4 &other) const {
         return *this * other;
     }
 
-    __host__ __device__ SquareMatrix4
+    SquareMatrix4
     operator*(const SquareMatrix4 &other) const {
         SquareMatrix4 new_mat{};
 
@@ -174,7 +173,7 @@ struct SquareMatrix4 {
         return new_mat;
     }
 
-    __host__ __device__ static SquareMatrix4
+    static SquareMatrix4
     identity() {
         // clang-format off
         return SquareMatrix4(
@@ -187,45 +186,45 @@ struct SquareMatrix4 {
     }
 
     /// Angle is in radians!
-    __host__ __device__ static SquareMatrix4
+    static SquareMatrix4
     from_euler_x(f32 a) {
         // clang-format off
         return SquareMatrix4(
             1.f,  0.f,    0.f,    0.f,
-            0.f,  cos(a), sin(a), 0.f,
-            0.f, -sin(a), cos(a), 0.f,
+            0.f,  std::cos(a), std::sin(a), 0.f,
+            0.f, -std::sin(a), std::cos(a), 0.f,
             0.f,  0.f,    0.f,    1.f
         );
         // clang-format on
     }
 
     /// Angle is in radians!
-    __host__ __device__ static SquareMatrix4
+    static SquareMatrix4
     from_euler_y(f32 a) {
         // clang-format off
         return SquareMatrix4(
-            cos(a), 0.f, -sin(a), 0.f,
+            std::cos(a), 0.f, -std::sin(a), 0.f,
             0.f,    1.f,  0.f,    0.f,
-            sin(a), 0.f,  cos(a), 0.f,
+            std::sin(a), 0.f,  std::cos(a), 0.f,
             0.f,    0.f,  0.f,    1.f
         );
         // clang-format on
     }
 
     /// Angle is in radians!
-    __host__ __device__ static SquareMatrix4
+    static SquareMatrix4
     from_euler_z(f32 a) {
         // clang-format off
         return SquareMatrix4(
-             cos(a), sin(a), 0.f, 0.f,
-            -sin(a), cos(a), 0.f, 0.f,
+             std::cos(a), std::sin(a), 0.f, 0.f,
+            -std::sin(a), std::cos(a), 0.f, 0.f,
              0.f,    0.f,    1.f, 0.f,
              0.f,    0.f,    0.f, 1.f
         );
         // clang-format on
     }
 
-    __host__ __device__ vec3
+    vec3
     transform_vec(const vec3 &v) const {
         f32 x = v.x;
         f32 y = v.y;
@@ -238,7 +237,7 @@ struct SquareMatrix4 {
         return vec3(xt, yt, zt);
     }
 
-    __host__ __device__ point3
+    point3
     transform_point(const point3 &p) const {
         f32 x = p.x;
         f32 y = p.y;
@@ -263,7 +262,6 @@ struct SquareMatrix4 {
 struct SquareMatrix3 {
     SquareMatrix3() = default;
 
-    __host__ __device__
     // clang-format off
     SquareMatrix3(f32 m00, f32 m01, f32 m02,
                     f32 m10, f32 m11, f32 m12,
@@ -282,7 +280,7 @@ struct SquareMatrix3 {
         mat[2][2] = m22;
     }
 
-    __host__ __device__ static SquareMatrix3
+    static SquareMatrix3
     from_columns(const tuple3 &c0, const tuple3 &c1, const tuple3 &c2) {
         // clang-format off
         return SquareMatrix3(c0.x,  c0.y,  c0.z,
@@ -292,8 +290,8 @@ struct SquareMatrix3 {
     }
 
     /// Column-major order !
-    __host__ __device__ static SquareMatrix3
-    from_elements(const CArray<f32, 9> &columns) {
+    static SquareMatrix3
+    from_elements(const Array<f32, 9> &columns) {
         // clang-format off
         return SquareMatrix3(columns[0],  columns[1],  columns[2],
                              columns[3],  columns[4],  columns[5],
@@ -301,7 +299,7 @@ struct SquareMatrix3 {
         // clang-format on
     }
 
-    __host__ __device__ SquareMatrix3
+    SquareMatrix3
     transpose() const {
         SquareMatrix3 new_mat{};
         new_mat.mat[0][0] = mat[0][0];
@@ -320,12 +318,12 @@ struct SquareMatrix3 {
     }
 
     /*/// code for inverse() adapted from GLM.
-    __host__ __device__ SquareMatrix3
+     SquareMatrix3
     inverse() const {
 
     }*/
 
-    __host__ __device__ SquareMatrix3
+    SquareMatrix3
     operator*(f32 mul) {
         auto new_mat = *this;
 
@@ -339,12 +337,12 @@ struct SquareMatrix3 {
     };
 
     /// *this* transform is performed first
-    __host__ __device__ SquareMatrix3
+    SquareMatrix3
     compose(const SquareMatrix3 &other) const {
         return *this * other;
     }
 
-    __host__ __device__ SquareMatrix3
+    SquareMatrix3
     operator*(const SquareMatrix3 &other) const {
         SquareMatrix3 new_mat{};
 
@@ -359,7 +357,7 @@ struct SquareMatrix3 {
         return new_mat;
     }
 
-    __host__ __device__ tuple3
+    tuple3
     operator*(const tuple3 &other) const {
         tuple3 res = tuple3(0.f);
 
@@ -370,7 +368,7 @@ struct SquareMatrix3 {
         return res;
     }
 
-    __host__ __device__ static SquareMatrix3
+    static SquareMatrix3
     identity() {
         // clang-format off
         return SquareMatrix3(

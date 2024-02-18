@@ -50,8 +50,8 @@ integrate_spherical_function(Domain domain,
 
         f64 value = f(wi);
         REQUIRE(value >= 0.f);
-        REQUIRE(!isnan(value));
-        REQUIRE(!isinf(value));
+        REQUIRE(!std::isnan(value));
+        REQUIRE(!std::isinf(value));
 
         total_values += value;
     }
@@ -112,7 +112,7 @@ generate_w() {
 }
 
 TEST_CASE("diffuse PDF", "[diffuse_pdf]") {
-    Material mat = Material::make_diffuse(RgbSpectrum::make(tuple3(0.5f, 0.5f, 0.9f)));
+    Material mat = Material::make_diffuse(0);
     auto λ = SampledLambdas::new_mock();
 
     auto wo = generate_w();
@@ -202,17 +202,5 @@ TEST_CASE("GGX VNDF PDF alpha=1", "[ggx_vndf_pdf_alpha_1]") {
         auto sgeom = ShadingGeometry::make(normal, wi, wo);
         f64 pdf = mat.pdf(sgeom, λ);
         return pdf;
-    });
-}
-
-TEST_CASE("GGX vndf", "[ggx_vndf]") {
-    auto wo = generate_w();
-    norm_vec3 normal = norm_vec3(0.f, 1.f, 0.f);
-
-    test_spherical_function(Domain::Hemisphere, [&](const norm_vec3 &wm) {
-        norm_vec3 wi = vec3::reflect(wo, wm).normalized();
-        auto sgeom = ShadingGeometry::make(normal, wi, wo);
-        f64 res = Material::vndf_ggx(sgeom, 0.25f);
-        return res;
     });
 }

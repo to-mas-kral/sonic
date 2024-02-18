@@ -4,18 +4,18 @@
 #include "common.h"
 
 struct DielectricMaterial {
-    __host__ __device__ static f32
+    static f32
     pdf() {
         return 0.f;
     }
 
-    __device__ static spectral
+    static spectral
     eval() {
         // This should only be evaluated during sampling
         return spectral::ZERO();
     }
 
-    __device__ BSDFSample
+    BSDFSample
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &sample,
            const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv,
            bool is_frontfacing) const {

@@ -9,7 +9,7 @@
 #include "common.h"
 
 struct PlasticMaterial {
-    __host__ __device__ f32
+    f32
     pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ) const {
         f32 int_η = int_ior.eval_single(λ[0]);
         f32 ext_η = ext_ior.eval_single(λ[0]);
@@ -20,14 +20,15 @@ struct PlasticMaterial {
         return (1.f - fresnel_i) * sgeom.cos_theta / M_PIf;
     }
 
-    __host__ __device__ static bool
+    static bool
     is_dirac_delta() {
         return true;
     }
+
     /// Math taken from:
     /// Physically Based Specular + Diffuse
     /// Jan van Bergen
-    __device__ spectral
+    spectral
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
          const Texture *textures, const vec2 &uv) const {
         f32 int_ior_s = int_ior.eval_single(lambdas[0]);
@@ -75,7 +76,7 @@ struct PlasticMaterial {
         }
     }
 
-    __device__ BSDFSample
+    BSDFSample
     sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
            const SampledLambdas &λ, const Texture *textures, const vec2 &uv) const {
         f32 int_η = int_ior.eval_single(λ[0]);

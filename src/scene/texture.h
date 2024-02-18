@@ -8,14 +8,11 @@
 #include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
-#include "geometry/ray.h"
-#include "math/piecewise_dist.h"
-#include "math/vecmath.h"
-#include "utils/basic_types.h"
-#include "utils/chunk_allocator.h"
-#include "utils/cuda_box.h"
-#include "utils/cuda_err.h"
-#include "utils/um_vector.h"
+#include "../geometry/ray.h"
+#include "../math/piecewise_dist.h"
+#include "../math/vecmath.h"
+#include "../utils/basic_types.h"
+#include "../utils/chunk_allocator.h"
 
 template <typename T> struct ConstantTexture {
     static ConstantTexture
@@ -25,7 +22,7 @@ template <typename T> struct ConstantTexture {
         };
     }
 
-    __device__ T
+    T
     fetch() const {
         return value;
     };
@@ -33,40 +30,76 @@ template <typename T> struct ConstantTexture {
     T value;
 };
 
+enum class TextureDataType : u8 {
+    U8,
+    F32,
+};
+
 class ImageTexture {
 public:
     ImageTexture() = default;
 
-    ImageTexture(cudaTextureObject_t tex_obj, cudaArray_t texture_storage_array,
-                 i32 width, i32 height)
-        : tex_obj(tex_obj), texture_storage_array(texture_storage_array), width(width),
-          height(height) {}
+    ImageTexture(i32 width, i32 height, void *pixels, u32 num_channels,
+                 TextureDataType data_type)
+        : width{width}, height{height}, pixels{pixels}, num_channels{num_channels},
+          data_type{data_type} {}
 
     static ImageTexture
     make(const std::string &texture_path, bool is_rgb);
 
-    __device__ tuple3
+    tuple3
     fetch(const vec2 &uv) const {
-        auto ret = tex2D<float4>(tex_obj, uv.x, 1.f - uv.y);
-        return tuple3(ret.x, ret.y, ret.z);
+        f32 foo;
+        f32 ufrac = std::modf(uv.x, &foo);
+        f32 vfrac = std::modf(uv.y, &foo);
+
+        f32 u = ufrac < 0.f ? 1.f + ufrac : ufrac;
+        f32 v = vfrac < 0.f ? 1.f + vfrac : vfrac;
+
+        vec2 xy_sized = vec2(u, 1.f - v) * vec2(width - 1U, height - 1U);
+
+        u32 x = xy_sized.x;
+        u32 y = xy_sized.y;
+        u64 pixel_index = x + (width * y);
+
+        // TODO: FIXME: figure out a better texture representation
+        switch (data_type) {
+        case TextureDataType::U8: {
+            u8 *pixels_u8 = reinterpret_cast<u8 *>(pixels);
+            assert(num_channels == 3);
+
+            f32 a = (f32)pixels_u8[num_channels * pixel_index] / 255.f;
+            f32 b = (f32)pixels_u8[num_channels * pixel_index + 1] / 255.f;
+            f32 c = (f32)pixels_u8[num_channels * pixel_index + 2] / 255.f;
+
+            return tuple3(a, b, c);
+        }
+        case TextureDataType::F32: {
+            f32 *pixels_f32 = reinterpret_cast<f32 *>(pixels);
+            // assert(num_channels == 3);
+
+            f32 a = pixels_f32[num_channels * pixel_index];
+            f32 b = pixels_f32[num_channels * pixel_index + 1];
+            f32 c = pixels_f32[num_channels * pixel_index + 2];
+
+            return tuple3(a, b, c);
+        }
+        default:
+            assert(false);
+        }
     };
 
     void
     free() const {
-        if (tex_obj != 0) {
-            cudaDestroyTextureObject(tex_obj);
-        }
-
-        if (texture_storage_array != nullptr) {
-            cudaFreeArray(texture_storage_array);
-        }
+        std::free(pixels);
     }
 
 protected:
-    cudaTextureObject_t tex_obj = 0;
-    cudaArray_t texture_storage_array = nullptr;
     i32 width = 0;
     i32 height = 0;
+    void *pixels;
+    u32 num_channels;
+    TextureDataType data_type;
 };
 
 enum class TextureType : u8 {
@@ -75,13 +108,14 @@ enum class TextureType : u8 {
     Image,
 };
 
+// TODO: templated texture ? IDK if it's a good idea
 class Texture {
 public:
     Texture() = default;
 
     static Texture
     make_image_texture(const std::string &texture_path, bool is_rgb,
-                       UnifiedMemoryChunkAllocator<ImageTexture> &texture_alloc) {
+                       ChunkAllocator<ImageTexture> &texture_alloc) {
         Texture tex{};
         tex.texture_type = TextureType::Image;
         tex.inner.image_texture = ImageTexture::make(texture_path, is_rgb);
@@ -107,7 +141,7 @@ public:
         return tex;
     }
 
-    __device__ tuple3
+    tuple3
     fetch(const vec2 &uv) const {
         switch (texture_type) {
         case TextureType::ConstantF32:

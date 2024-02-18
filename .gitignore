@@ -6,7 +6,6 @@
 *.fatbin
 /resources/
 /build/
-/tools/rgb2spec-master
 *.exr
 *.jpg
 *.pdf

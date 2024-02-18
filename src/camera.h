@@ -8,7 +8,7 @@ class Camera {
 public:
     Camera() = default;
 
-    Camera(float fov, float aspect) {
+    Camera(f32 fov, f32 aspect) {
         viewport_height = 2.f;
         viewport_width = viewport_height * aspect;
 
@@ -23,8 +23,8 @@ public:
             origin - horizontal / 2.f - vertical / 2.f - vec3(0.f, 0.f, focal_length);
     }
 
-    __device__ Ray
-    get_ray(float s, float t) const {
+    Ray
+    get_ray(f32 s, f32 t) const {
         vec3 offset = vec3(1.f - s, t, 0.f) * vec3(viewport_width, viewport_height, 0.f);
         point3 screencoord = bottom_left + offset;
 

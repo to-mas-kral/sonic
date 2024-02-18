@@ -5,28 +5,27 @@
 #include "../math/vecmath.h"
 #include "../utils/algs.h"
 #include "../utils/basic_types.h"
-#include "../utils/um_vector.h"
 #include "cie_spectrums.h"
 
-__device__ constexpr u32 N_SPECTRUM_SAMPLES = 4;
-__device__ constexpr f32 PDF =
-    1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
+#include <limits>
+
+constexpr u32 N_SPECTRUM_SAMPLES = 4;
+constexpr f32 PDF = 1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
 struct SampledSpectrum {
     SampledSpectrum() = default;
 
-    __host__
-        __device__ explicit SampledSpectrum(const CArray<f32, N_SPECTRUM_SAMPLES> &p_vals)
+    explicit SampledSpectrum(const Array<f32, N_SPECTRUM_SAMPLES> &p_vals)
         : vals(p_vals) {}
 
-    __host__ __device__ static SampledSpectrum
+    static SampledSpectrum
     make_constant(f32 constant) {
         SampledSpectrum sq{};
         sq.vals.fill(constant);
         return sq;
     }
 
-    __host__ __device__ f32
+    f32
     average() {
         f32 sum = 0.f;
         for (auto v : vals) {
@@ -36,9 +35,9 @@ struct SampledSpectrum {
         return sum / static_cast<f32>(N_SPECTRUM_SAMPLES);
     }
 
-    __host__ __device__ f32
+    f32
     max_component() const {
-        f32 max = cuda::std::numeric_limits<f32>::min();
+        f32 max = std::numeric_limits<f32>::min();
         for (f32 v : vals) {
             if (v > max) {
                 max = v;
@@ -48,7 +47,7 @@ struct SampledSpectrum {
         return max;
     }
 
-    __host__ __device__ void
+    void
     div_pdf(f32 pdf) {
         for (f32 &v : vals) {
             if (pdf != 0.f) {
@@ -57,21 +56,21 @@ struct SampledSpectrum {
         }
     }
 
-    __host__ __device__ static SampledSpectrum
+    static SampledSpectrum
     ONE() {
         SampledSpectrum sq{};
         sq.vals.fill(1.f);
         return sq;
     }
 
-    __host__ __device__ static SampledSpectrum
+    static SampledSpectrum
     ZERO() {
         SampledSpectrum sq{};
         sq.vals.fill(0.f);
         return sq;
     }
 
-    __host__ __device__ SampledSpectrum
+    SampledSpectrum
     operator+(const SampledSpectrum &other) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
@@ -81,7 +80,7 @@ struct SampledSpectrum {
         return sq;
     }
 
-    __host__ __device__ SampledSpectrum &
+    SampledSpectrum &
     operator+=(const SampledSpectrum &other) {
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             vals[i] += other.vals[i];
@@ -90,7 +89,7 @@ struct SampledSpectrum {
         return *this;
     }
 
-    __host__ __device__ SampledSpectrum
+    SampledSpectrum
     operator-(const SampledSpectrum &other) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
@@ -100,7 +99,7 @@ struct SampledSpectrum {
         return sq;
     }
 
-    __host__ __device__ SampledSpectrum &
+    SampledSpectrum &
     operator-=(const SampledSpectrum &other) {
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             vals[i] -= other.vals[i];
@@ -109,7 +108,7 @@ struct SampledSpectrum {
         return *this;
     }
 
-    __host__ __device__ SampledSpectrum
+    SampledSpectrum
     operator*(const SampledSpectrum &other) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
@@ -119,7 +118,7 @@ struct SampledSpectrum {
         return sq;
     }
 
-    __host__ __device__ SampledSpectrum &
+    SampledSpectrum &
     operator*=(const SampledSpectrum &other) {
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             vals[i] *= other.vals[i];
@@ -128,7 +127,7 @@ struct SampledSpectrum {
         return *this;
     }
 
-    __host__ __device__ SampledSpectrum
+    SampledSpectrum
     operator*(f32 val) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
@@ -138,7 +137,7 @@ struct SampledSpectrum {
         return sq;
     }
 
-    __host__ __device__ SampledSpectrum &
+    SampledSpectrum &
     operator*=(f32 val) {
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             vals[i] *= val;
@@ -147,7 +146,7 @@ struct SampledSpectrum {
         return *this;
     }
 
-    __host__ __device__ SampledSpectrum
+    SampledSpectrum
     operator/(f32 div) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
@@ -157,7 +156,7 @@ struct SampledSpectrum {
         return sq;
     }
 
-    __host__ __device__ SampledSpectrum
+    SampledSpectrum
     operator/(const SampledSpectrum &other) const {
         SampledSpectrum sq{};
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
@@ -167,16 +166,16 @@ struct SampledSpectrum {
         return sq;
     }
 
-    __host__ __device__ f32 &
+    f32 &
     operator[](u32 index) {
         return vals[index];
     }
 
-    CArray<f32, N_SPECTRUM_SAMPLES> vals;
+    Array<f32, N_SPECTRUM_SAMPLES> vals;
 };
 
 struct SampledLambdas {
-    __host__ __device__ static SampledLambdas
+    static SampledLambdas
     new_sample_uniform(f32 rand) {
         SampledLambdas sl{};
 
@@ -201,22 +200,22 @@ struct SampledLambdas {
         return sl;
     }
 
-    __host__ __device__ static SampledLambdas
+    static SampledLambdas
     new_mock() {
         SampledLambdas sl{};
         sl.lambdas.fill(400.f);
         return sl;
     }
 
-    __host__ __device__ vec3
+    vec3
     to_xyz(const SampledSpectrum &radiance);
 
-    __host__ __device__ const f32 &
+    const f32 &
     operator[](u32 index) const {
         return lambdas[index];
     }
 
-    CArray<f32, N_SPECTRUM_SAMPLES> lambdas;
+    Array<f32, N_SPECTRUM_SAMPLES> lambdas;
 };
 
 using spectral = SampledSpectrum;

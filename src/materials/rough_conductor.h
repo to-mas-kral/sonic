@@ -5,13 +5,15 @@
 #include "../utils/basic_types.h"
 #include "trowbridge_reitz_ggx.h"
 
+#include <complex>
+
 struct RoughConductorMaterial {
-    __host__ __device__ f32
+    f32
     pdf(const ShadingGeometry &sgeom) const {
         return TrowbridgeReitzGGX::pdf(sgeom, m_alpha);
     }
 
-    __host__ __device__ spectral
+    spectral
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas) const {
         // TODO: have to store the current IOR... when it isn't 1...
         spectral rel_ior = m_eta.eval(lambdas);
@@ -22,7 +24,7 @@ struct RoughConductorMaterial {
         spectral fresnel = spectral::ZERO();
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             fresnel[i] =
-                fresnel_conductor(cuda::std::complex<f32>(rel_ior[i], k[i]), sgeom.howo);
+                fresnel_conductor(std::complex<f32>(rel_ior[i], k[i]), sgeom.howo);
         }
 
         float G = TrowbridgeReitzGGX::G1(sgeom.nowi, sgeom.howo, m_alpha) *
@@ -34,7 +36,7 @@ struct RoughConductorMaterial {
         return fresnel * V * D;*/
     }
 
-    __host__ __device__ COption<BSDFSample>
+    Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &ξ,
            const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv) const {
         norm_vec3 wi = TrowbridgeReitzGGX::sample(normal, wo, ξ, m_alpha);

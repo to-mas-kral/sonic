@@ -1,66 +1,74 @@
 #ifndef PT_PIECEWISE_DIST_H
 #define PT_PIECEWISE_DIST_H
 
-#include <numeric>
-
 #include "../math/sampling.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
-#include "../utils/um_vector.h"
+
+#include <algorithm>
+#include <numeric>
+#include <vector>
 
 class PiecewiseDist1D {
 public:
+    PiecewiseDist1D() = default;
+
+    PiecewiseDist1D(PiecewiseDist1D &other) = delete;
+
+    PiecewiseDist1D(PiecewiseDist1D &&other) noexcept {
+        this->pmf = std::move(other.pmf);
+        this->cmf = std::move(other.cmf);
+    }
+
     void
     create_cmf() {
-        cmf = UmVector<f32>(pmf.size());
+        cmf.reserve(pmf.size());
 
         f32 cmf_sum = 0.f;
-        for (int i = 0; i < pmf.size(); i++) {
-            cmf_sum += pmf[i];
-            cmf.push(cmf_sum);
+        for (f32 i : pmf) {
+            cmf_sum += i;
+            cmf.push_back(cmf_sum);
         }
 
-        f32 err = abs(cmf[cmf.size() - 1] - 1.f);
+        f32 err = std::abs(cmf[cmf.size() - 1] - 1.f);
         assert(err < 0.00001f);
 
         cmf[cmf.size() - 1] = 1.f;
     }
 
-    PiecewiseDist1D() = default;
-
     /// Expects normalized probabilites !
-    explicit PiecewiseDist1D(UmVector<f32> &&p_pmf) : pmf{std::move(p_pmf)} {
+    explicit PiecewiseDist1D(std::vector<f32> &&p_pmf) : pmf{std::move(p_pmf)} {
         create_cmf();
     }
 
     /// Calculates probabilities
-    explicit PiecewiseDist1D(CSpan<f32> vals) {
-        pmf = UmVector<f32>(vals.size());
+    explicit PiecewiseDist1D(Span<f32> vals) {
+        pmf.reserve(vals.size());
 
         f32 sum = std::accumulate(vals.begin(), vals.end(), 0.f);
         for (auto v : vals) {
-            pmf.push(v / sum);
+            pmf.push_back(v / sum);
         }
 
         create_cmf();
     }
 
-    __device__ __forceinline__ f32
+    f32
     pdf(u32 index) const {
         return pmf[index];
     }
 
-    __device__ __forceinline__ u32
-    sample(f32 sample) const {
-        return sample_discrete_cmf(CSpan<f32>(cmf.get_ptr(), cmf.size()), sample);
+    u32
+    sample(f32 sample) {
+        return sample_discrete_cmf(Span<f32>(cmf.data(), cmf.size()), sample);
     }
 
-    __device__ __forceinline__ CTuple<f32, u32>
-    sample_continuous(f32 sample) const {
-        return sample_continuous_cmf(CSpan<f32>(cmf.get_ptr(), cmf.size()), sample);
+    Tuple<f32, u32>
+    sample_continuous(f32 sample) {
+        return sample_continuous_cmf(Span<f32>(cmf.data(), cmf.size()), sample);
     }
 
-    __device__ __forceinline__ CTuple<f32, u32>
+    Tuple<f32, u32>
     pdf(f32 sample) const {
         u32 offset = sample * (f32)cmf.size();
         if (offset > cmf.size() - 1) {
@@ -83,37 +91,23 @@ public:
 
 private:
     /// Probability mass function
-    UmVector<f32> pmf{};
+    std::vector<f32> pmf{};
     /// Cumulative mass function
-    UmVector<f32> cmf{};
+    std::vector<f32> cmf{};
 };
 
-// OPTIMIZE: could reduce size by having a UmVector with a fixed size
+// OPTIMIZE: could reduce size by having a vector of a fixed size
 
 /// Adapted from:
 /// https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations#sec:sample-discrete-2d
 class PiecewiseDist2D {
 public:
     explicit PiecewiseDist2D() = default;
-    explicit PiecewiseDist2D(const UmVector<f32> &grid, int width, int height) {
-        conditionals = UmVector<PiecewiseDist1D>(height);
-        UmVector<f32> marginals_sums(height);
-
-        for (int r = 0; r < height; r++) {
-            auto row = CSpan<f32>(const_cast<f32 *>(&grid[r * width]), width);
-            conditionals.push(PiecewiseDist1D(row));
-
-            f32 sum = std::accumulate(row.begin(), row.end(), 0.f);
-            marginals_sums.push(sum);
-        }
-
-        marginals = PiecewiseDist1D(CSpan<f32>(
-            const_cast<f32 *>(marginals_sums.get_ptr()), marginals_sums.size()));
-    }
+    explicit PiecewiseDist2D(const std::vector<f32> &grid, int width, int height);
 
     /// Returns uv-coords and the pdf
-    __device__ __forceinline__ CTuple<vec2, f32>
-    sample(const vec2 &sample) const {
+    Tuple<vec2, f32>
+    sample(const vec2 &sample) {
         auto [v, im] = marginals.sample_continuous(sample.x);
         auto [u, ic] = conditionals[im].sample_continuous(sample.y);
 
@@ -123,8 +117,8 @@ public:
         return {vec2(u, v), pdf0 * pdf1};
     }
 
-    __device__ __forceinline__ f32
-    pdf(const vec2 &sample) const {
+    f32
+    pdf(const vec2 &sample) {
         auto [pdf0, im] = marginals.sample_continuous(sample.x);
         auto [pdf1, _] = conditionals[im].sample_continuous(sample.y);
 
@@ -133,7 +127,7 @@ public:
 
 private:
     /// probability distributions in rows
-    UmVector<PiecewiseDist1D> conditionals;
+    std::vector<PiecewiseDist1D> conditionals;
     /// Probbability distributions of rows
     PiecewiseDist1D marginals;
 };

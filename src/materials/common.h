@@ -4,10 +4,11 @@
 #include "../color/spectrum.h"
 #include "../utils/basic_types.h"
 
-#include <cuda/std/complex>
+#include <cmath>
+#include <complex>
 
 /// Taken from PBRTv4
-__host__ __device__ static f32
+static f32
 fresnel_dielectric(f32 rel_ior, f32 cos_theta_i) {
     f32 sin2_theta_i = 1.f - sqr(cos_theta_i);
     f32 sin2_theta_t = sin2_theta_i / sqr(rel_ior);
@@ -15,7 +16,7 @@ fresnel_dielectric(f32 rel_ior, f32 cos_theta_i) {
         // Total internal reflection
         return 1.f;
     } else {
-        f32 cos_theta_t = sqrt(1.f - sin2_theta_t);
+        f32 cos_theta_t = std::sqrt(1.f - sin2_theta_t);
 
         f32 r_parl =
             (rel_ior * cos_theta_i - cos_theta_t) / (rel_ior * cos_theta_i + cos_theta_t);
@@ -26,13 +27,13 @@ fresnel_dielectric(f32 rel_ior, f32 cos_theta_i) {
 }
 
 /// Adapted from PBRTv4
-__host__ __device__ static f32
-fresnel_conductor(cuda::std::complex<f32> rel_ior, f32 cos_theta_i) {
-    using complex = cuda::std::complex<f32>;
+static f32
+fresnel_conductor(std::complex<f32> rel_ior, f32 cos_theta_i) {
+    using complex = std::complex<f32>;
     f32 sin2_theta_i = 1.f - sqr(cos_theta_i);
     complex sin2_theta_t = sin2_theta_i / sqr(rel_ior);
 
-    complex cos_theta_t = sqrt(1.f - sin2_theta_t);
+    complex cos_theta_t = std::sqrt(1.f - sin2_theta_t);
     complex r_parl =
         (rel_ior * cos_theta_i - cos_theta_t) / (rel_ior * cos_theta_i + cos_theta_t);
     complex r_perp =
@@ -41,10 +42,10 @@ fresnel_conductor(cuda::std::complex<f32> rel_ior, f32 cos_theta_i) {
 }
 
 /// Adapted from PBRTv4
-__device__ static COption<vec3>
+static Option<vec3>
 refract(const norm_vec3 &wo, const norm_vec3 &normal, f32 rel_ior) {
     f32 cos_theta_i = vec3::dot(normal, wo);
-    f32 sin2_theta_i = max(0.f, 1.f - sqr(cos_theta_i));
+    f32 sin2_theta_i = std::max(0.f, 1.f - sqr(cos_theta_i));
     f32 sin2_theta_t = sin2_theta_i / sqr(rel_ior);
 
     // Total internal reflection
@@ -52,7 +53,7 @@ refract(const norm_vec3 &wo, const norm_vec3 &normal, f32 rel_ior) {
         return {};
     }
 
-    f32 cos_theta_t = sqrt(1.f - sin2_theta_t);
+    f32 cos_theta_t = std::sqrt(1.f - sin2_theta_t);
     return (-wo / rel_ior) + normal * ((cos_theta_i / rel_ior) - cos_theta_t);
 }
 

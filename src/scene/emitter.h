@@ -1,11 +1,11 @@
 #ifndef PT_EMITTER_H
 #define PT_EMITTER_H
 
-#include "color/spectrum.h"
-#include "color/sampled_spectrum.h"
-#include "math/math_utils.h"
-#include "math/vecmath.h"
-#include "utils/basic_types.h"
+#include "../color/sampled_spectrum.h"
+#include "../color/spectrum.h"
+#include "../math/math_utils.h"
+#include "../math/vecmath.h"
+#include "../utils/basic_types.h"
 
 // Just a description of how a light emits light.
 // More light sources can map onto the same emitter !
@@ -14,14 +14,14 @@ public:
     explicit Emitter(const RgbSpectrumIlluminant &emission) : _emission(emission) {}
 
     // For non-diffuse light this could depend on the incidence angle and so on...
-    __device__ spectral
+    spectral
     emission(const SampledLambdas &lambdas) const {
         return _emission.eval(lambdas);
     }
 
     // TODO: this will be more tricky for texture illuminants...
     // Computes the average spectral power of the light source
-    __host__ f32
+    f32
     power() const {
         // Just use the rectangle rule...
         f32 sum = 0.f;

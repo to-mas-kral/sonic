@@ -3,6 +3,8 @@
 
 #include "bsdf_sample.h"
 
+#include <algorithm>
+
 namespace TrowbridgeReitzGGX {
 static bool
 is_alpha_effectively_zero(f32 alpha) {
@@ -10,14 +12,14 @@ is_alpha_effectively_zero(f32 alpha) {
 }
 
 // Taken from "Sampling Visible GGX Normals with Spherical Caps - Jonathan Dupuy"
-__host__ __device__ inline vec3
+inline vec3
 sample_vndf_hemisphere(vec2 u, vec3 wi) {
     // sample a spherical cap in (-wi.z, 1]
     float phi = 2.f * M_PIf * u.x;
-    float z = fma((1.f - u.y), (1.f + wi.z), -wi.z);
-    float sin_theta = sqrt(cuda::std::clamp(1.f - z * z, 0.f, 1.f));
-    float x = sin_theta * cos(phi);
-    float y = sin_theta * sin(phi);
+    float z = std::fma((1.f - u.y), (1.f + wi.z), -wi.z);
+    float sin_theta = std::sqrt(std::clamp(1.f - z * z, 0.f, 1.f));
+    float x = sin_theta * std::cos(phi);
+    float y = sin_theta * std::sin(phi);
     vec3 c = vec3(x, y, z);
     // compute halfway direction;
     vec3 h = c + wi;
@@ -26,7 +28,7 @@ sample_vndf_hemisphere(vec2 u, vec3 wi) {
 }
 
 // Adapted from "Sampling Visible GGX Normals with Spherical Caps - Jonathan Dupuy"
-__host__ __device__ inline norm_vec3
+inline norm_vec3
 sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &ξ, f32 alpha) {
     auto [b0_, b1_, b2_] = coordinate_system(normal);
     auto bz = b0_.normalized();
@@ -48,7 +50,7 @@ sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &ξ, f32 alpha) 
     return wi;
 }
 
-static __host__ __device__ inline f32
+static inline f32
 D(f32 noh, f32 alpha) {
     if (noh < 0.f) {
         return 0.f;
@@ -60,7 +62,7 @@ D(f32 noh, f32 alpha) {
     return asq / (M_PIf * sqr(denom));
 }
 
-static __host__ __device__ inline f32
+static inline f32
 G1(f32 now, f32 how, f32 alpha) {
     if (how / now <= 0.f) {
         return 0.f;
@@ -71,7 +73,7 @@ G1(f32 now, f32 how, f32 alpha) {
     return (2.f * now) / denom;
 }
 
-__host__ __device__ inline f32
+inline f32
 pdf(const ShadingGeometry &sgeom, f32 alpha) {
     if (sgeom.noh < 0.f) {
         return 0.f;
@@ -79,10 +81,10 @@ pdf(const ShadingGeometry &sgeom, f32 alpha) {
 
     f32 g1 = G1(sgeom.nowo, sgeom.howo, alpha);
     f32 d = D(sgeom.noh, alpha);
-    return g1 * d / (4.f * abs(sgeom.nowo));
+    return g1 * d / (4.f * std::abs(sgeom.nowo));
 }
 
-static __host__ __device__ inline f32
+static inline f32
 vndf_ggx(const ShadingGeometry &sgeom, f32 alpha) {
     if (sgeom.noh < 0.f) {
         return 0.f;
@@ -93,17 +95,17 @@ vndf_ggx(const ShadingGeometry &sgeom, f32 alpha) {
     assert(g1 >= 0.f && g1 <= 1.f);
     assert(d >= 0.f);
 
-    return (g1 / abs(sgeom.nowo)) * d * max(sgeom.howo, 0.f);
+    return (g1 / std::abs(sgeom.nowo)) * d * std::max(sgeom.howo, 0.f);
 }
 
-static __device__ inline f32
+static inline f32
 visibility_smith_height_correlated_ggx(f32 nowo, f32 nowi, f32 alpha) {
     f32 asq = alpha * alpha;
     f32 NoVsq = nowo * nowo;
     f32 NoLsq = nowi * nowi;
 
-    f32 denoml = nowi * sqrt(asq + NoVsq * (1.f - asq));
-    f32 denomv = nowo * sqrt(asq + NoLsq * (1.f - asq));
+    f32 denoml = nowi * std::sqrt(asq + NoVsq * (1.f - asq));
+    f32 denomv = nowo * std::sqrt(asq + NoLsq * (1.f - asq));
 
     // TODO: protect against division by zero
     return 0.5f / (denoml + denomv);

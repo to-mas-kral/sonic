@@ -111,11 +111,11 @@ public:
         return out;
     }
 
-    __host__ __device__ static f32
+    static f32
     eval(const tuple3 &coeff, f32 lambda) {
         f32 x = rgb2spec_fma(rgb2spec_fma(coeff[0], lambda, coeff[1]), lambda, coeff[2]);
         // Handle the limit case
-        if (isinf(x)) {
+        if (std::isinf(x)) {
             return (x > 0.f) ? 1.f : 0.f;
         }
 
@@ -144,7 +144,7 @@ private:
         return std::min(left, last_interval);
     }
 
-    __host__ __device__ static f32
+    static f32
     rgb2spec_fma(f32 a, f32 b, f32 c) {
         return a * b + c;
     }

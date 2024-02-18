@@ -1,62 +1,52 @@
 cmake_minimum_required(VERSION 3.27)
-project(pt CUDA CXX)
+project(pt CXX)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_STANDARD 20)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_ARCHITECTURES 75)
 
 #[[Main executable]]
 
 add_executable(pt
-        src/main.cu
+        src/main.cpp
         src/render_context.h
         src/framebuffer.h
         src/camera.h
-        src/materials/material.h
-        src/emitter.h
-        src/io/scene_loader.cu
-        src/io/scene_loader.h
-        src/envmap.h
-        src/texture.h
-        src/texture.cu
-        src/scene.cu
-        src/scene.h
-        src/optix_renderer.cu
-        src/optix_renderer.h
-        src/optix_common.h
-        src/optix_as.h
-        src/optix_common.cu
+        src/embree_device.h
+
+        src/scene/emitter.h
+        src/scene/envmap.h
+        src/scene/texture.h
+        src/scene/texture.cpp
+        src/scene/scene.cpp
+        src/scene/scene.h
 
         src/utils/basic_types.h
-        src/utils/um_vector.h
-        src/utils/cuda_err.h
         src/utils/sampler.h
         src/utils/algs.h
         src/utils/chunk_allocator.h
 
+        src/io/scene_loader.cpp
+        src/io/scene_loader.h
         src/io/image_writer.h
         src/io/progress_bar.h
-
-        src/integrator/raygen.h
-        src/integrator/optix_pt.h
 
         src/math/sampling.h
         src/math/vecmath.h
         src/math/math_utils.h
         src/math/transform.h
+        src/math/piecewise_dist.cpp
 
+        src/integrator/integrator.h
         src/integrator/utils.h
-        src/integrator/light_sampler.cu
+        src/integrator/light_sampler.cpp
         src/integrator/light_sampler.h
         src/integrator/integrator_type.h
-        src/integrator/mis_nee_integrator.h
+        src/integrator/mis_nee_integrator.cpp
         src/integrator/intersection.h
-        src/integrator/bdpt_nee_integrator.h
+        src/integrator/bdpt_nee_integrator.cpp
 
         src/geometry/geometry.h
-        src/geometry/geometry.cu
+        src/geometry/geometry.cpp
 
         src/scene/light.h
 
@@ -65,10 +55,11 @@ add_executable(pt
         src/color/cie_spectrums.h
         src/color/spectrum_consts.h
         src/color/color_space.h
-        src/color/spectrum.cu
+        src/color/spectrum.cpp
         src/color/spectral_data.h
         src/color/spectrum.h
 
+        src/materials/material.h
         src/materials/plastic.h
         src/materials/common.h
         src/materials/diffuse.h
@@ -79,17 +70,12 @@ add_executable(pt
         src/materials/rough_plastic.h
 )
 
-include_directories(~/ManualPkgs/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64/include/)
-
-set_target_properties(pt PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON)
-
 target_compile_options(pt PRIVATE
-        $<$<CONFIG:Debug>:-G> # Adds debugging symbols to CUDA code
+        $<$<CONFIG:Debug>:-fsanitize=address,undefined>
 )
 
-target_compile_options(pt PRIVATE
-        $<$<CONFIG:Release>:-lineinfo> # Adds line info to optimized code
+target_link_options(pt PRIVATE
+        $<$<CONFIG:Debug>:-fsanitize=address,undefined>
 )
 
 find_package(fmt CONFIG REQUIRED)
@@ -110,38 +96,19 @@ target_link_libraries(pt PRIVATE pugixml::pugixml)
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(pt PRIVATE spdlog::spdlog)
 
-#[[OptiX modules]]
-
-add_library(optix_pt OBJECT
-        src/integrator/optix_pt.cu
-        src/integrator/hit_type.h
-)
-
-target_link_libraries(optix_pt PRIVATE fmt::fmt)
-
-set_property(TARGET optix_pt PROPERTY CUDA_PTX_COMPILATION ON)
-
-target_compile_options(optix_pt PRIVATE
-        -ptx -lineinfo --use_fast_math --relocatable-device-code=true --keep-device-functions
-)
-
-add_dependencies(pt optix_pt)
+find_package(embree 4 REQUIRED)
+target_link_libraries(pt PRIVATE embree)
 
 #[[Packaging]]
 
-set(OPTIX_PT_OBJECT_FILE $<TARGET_OBJECTS:optix_pt>)
+add_subdirectory(${CMAKE_SOURCE_DIR}/tools/rgb2spec)
 
-# Create a custom target to handle the post-build command
-# Just having the copy command somehow doesn't work for OBJECT libraries...
-add_custom_target(optix_pt_post_build
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${OPTIX_PT_OBJECT_FILE}
-        ${CMAKE_BINARY_DIR}/optix_pt.ptx
-        COMMENT "Copying optix_pt.cu to ${CMAKE_BINARY_DIR}/optix_pt.ptx"
-        DEPENDS optix_pt
+add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/rgb2spec.out
+        COMMAND ${CMAKE_BINARY_DIR}/tools/rgb2spec/rgb2spec_opt 64 ${CMAKE_BINARY_DIR}/rgb2spec.out sRGB
+        COMMENT "Creating spectral uplifting file rgb2spec.out"
+        DEPENDS rgb2spec_opt
 )
-
-add_dependencies(pt optix_pt_post_build)
 
 #[[Tests]]
 
@@ -149,39 +116,39 @@ add_executable(tests
         src/render_context.h
         src/framebuffer.h
         src/camera.h
-        src/materials/material.h
-        src/emitter.h
-        src/io/scene_loader.cu
-        src/io/scene_loader.h
-        src/envmap.h
-        src/texture.h
-        src/texture.cu
-        src/scene.cu
-        src/scene.h
+
+        src/scene/emitter.h
+        src/scene/envmap.h
+        src/scene/texture.h
+        src/scene/texture.cpp
+        src/scene/scene.cpp
+        src/scene/scene.h
 
         src/utils/basic_types.h
-        src/utils/um_vector.h
-        src/utils/cuda_err.h
         src/utils/sampler.h
         src/utils/algs.h
+        src/utils/chunk_allocator.h
 
+        src/io/scene_loader.cpp
+        src/io/scene_loader.h
         src/io/image_writer.h
         src/io/progress_bar.h
-
-        src/integrator/raygen.h
-        src/integrator/optix_pt.h
 
         src/math/sampling.h
         src/math/vecmath.h
         src/math/math_utils.h
         src/math/transform.h
+        src/math/piecewise_dist.cpp
 
+        src/integrator/integrator.h
         src/integrator/utils.h
-        src/integrator/light_sampler.cu
+        src/integrator/light_sampler.cpp
         src/integrator/light_sampler.h
+        src/integrator/integrator_type.h
+        src/integrator/intersection.h
 
         src/geometry/geometry.h
-        src/geometry/geometry.cu
+        src/geometry/geometry.cpp
 
         src/scene/light.h
 
@@ -190,12 +157,21 @@ add_executable(tests
         src/color/cie_spectrums.h
         src/color/spectrum_consts.h
         src/color/color_space.h
-        src/color/spectrum.cu
+        src/color/spectrum.cpp
         src/color/spectral_data.h
         src/color/spectrum.h
 
-        src/utils/tests.cu
-        src/materials/test_ggx.cu
+        src/materials/material.h
+        src/materials/plastic.h
+        src/materials/common.h
+        src/materials/diffuse.h
+        src/materials/dielectric.h
+        src/materials/conductor.h
+        src/materials/rough_conductor.h
+        src/materials/trowbridge_reitz_ggx.h
+        src/materials/rough_plastic.h
+        src/materials/test_ggx.cpp
+        src/utils/tests.cpp
 )
 
 find_package(Catch2 3 REQUIRED)

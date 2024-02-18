@@ -4,141 +4,143 @@
 #include "../math/math_utils.h"
 #include "../utils/basic_types.h"
 
+#include <algorithm>
+#include <cassert>
+
 // Vector3, Point3 and Tuple3 is inspired by PBRTv4...
 
 template <template <typename> typename Child, typename T> struct Tuple2Base {
-    __host__ __device__ explicit Tuple2Base(T val) : x{val}, y{val} {}
-    __host__ __device__
-    Tuple2Base(T x, T y)
-        : x{x}, y{y} {}
+    explicit Tuple2Base(T val) : x{val}, y{val} {}
 
-    __host__ __device__ T
+    Tuple2Base(T x, T y) : x{x}, y{y} {}
+
+    T
     max_component() const {
-        return max(x, y);
+        return std::max(x, y);
     }
 
-    __host__ __device__ bool
+    bool
     any_nan() {
-        return isnan(x) || isnan(y);
+        return std::isnan(x) || std::isnan(y);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     pow(T val) {
         return Child(std::pow(x, val), std::pow(y, val));
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator*(T mul) const {
         return Child(x * mul, y * mul);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator*(const Child<T> &other) const {
         return Child(x * other.x, y * other.y);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator*=(T div) {
         x *= div;
         y *= div;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator*=(const Child<T> &other) {
         x *= other.x;
         y *= other.y;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator/(T div) const {
         return Child(x / div, y / div);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator/(const Child<T> &other) const {
         return Child(x / other.x, y / other.y);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator/=(T div) {
         x /= div;
         y /= div;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator/=(const Child<T> &other) {
         x /= other.x;
         y /= other.y;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator+(T add) const {
         return Child(x + add, y + add);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator+=(T add) {
         x += add;
         y += add;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator+=(const Child<T> &other) {
         x += other.x;
         y += other.y;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator+(const Child<T> &other) const {
         return Child(x + other.x, y + other.y);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator-(T sub) const {
         return Child(x - sub, y - sub);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator-=(T sub) {
         x -= sub;
         y -= sub;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator-=(const Child<T> &other) {
         x -= other.x;
         y -= other.y;
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator-(const Child<T> &other) const {
         return Child(x - other.x, y - other.y);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator-() const {
         return Child(-x, -y);
     }
 
-    __host__ __device__ friend Child<T>
+    friend Child<T>
     operator*(T mul, const Child<T> &vec) {
         return Child(vec.x * mul, vec.y * mul);
     }
 
-    __host__ __device__ friend Child<T>
+    friend Child<T>
     operator+(T add, const Child<T> &vec) {
         return Child(vec.x + add, vec.y + add);
     }
 
-    __host__ __device__ T
+    T
     operator[](u32 index) const {
         assert(index < 2);
         if (index == 0) {
@@ -148,7 +150,7 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
         }
     }
 
-    __host__ __device__ T &
+    T &
     operator[](u32 index) {
         assert(index < 2);
         if (index == 0) {
@@ -166,22 +168,21 @@ template <typename T> struct Vector2 : public Tuple2Base<Vector2, T> {
     using Tuple2Base<Vector2, T>::x;
     using Tuple2Base<Vector2, T>::y;
 
-    __host__ __device__ explicit Vector2(T val) : Tuple2Base<Vector2, T>(val) {}
-    __host__ __device__
-    Vector2(T x, T y)
-        : Tuple2Base<Vector2, T>(x, y) {}
+    explicit Vector2(T val) : Tuple2Base<Vector2, T>(val) {}
 
-    __host__ __device__ T
+    Vector2(T x, T y) : Tuple2Base<Vector2, T>(x, y) {}
+
+    T
     length_squared() const {
         return sqr(x) + sqr(y);
     }
 
-    __host__ __device__ f32
+    f32
     length() const {
         return sqrt(length_squared());
     }
 
-    static __host__ __device__ T
+    static T
     dot(const Vector2 &a, const Vector2 &b) {
         return a.x * b.x + a.y * b.y;
     }
@@ -190,42 +191,36 @@ template <typename T> struct Vector2 : public Tuple2Base<Vector2, T> {
 struct NormalizedVector3;
 
 template <template <typename> typename Child, typename T> struct Tuple3Base {
-    __host__ __device__ explicit Tuple3Base(T val) : x{val}, y{val}, z{val} {}
-    __host__ __device__
-    Tuple3Base(T x, T y, T z)
-        : x{x}, y{y}, z{z} {}
+    explicit Tuple3Base(T val) : x{val}, y{val}, z{val} {}
 
-    __device__ float3
-    as_float3() const {
-        return float3(x, y, z);
-    }
+    Tuple3Base(T x, T y, T z) : x{x}, y{y}, z{z} {}
 
-    __host__ __device__ T
+    T
     max_component() const {
-        return max(max(x, y), z);
+        return std::max(std::max(x, y), z);
     }
 
-    __host__ __device__ bool
+    bool
     any_nan() {
-        return isnan(x) || isnan(y) || isnan(z);
+        return std::isnan(x) || std::isnan(y) || std::isnan(z);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     pow(T val) {
         return Child(std::pow(x, val), std::pow(y, val), std::pow(z, val));
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator*(T mul) const {
         return Child<T>(x * mul, y * mul, z * mul);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator*(const Child<T> &other) const {
         return Child(x * other.x, y * other.y, z * other.z);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator*=(T div) {
         x *= div;
         y *= div;
@@ -233,7 +228,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator*=(const Child<T> &other) {
         x *= other.x;
         y *= other.y;
@@ -241,17 +236,17 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator/(T div) const {
         return Child<T>(x / div, y / div, z / div);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator/(const Child<T> &other) const {
         return Child<T>(x / other.x, y / other.y, z / other.z);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator/=(T div) {
         x /= div;
         y /= div;
@@ -259,7 +254,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator/=(const Child<T> &other) {
         x /= other.x;
         y /= other.y;
@@ -267,12 +262,12 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator+(T add) const {
         return Child(x + add, y + add, z + add);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator+=(T add) {
         x += add;
         y += add;
@@ -280,7 +275,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator+=(const Child<T> &other) {
         x += other.x;
         y += other.y;
@@ -288,17 +283,17 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator+(const Child<T> &other) const {
         return Child<T>(x + other.x, y + other.y, z + other.z);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator-(T sub) const {
         return Child(x - sub, y - sub, z - sub);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator-=(T sub) {
         x -= sub;
         y -= sub;
@@ -306,7 +301,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T> &
+    Child<T> &
     operator-=(const Child<T> &other) {
         x -= other.x;
         y -= other.y;
@@ -314,27 +309,27 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return static_cast<Child<T> &>(*this);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator-(const Child<T> &other) const {
         return Child(x - other.x, y - other.y, z - other.z);
     }
 
-    __host__ __device__ Child<T>
+    Child<T>
     operator-() const {
         return Child<T>(-x, -y, -z);
     }
 
-    __host__ __device__ friend Child<T>
+    friend Child<T>
     operator*(T mul, const Child<T> &vec) {
         return Child(vec.x * mul, vec.y * mul, vec.z * mul);
     }
 
-    __host__ __device__ friend Child<T>
+    friend Child<T>
     operator+(T add, const Child<T> &vec) {
         return Child(vec.x + add, vec.y + add, vec.z + add);
     }
 
-    __host__ __device__ T
+    T
     operator[](u32 index) const {
         assert(index < 3);
         if (index == 0) {
@@ -346,7 +341,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         }
     }
 
-    __host__ __device__ T &
+    T &
     operator[](u32 index) {
         assert(index < 3);
         if (index == 0) {
@@ -368,126 +363,119 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
     using Tuple3Base<Vector3, T>::y;
     using Tuple3Base<Vector3, T>::z;
 
-    __host__ __device__ explicit Vector3(T val) : Tuple3Base<Vector3, T>(val) {}
+    explicit Vector3(T val) : Tuple3Base<Vector3, T>(val) {}
 
-    __host__ __device__
-    Vector3(T x, T y, T z)
-        : Tuple3Base<Vector3, T>(x, y, z) {}
+    Vector3(T x, T y, T z) : Tuple3Base<Vector3, T>(x, y, z) {}
 
-    __host__ __device__ T
+    T
     length_squared() const {
         return sqr(x) + sqr(y) + sqr(z);
     }
 
-    __host__ __device__ f32
+    f32
     length() const {
         return sqrt(length_squared());
     }
 
-    __host__ __device__ inline NormalizedVector3
+    inline NormalizedVector3
     normalized();
 
-    static __host__ __device__ f32
+    static f32
     dot(const Vector3 &a, const Vector3 &b) {
         return a.x * b.x + a.y * b.y + a.z * b.z;
     }
 
-    static __host__ __device__ Vector3
+    static Vector3
     cross(const Vector3 &a, const Vector3 &b) {
         return Vector3((a.y * b.z - a.z * b.y), (a.z * b.x - a.x * b.z),
                        (a.x * b.y - a.y * b.x));
     }
 
-    __host__ __device__ static Vector3
+    static Vector3
     reflect(const Vector3 &vec, const NormalizedVector3 &normal);
 };
 
 template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
-    __host__ __device__ explicit Tuple3(f32 val) : Tuple3Base<Tuple3, T>(val) {}
+    explicit Tuple3(f32 val) : Tuple3Base<Tuple3, T>(val) {}
 
-    __host__ __device__
-    Tuple3(T x, T y, T z)
-        : Tuple3Base<Tuple3, T>(x, y, z) {}
+    Tuple3(T x, T y, T z) : Tuple3Base<Tuple3, T>(x, y, z) {}
 };
 
 struct NormalizedVector3 : Vector3<f32> {
-    __host__ __device__ explicit NormalizedVector3(f32 val) : Vector3(val) {
-        assert(abs(Vector3::length() - 1.f) < 0.0001f);
-    }
-    __host__ __device__
-    NormalizedVector3(f32 x, f32 y, f32 z)
-        : Vector3(x, y, z) {
-        assert(abs(Vector3::length() - 1.f) < 0.0001f);
+    explicit NormalizedVector3(f32 val) : Vector3(val) {
+        assert(std::abs(Vector3::length() - 1.f) < 0.0001f);
     }
 
-    __host__ __device__ f32
+    NormalizedVector3(f32 x, f32 y, f32 z) : Vector3(x, y, z) {
+        assert(std::abs(Vector3::length() - 1.f) < 0.0001f);
+    }
+
+    f32
     length() const {
         return 1.f;
     }
 
-    __host__ __device__ NormalizedVector3
+    NormalizedVector3
     operator-() const {
         return NormalizedVector3(-x, -y, -z);
     }
 };
 
 template <typename T>
-__host__ __device__ NormalizedVector3
+NormalizedVector3
 Vector3<T>::normalized() {
     auto v = *this / length();
     return NormalizedVector3(v.x, v.y, v.z);
 }
 
 template <typename T>
-__host__ __device__ inline Vector3<T>
+inline Vector3<T>
 Vector3<T>::reflect(const Vector3<T> &vec, const NormalizedVector3 &normal) {
     return -vec + normal * dot(normal, vec) * 2.f;
 }
 
 template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
-    __host__ __device__ explicit Point3(f32 val) : Tuple3Base(val) {}
-    __host__ __device__
-    Point3(f32 x, f32 y, f32 z)
-        : Tuple3Base(x, y, z) {}
+    explicit Point3(f32 val) : Tuple3Base(val) {}
 
-    __host__ __device__ Vector3<f32>
+    Point3(f32 x, f32 y, f32 z) : Tuple3Base(x, y, z) {}
+
+    Vector3<f32>
     operator-(const Point3 &other) const {
         return Vector3(x - other.x, y - other.y, z - other.z);
     }
 
-    __host__ __device__ Point3
+    Point3
     operator-(const Vector3<f32> &other) const {
         return Point3(x - other.x, y - other.y, z - other.z);
     }
 
-    __host__ __device__ Point3
+    Point3
     operator+(const Vector3<f32> &other) const {
         return Point3(x + other.x, y + other.y, z + other.z);
     }
 
-    __host__ __device__ Point3
+    Point3
     operator+(const Point3 &other) const {
         return Point3(x + other.x, y + other.y, z + other.z);
     }
 };
 
 template <typename T> struct Tuple4 {
-    __host__ __device__ explicit Tuple4<T>(T val) : x{val}, y{val}, z{val}, w{val} {}
-    __host__ __device__
-    Tuple4<T>(T x, T y, T z, T w)
-        : x{x}, y{y}, z{z}, w{w} {}
+    explicit Tuple4<T>(T val) : x{val}, y{val}, z{val}, w{val} {}
 
-    __host__ __device__ Tuple4
+    Tuple4<T>(T x, T y, T z, T w) : x{x}, y{y}, z{z}, w{w} {}
+
+    Tuple4
     operator*(T mul) const {
         return Tuple4(x * mul, y * mul, z * mul, w * mul);
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator*(const Tuple4 &other) const {
         return Tuple4(x * other.x, y * other.y, z * other.z, w * other.w);
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator*=(T mul) {
         x *= mul;
         y *= mul;
@@ -496,7 +484,7 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator*=(const Tuple4 &other) {
         x *= other.x;
         y *= other.y;
@@ -505,17 +493,17 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator/(T div) const {
         return Tuple4(x / div, y / div, z / div, w / div);
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator/(const Tuple4 &other) const {
         return Tuple4(x / other.x, y / other.y, z / other.z, w / other.w);
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator/=(T div) {
         x /= div;
         y /= div;
@@ -524,7 +512,7 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator/=(const Tuple4 &other) {
         x /= other.x;
         y /= other.y;
@@ -533,12 +521,12 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator+(T add) const {
         return Tuple4(x + add, y + add, z + add, w + add);
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator+=(T add) {
         x += add;
         y += add;
@@ -547,7 +535,7 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator+=(const Tuple4 &other) {
         x += other.x;
         y += other.y;
@@ -556,17 +544,17 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator+(const Tuple4 &other) const {
         return Tuple4(x + other.x, y + other.y, z + other.z, w + other.w);
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator-(T sub) const {
         return Tuple4(x - sub, y - sub, z - sub, w - sub);
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator-=(T sub) {
         x -= sub;
         y -= sub;
@@ -575,7 +563,7 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4 &
+    Tuple4 &
     operator-=(const Tuple4 &other) {
         x -= other.x;
         y -= other.y;
@@ -584,22 +572,22 @@ template <typename T> struct Tuple4 {
         return this;
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator-(const Tuple4 &other) const {
         return Tuple4(x - other.x, y - other.y, z - other.z, w - other.w);
     }
 
-    __host__ __device__ Tuple4
+    Tuple4
     operator-() const {
         return Tuple4(-x, -y, -z, -w);
     }
 
-    __host__ __device__ friend Tuple4
+    friend Tuple4
     operator*(T mul, const Tuple4 &vec) {
         return Tuple4(vec.x * mul, vec.y * mul, vec.z * mul, vec.w * mul);
     }
 
-    __host__ __device__ friend Tuple4
+    friend Tuple4
     operator+(T add, const Tuple4 &vec) {
         return Tuple4(vec.x + add, vec.y + add, vec.z + add, vec.w + add);
     }
@@ -627,24 +615,15 @@ using tuple3 = Tuple3<f32>;
 using tuple4 = Tuple4<f32>;
 
 template <typename T>
-__device__ __forceinline__ T
+T
 barycentric_interp(const vec3 &bar, const T &x, const T &y, const T &z) {
     return (bar.x * x) + (bar.y * y) + (bar.z * z);
-}
-
-__device__ __forceinline__ vec3
-float3_to_vec(float3 f) {
-    return vec3(f.x, f.y, f.z);
-}
-__device__ __forceinline__ float3
-vec_to_float3(const vec3 &v) {
-    return make_float3(v.x, v.y, v.z);
 }
 
 /// Taken from: Building an Orthonormal Basis, Revisited
 /// Tom Duff, James Burgess, Per Christensen, Christophe Hery, Andrew Kensler, Max Liani,
 /// and Ryusuke Villemin
-__host__ __device__ inline CTuple<vec3, vec3, vec3>
+inline Tuple<vec3, vec3, vec3>
 coordinate_system(vec3 v1) {
     f32 sign = copysign(1.f, v1.z);
     f32 a = -1.f / (sign + v1.z);
@@ -653,15 +632,15 @@ coordinate_system(vec3 v1) {
     vec3 v2 = vec3(1.f + sign * sqr(v1.x) * a, sign * b, -sign * v1.x);
     vec3 v3 = vec3(b, sign + sqr(v1.y) * a, -v1.y);
 
-    assert(abs(vec3::dot(v1, v2)) < 0.00001f);
-    assert(abs(vec3::dot(v1, v3)) < 0.00001f);
-    assert(abs(vec3::dot(v2, v3)) < 0.00001f);
+    assert(std::abs(vec3::dot(v1, v2)) < 0.00001f);
+    assert(std::abs(vec3::dot(v1, v3)) < 0.00001f);
+    assert(std::abs(vec3::dot(v2, v3)) < 0.00001f);
 
     return {v1, v2, v3};
 }
 
 /// Transforms dir into the basis of the normal
-__host__ __device__ inline norm_vec3
+inline norm_vec3
 orient_dir(const vec3 &dir, const norm_vec3 &normal) {
     auto [_, b1, b2] = coordinate_system(normal);
     norm_vec3 sample_dir = (b1 * dir.x + b2 * dir.y + normal * dir.z).normalized();

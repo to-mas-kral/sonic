@@ -1,15 +1,15 @@
 #ifndef PT_IMAGE_WRITER_H
 #define PT_IMAGE_WRITER_H
 
-#include <vector>
-
-#include <spdlog/spdlog.h>
-#include <tinyexr.h>
-
 #include "../color/color_space.h"
 #include "../framebuffer.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
+
+#include <vector>
+
+#include <spdlog/spdlog.h>
+#include <tinyexr.h>
 
 namespace ImageWriter {
 
@@ -18,7 +18,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     auto width = fb.get_res_x();
     auto height = fb.get_res_y();
 
-    UmVector<vec3> &pixels = fb.get_pixels();
+    std::vector<vec3> &pixels = fb.get_pixels();
 
     EXRHeader header;
     InitEXRHeader(&header);
@@ -28,7 +28,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
 
     image.num_channels = 3;
 
-    std::vector<float> images[3];
+    std::vector<f32> images[3];
     images[0].resize(width * height);
     images[1].resize(width * height);
     images[2].resize(width * height);

@@ -1,20 +1,20 @@
 #ifndef PT_UTILS_H
 #define PT_UTILS_H
 
-#include <cuda/std/optional>
-
 #include "../color/sampled_spectrum.h"
 #include "../geometry/ray.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+#include <algorithm>
+
 /// Randomly selects if a path should be terminated based on its throughput.
 /// Roulette is only applied after the first 3 bounces.
 /// Returns true if path should be terminated. If not, also returns roulette compensation.
-__device__ __forceinline__ COption<f32>
+inline Option<f32>
 russian_roulette(u32 depth, f32 u, const spectral &throughput) {
     if (depth > 3) {
-        f32 survival_prob = 1.f - max(throughput.max_component(), 0.05f);
+        f32 survival_prob = 1.f - std::max(throughput.max_component(), 0.05f);
 
         if (u < survival_prob) {
             return {};
@@ -30,7 +30,7 @@ russian_roulette(u32 depth, f32 u, const spectral &throughput) {
 struct ShadingGeometry {
     ///  w_i is incident direction and w_o is outgoing direction.
     ///  w_o goes "towards the viewer" and w_i "towards the light"
-    __host__ __device__ __forceinline__ static ShadingGeometry
+    static ShadingGeometry
     make(const norm_vec3 &normal, const norm_vec3 &wi, const norm_vec3 &wo) {
         // TODO: what to do when cos_theta is 0 ? this minimum value is a band-aid
         /*The f() function performs the required coordinate frame conversion and then
@@ -39,7 +39,7 @@ struct ShadingGeometry {
          * implementations that further propagate and may eventually contaminate the
          * rendered image. The BSDF avoids this case by immediately returning a
          * zero-valued SampledSpectrum. */
-        f32 cos_theta = max(vec3::dot(normal, wi), 0.0001f);
+        f32 cos_theta = std::max(vec3::dot(normal, wi), 0.0001f);
         norm_vec3 h = (wi + wo).normalized();
         f32 noh = vec3::dot(normal, h);
         f32 nowo = vec3::dot(normal, wo);
@@ -70,7 +70,7 @@ struct ShadingGeometry {
 };
 
 /// Specific case where 1 sample is taken from each distribution.
-__device__ __forceinline__ f32
+inline f32
 mis_power_heuristic(f32 fpdf, f32 gpdf) {
     return sqr(fpdf) / (sqr(fpdf) + sqr(gpdf));
 }
