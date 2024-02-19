@@ -24,6 +24,7 @@ add_executable(pt
         src/utils/sampler.h
         src/utils/algs.h
         src/utils/chunk_allocator.h
+        src/utils/render_threads.h
 
         src/io/scene_loader.cpp
         src/io/scene_loader.h

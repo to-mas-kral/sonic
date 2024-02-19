@@ -1,3 +1,5 @@
+#ifndef PT_INTEGRATOR_H
+#define PT_INTEGRATOR_H
 
 #include "../embree_device.h"
 #include "../math/vecmath.h"
@@ -12,7 +14,7 @@ public:
         : rc{rc}, integrator_type{integrator_type}, device{device} {}
 
     void
-    integrate_pixel(uvec2 pixel) {
+    integrate_pixel(uvec2 pixel) const {
         uvec2 dim = uvec2(rc->attribs.resx, rc->attribs.resy);
 
         auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
@@ -39,21 +41,21 @@ public:
     }
 
     spectral
-    integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas);
+    integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const;
 
     spectral
-    integrator_bdpt_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas);
+    integrator_bdpt_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const;
 
     spectral
     mis_xp_y1_y0(const Intersection &xp_its, const Intersection &y1_its,
                  const SampledLambdas &lambdas, const std::vector<Texture> &textures,
-                 const vec2 &uv, const point3 &y0, const norm_vec3 &xp_wo);
+                 const vec2 &uv, const point3 &y0, const norm_vec3 &xp_wo) const;
 
     spectral
     light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,
               const LightSample &light_sample, const norm_vec3 &geom_normal,
               const ShapeSample &shape_sample, const Material *material,
-              const spectral &throughput, const SampledLambdas &lambdas);
+              const spectral &throughput, const SampledLambdas &lambdas) const;
 
     u32 frame = 0;
 
@@ -80,3 +82,4 @@ private:
     IntegratorType integrator_type;
     EmbreeDevice *device;
 };
+#endif

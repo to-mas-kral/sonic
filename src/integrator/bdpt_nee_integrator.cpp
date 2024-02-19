@@ -7,7 +7,7 @@ spectral
 Integrator::mis_xp_y1_y0(const Intersection &xp_its, const Intersection &y1_its,
                          const SampledLambdas &lambdas,
                          const std::vector<Texture> &textures, const vec2 &uv,
-                         const point3 &y0, const norm_vec3 &xp_wo) {
+                         const point3 &y0, const norm_vec3 &xp_wo) const {
     norm_vec3 xp_y1_dir = (y1_its.pos - xp_its.pos).normalized();
 
     bool xp_y1_visible = vec3::dot(y1_its.normal, -xp_y1_dir) > 0.f &&
@@ -49,7 +49,7 @@ Integrator::mis_xp_y1_y0(const Intersection &xp_its, const Intersection &y1_its,
 
 spectral
 Integrator::integrator_bdpt_nee(Ray ray, Sampler &sampler,
-                                const SampledLambdas &lambdas) {
+                                const SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &materials = sc.materials;
     auto &lights = sc.lights;

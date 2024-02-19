@@ -10,7 +10,7 @@ spectral
 Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,
                       const LightSample &light_sample, const norm_vec3 &geom_normal,
                       const ShapeSample &shape_sample, const Material *material,
-                      const spectral &throughput, const SampledLambdas &lambdas) {
+                      const spectral &throughput, const SampledLambdas &lambdas) const {
     point3 light_pos = shape_sample.pos;
     norm_vec3 pl = (light_pos - its.pos).normalized();
     f32 cos_light = vec3::dot(shape_sample.normal, -pl);
@@ -68,7 +68,7 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 }
 
 spectral
-Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) {
+Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;

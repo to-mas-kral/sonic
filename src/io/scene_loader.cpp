@@ -120,10 +120,13 @@ SceneLoader::load_material(Scene *scene, pugi::xml_node &bsdf) {
     std::string id = bsdf.attribute("id").as_string();
     bool is_twosided = false;
 
-    if (type == "twosided" || type == "bumpmap") {
+    while (type == "twosided" || type == "bumpmap") {
+        if (type == "twosided") {
+            is_twosided = true;
+        }
+
         bsdf = bsdf.child("bsdf");
         type = bsdf.attribute("type").as_string();
-        is_twosided = true;
 
         // For bumpmaps, the id is in the nested bsdf... ??
         if (id.empty()) {

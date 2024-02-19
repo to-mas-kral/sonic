@@ -6,6 +6,7 @@
 #include "io/scene_loader.h"
 #include "render_context.h"
 #include "utils/basic_types.h"
+#include "utils/render_threads.h"
 
 #include <bit>
 #include <chrono>
@@ -13,8 +14,7 @@
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 
-int
-main(int argc, char **argv) {
+int main(int argc, char **argv) {
     /*
      * Parse comdline arguments
      * */
@@ -22,7 +22,7 @@ main(int argc, char **argv) {
     u32 spp = 32;
     bool silent = false;
     std::string scene_path{};
-    IntegratorType integrator_type;
+    IntegratorType integrator_type = IntegratorType::MISNEE;
 
     CLI::App app{"A path-tracer by Tomáš Král, 2023-2024."};
     // argv = app.ensure_utf8(argv);
@@ -40,8 +40,7 @@ main(int argc, char **argv) {
 
     CLI11_PARSE(app, argc, argv)
 
-    std::string output_filename =
-        std::filesystem::path(scene_path).filename().stem().string() + ".exr";
+    std::string output_filename = std::filesystem::path(scene_path).filename().stem().string() + ".exr";
 
     spdlog::set_level(spdlog::level::info);
 
@@ -84,16 +83,17 @@ main(int argc, char **argv) {
 
     Integrator integrator(integrator_type, &rc, &embree_device);
 
+    RenderThreads render_threads(rc.attribs, &integrator);
+
     spdlog::info("Rendering a {}x{} image at {} spp.", attribs.resx, attribs.resy, spp);
 
     ProgressBar pb;
     const auto start{std::chrono::steady_clock::now()};
 
     for (u32 s = 1; s <= spp; s++) {
-        for (u32 x = 0; x < attribs.resx; x++) {
-            for (u32 y = 0; y < attribs.resy; y++) {
-                integrator.integrate_pixel(uvec2(x, y));
-            }
+        render_threads.start_new_frame();
+        if (s == spp) {
+            render_threads.schedule_stop();
         }
 
         const auto end{std::chrono::steady_clock::now()};
