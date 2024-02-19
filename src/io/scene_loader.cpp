@@ -282,7 +282,7 @@ SceneLoader::load_texture(Scene *sc, const pugi::xml_node &texture_node) const {
         auto file_name = filename_node.attribute("value").as_string();
         auto file_path = this->scene_base_path + "/" + file_name;
 
-        auto texture = Texture::make_image_texture(file_path, true, sc->texture_alloc);
+        auto texture = Texture::make_image_texture(file_path, true);
 
         u32 tex_id = sc->add_texture(std::move(texture));
         return tex_id;

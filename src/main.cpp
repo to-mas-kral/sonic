@@ -14,7 +14,8 @@
 #include <CLI/CLI.hpp>
 #include <spdlog/spdlog.h>
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
     /*
      * Parse comdline arguments
      * */
@@ -40,7 +41,8 @@ int main(int argc, char **argv) {
 
     CLI11_PARSE(app, argc, argv)
 
-    std::string output_filename = std::filesystem::path(scene_path).filename().stem().string() + ".exr";
+    std::string output_filename =
+        std::filesystem::path(scene_path).filename().stem().string() + ".exr";
 
     spdlog::set_level(spdlog::level::info);
 

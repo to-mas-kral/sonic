@@ -625,7 +625,7 @@ barycentric_interp(const vec3 &bar, const T &x, const T &y, const T &z) {
 /// and Ryusuke Villemin
 inline Tuple<vec3, vec3, vec3>
 coordinate_system(vec3 v1) {
-    f32 sign = copysign(1.f, v1.z);
+    f32 sign = std::copysign(1.f, v1.z);
     f32 a = -1.f / (sign + v1.z);
     f32 b = v1.x * v1.y * a;
 
@@ -639,13 +639,13 @@ coordinate_system(vec3 v1) {
     return {v1, v2, v3};
 }
 
-/// Transforms dir into the basis of the normal
+/// Transforms dir into the frame specified by the basis of the normal
 inline norm_vec3
-orient_dir(const vec3 &dir, const norm_vec3 &normal) {
-    auto [_, b1, b2] = coordinate_system(normal);
-    norm_vec3 sample_dir = (b1 * dir.x + b2 * dir.y + normal * dir.z).normalized();
+transform_frame(const vec3 &dir, const norm_vec3 &basis) {
+    auto [_, b1, b2] = coordinate_system(basis);
+    norm_vec3 sample_dir = (b1 * dir.x + b2 * dir.y + basis * dir.z).normalized();
 
-    if (vec3::dot(normal, sample_dir) < 0.f) {
+    if (vec3::dot(basis, sample_dir) < 0.f) {
         // TODO: it's usually really close to 0, unsure what to do here...
         sample_dir = -sample_dir;
     }

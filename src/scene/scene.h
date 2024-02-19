@@ -4,8 +4,6 @@
 #include "../geometry/geometry.h"
 #include "../integrator/light_sampler.h"
 #include "../materials/material.h"
-#include "../utils/chunk_allocator.h"
-#include "emitter.h"
 #include "envmap.h"
 #include "light.h"
 #include "texture.h"
@@ -44,7 +42,6 @@ struct Scene {
     LightSampler light_sampler{};
     std::vector<Light> lights{};
 
-    ChunkAllocator<ImageTexture> texture_alloc{};
     std::vector<Texture> textures{};
     std::vector<Material> materials{};
 

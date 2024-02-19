@@ -6,14 +6,14 @@
 #include <cassert>
 #include <cmath>
 
-const f32 EPS = 0.00001f;
+static constexpr f32 EPS = 0.00001f;
 
-inline f32
-safe_sqrt(f32 v) {
-    // Sanity check
-    assert(v >= -EPS);
+template <typename T>
+T
+safe_sqrt(T v) {
+    assert(v >= static_cast<T>(-EPS));
 
-    return std::sqrt(std::max(0.f, v));
+    return std::sqrt(std::max(static_cast<T>(0.), v));
 }
 
 template <typename T>
@@ -42,14 +42,10 @@ avg(Args... args) {
     return total / static_cast<T>(num_args);
 }
 
-namespace annie {
-
 template <typename T>
 T
 lerp(f32 t, const T &start, const T &end) {
     return start * (1.f - t) + end * t;
 }
-
-} // namespace annie
 
 #endif // PT_MATH_UTILS_H

@@ -3,8 +3,6 @@
 
 #include "../geometry/geometry.h"
 #include "../math/piecewise_dist.h"
-#include "../math/sampling.h"
-#include "../scene/emitter.h"
 #include "../scene/light.h"
 
 struct LightSample {
@@ -19,25 +17,11 @@ public:
 
     /// Sample lights according to power
     Option<LightSample>
-    sample(const std::vector<Light> &lights, f32 sample) {
-        if (!has_lights) {
-            return {};
-        }
-
-        u32 light_index = sampling_dist.sample(sample);
-        f32 pdf = sampling_dist.pdf(light_index);
-
-        return LightSample{
-            .pdf = pdf,
-            .light = lights[light_index],
-        };
-    }
+    sample(const std::vector<Light> &lights, f32 sample);
 
     /// The pdf of a light being sampled
     f32
-    light_sample_pdf(u32 light_id) const {
-        return sampling_dist.pdf(light_id);
-    }
+    light_sample_pdf(u32 light_id) const;
 
 private:
     bool has_lights = false;

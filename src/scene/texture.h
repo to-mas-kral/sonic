@@ -8,6 +8,7 @@
 #include <spdlog/spdlog.h>
 #include <tinyexr.h>
 
+#include "../color/spectrum.h"
 #include "../geometry/ray.h"
 #include "../math/piecewise_dist.h"
 #include "../math/vecmath.h"
@@ -114,8 +115,7 @@ public:
     Texture() = default;
 
     static Texture
-    make_image_texture(const std::string &texture_path, bool is_rgb,
-                       ChunkAllocator<ImageTexture> &texture_alloc) {
+    make_image_texture(const std::string &texture_path, bool is_rgb) {
         Texture tex{};
         tex.texture_type = TextureType::Image;
         tex.inner.image_texture = ImageTexture::make(texture_path, is_rgb);

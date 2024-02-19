@@ -149,7 +149,7 @@ Integrator::integrator_bdpt_nee(Ray ray, Sampler &sampler,
                 // TODO: fix independent sampling order
                 // TODO: assuming light has a diffuse BRDF... common
                 norm_vec3 sample_dir = sample_cosine_hemisphere(sampler.sample2());
-                norm_vec3 wi = orient_dir(sample_dir, shape_sample.normal);
+                norm_vec3 wi = transform_frame(sample_dir, shape_sample.normal);
 
                 auto y1_ray = spawn_ray(shape_sample.pos, shape_sample.normal, wi);
 

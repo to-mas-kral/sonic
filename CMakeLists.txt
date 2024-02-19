@@ -19,12 +19,16 @@ add_executable(pt
         src/scene/texture.cpp
         src/scene/scene.cpp
         src/scene/scene.h
+        src/scene/light.h
+        src/scene/emitter.cpp
+        src/scene/envmap.cpp
 
         src/utils/basic_types.h
         src/utils/sampler.h
         src/utils/algs.h
         src/utils/chunk_allocator.h
         src/utils/render_threads.h
+        src/utils/render_threads.cpp
 
         src/io/scene_loader.cpp
         src/io/scene_loader.h
@@ -36,6 +40,8 @@ add_executable(pt
         src/math/math_utils.h
         src/math/transform.h
         src/math/piecewise_dist.cpp
+        src/math/sampling.cpp
+        src/math/transform.cpp
 
         src/integrator/integrator.h
         src/integrator/utils.h
@@ -49,10 +55,10 @@ add_executable(pt
         src/geometry/geometry.h
         src/geometry/geometry.cpp
 
-        src/scene/light.h
-
         src/color/rgb2spec.h
+        src/color/rgb2spec.cpp
         src/color/sampled_spectrum.h
+        src/color/sampled_spectrum.cpp
         src/color/cie_spectrums.h
         src/color/spectrum_consts.h
         src/color/color_space.h
@@ -61,14 +67,24 @@ add_executable(pt
         src/color/spectrum.h
 
         src/materials/material.h
+        src/materials/material.cpp
         src/materials/plastic.h
+        src/materials/plastic.cpp
         src/materials/common.h
+        src/materials/common.cpp
         src/materials/diffuse.h
+        src/materials/diffuse.cpp
         src/materials/dielectric.h
+        src/materials/dielectric.cpp
         src/materials/conductor.h
+        src/materials/conductor.cpp
         src/materials/rough_conductor.h
+        src/materials/rough_conductor.cpp
         src/materials/trowbridge_reitz_ggx.h
+        src/materials/trowbridge_reitz_ggx.cpp
         src/materials/rough_plastic.h
+        src/materials/rough_plastic.cpp
+        src/utils/sampler.cpp
 )
 
 target_compile_options(pt PRIVATE
