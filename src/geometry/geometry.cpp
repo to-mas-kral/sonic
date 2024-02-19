@@ -6,6 +6,8 @@ Geometry::add_mesh(const MeshParams &mp, Option<u32> lights_start_id) {
     u32 num_indices = mp.indices->size();
     u32 num_vertices = mp.pos->size();
 
+    // TODO: accidentally quadratic resizing...
+
     u32 indices_index = meshes.indices.size();
     for (u32 &index : *mp.indices) {
         meshes.indices.push_back(index);

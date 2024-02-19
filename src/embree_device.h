@@ -24,40 +24,20 @@ public:
     Intersection
     get_triangle_its(u32 mesh_index, u32 triangle_index, const vec2 &bary) {
         auto &mesh = scene->geometry.meshes.meshes[mesh_index];
-        auto &geometry = scene->geometry;
+        auto &meshes = scene->geometry.meshes;
 
-        point3 *positions = &geometry.meshes.pos[mesh.pos_index];
-        u32 *indices = &geometry.meshes.indices[mesh.indices_index];
-
-        Span<vec3> normals_span{};
-        if (mesh.has_normals) {
-            normals_span = Span<vec3>(
-                const_cast<vec3 *>(&geometry.meshes.normals[mesh.normals_index]), 3);
-        }
-
-        Span<vec2> uvs_span{};
-        if (mesh.has_uvs) {
-            uvs_span =
-                Span<vec2>(const_cast<vec2 *>(&geometry.meshes.uvs[mesh.uvs_index]), 3);
-        }
-
-        u32 i0 = indices[3 * triangle_index];
-        u32 i1 = indices[3 * triangle_index + 1];
-        u32 i2 = indices[3 * triangle_index + 2];
-
-        point3 p0 = positions[i0];
-        point3 p1 = positions[i1];
-        point3 p2 = positions[i2];
+        auto [i0, i1, i2] = meshes.get_tri_indices(mesh.indices_index, triangle_index);
+        auto [p0, p1, p2] = meshes.get_tri_pos(mesh.pos_index, {i0, i1, i2});
 
         vec3 bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
 
         point3 pos = barycentric_interp(bar, p0, p1, p2);
 
-        norm_vec3 normal = Meshes::calc_normal(mesh.has_normals, i0, i1, i2, normals_span,
-                                               bar, p0, p1, p2);
-        norm_vec3 geometric_normal = Meshes::calc_normal(
-            mesh.has_normals, i0, i1, i2, normals_span, bar, p0, p1, p2, true);
-        vec2 uv = Meshes::calc_uvs(mesh.has_uvs, i0, i1, i2, uvs_span, bar);
+        norm_vec3 normal = meshes.calc_normal(mesh.has_normals, i0, i1, i2,
+                                              mesh.normals_index, bar, p0, p1, p2);
+        norm_vec3 geometric_normal = meshes.calc_normal(
+            mesh.has_normals, i0, i1, i2, mesh.normals_index, bar, p0, p1, p2, true);
+        vec2 uv = meshes.calc_uvs(mesh.has_uvs, i0, i1, i2, mesh.uvs_index, bar);
 
         return Intersection{
             .material_id = mesh.material_id,

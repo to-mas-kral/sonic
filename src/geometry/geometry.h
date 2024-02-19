@@ -35,22 +35,20 @@ struct Mesh {
         return num_indices / 3;
     };
 
-    // What's exctually loaded by OptiX PT
-    // Don't use optional<T> due too much memory consumption
     u32 pos_index;
     u32 indices_index;
+    u32 normals_index;
+    u32 uvs_index;
 
+    u32 num_vertices;
+    u32 num_indices;
+
+    // Don't use optional<T> due too much memory consumption
     bool has_normals = false;
     bool has_uvs = false;
     bool has_light = false;
     u32 lights_start_id;
     u32 material_id;
-
-    // What's needed on the CPU...
-    u32 normals_index = 0xdeadbeef;
-    u32 uvs_index = 0xdeadbeef;
-    u32 num_vertices;
-    u32 num_indices;
 };
 
 // Used only for mesh creation
@@ -63,14 +61,14 @@ struct MeshParams {
     Option<Emitter> emitter = {};
 };
 
-// OptiX requires SOA layout
+// SOA layout
 struct Meshes {
-    std::vector<Mesh> meshes = std::vector<Mesh>();
+    std::vector<Mesh> meshes{};
 
-    std::vector<u32> indices = std::vector<u32>();
-    std::vector<point3> pos = std::vector<point3>();
-    std::vector<vec3> normals = std::vector<vec3>();
-    std::vector<vec2> uvs = std::vector<vec2>();
+    std::vector<u32> indices{};
+    std::vector<point3> pos{};
+    std::vector<vec3> normals{};
+    std::vector<vec2> uvs{};
 
     Array<u32, 3>
     get_tri_indices(u32 mesh_indices_index, u32 triangle) const {
@@ -99,14 +97,14 @@ struct Meshes {
         return cross.length() / 2.f;
     };
 
-    static norm_vec3
-    calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, const Span<vec3> normals,
+    norm_vec3
+    calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, u32 normals_index,
                 const vec3 &bar, const point3 &p0, const point3 &p1, const point3 &p2,
-                bool want_geometric_normal = false) {
+                bool want_geometric_normal = false) const {
         if (has_normals && !want_geometric_normal) {
-            vec3 n0 = normals[i0];
-            vec3 n1 = normals[i1];
-            vec3 n2 = normals[i2];
+            vec3 n0 = normals[normals_index + i0];
+            vec3 n1 = normals[normals_index + i1];
+            vec3 n2 = normals[normals_index + i2];
             return barycentric_interp(bar, n0, n1, n2).normalized();
         } else {
             vec3 v0 = p1 - p0;
@@ -121,15 +119,14 @@ struct Meshes {
         }
     }
 
-    static vec2
-    calc_uvs(bool has_uvs, u32 i0, u32 i1, u32 i2, const Span<vec2> uvs,
-             const vec3 &bar) {
+    vec2
+    calc_uvs(bool has_uvs, u32 i0, u32 i1, u32 i2, u32 uvs_index, const vec3 &bar) const {
         // Idk what's suppossed to happen here without explicit UVs..
         vec2 uv = vec2(0.);
         if (has_uvs) {
-            vec2 uv0 = uvs[i0];
-            vec2 uv1 = uvs[i1];
-            vec2 uv2 = uvs[i2];
+            vec2 uv0 = uvs[uvs_index + i0];
+            vec2 uv1 = uvs[uvs_index + i1];
+            vec2 uv2 = uvs[uvs_index + i2];
             uv = barycentric_interp(bar, uv0, uv1, uv2);
         }
 
@@ -145,15 +142,9 @@ struct Meshes {
         const auto tri_pos = get_tri_pos(mesh.pos_index, tri_indices);
         point3 sampled_pos = barycentric_interp(bar, tri_pos[0], tri_pos[1], tri_pos[2]);
 
-        Span<vec3> normals_span{};
-        if (mesh.has_normals) {
-            normals_span =
-                Span<vec3>(const_cast<vec3 *>(&normals[mesh.normals_index]), 3);
-        }
-
         norm_vec3 normal =
             calc_normal(mesh.has_normals, tri_indices[0], tri_indices[1], tri_indices[2],
-                        normals_span, bar, tri_pos[0], tri_pos[1], tri_pos[2]);
+                        mesh.normals_index, bar, tri_pos[0], tri_pos[1], tri_pos[2]);
 
         f32 area = calc_tri_area(mesh.indices_index, mesh.pos_index, si.triangle_index);
 
@@ -179,7 +170,7 @@ struct SphereVertex {
     f32 radius;
 };
 
-// OptiX requires SOA layout
+// SOA layout
 struct Spheres {
     std::vector<SphereVertex> vertices{};
     std::vector<u32> material_ids{};
