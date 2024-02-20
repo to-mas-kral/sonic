@@ -72,7 +72,7 @@ main(int argc, char **argv) {
 
     spdlog::info("Loading the scene");
     try {
-        scene_loader.load_scene(&rc.scene);
+        scene_loader.load_scene(rc.scene);
     } catch (const std::exception &e) {
         spdlog::error("Error while loading the scene {}", e.what());
         return 1;
@@ -94,9 +94,6 @@ main(int argc, char **argv) {
 
     for (u32 s = 1; s <= spp; s++) {
         render_threads.start_new_frame();
-        if (s == spp) {
-            render_threads.schedule_stop();
-        }
 
         const auto end{std::chrono::steady_clock::now()};
         const std::chrono::duration<f64> elapsed{end - start};
@@ -109,6 +106,8 @@ main(int argc, char **argv) {
         integrator.frame += 1;
         pb.print(s, spp, elapsed);
     }
+
+    render_threads.schedule_stop();
 
     ImageWriter::write_framebuffer(output_filename, rc.fb, spp);
 

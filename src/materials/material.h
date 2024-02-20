@@ -29,23 +29,26 @@ struct Material {
     make_diffuse(u32 reflectance_tex_id);
 
     static Material
-    make_dielectric(Spectrum ext_ior, Spectrum int_ior, Spectrum transmittance);
+    make_dielectric(Spectrum ext_ior, Spectrum int_ior, Spectrum transmittance,
+                    ChunkAllocator<> &material_allocator);
 
     static Material
-    make_conductor(Spectrum eta, Spectrum k);
+    make_conductor(Spectrum eta, Spectrum k, ChunkAllocator<> &material_allocator);
 
     static Material
-    make_conductor_perfect();
+    make_conductor_perfect(ChunkAllocator<> &material_allocator);
 
     static Material
-    make_rough_conductor(f32 alpha, Spectrum eta, Spectrum k);
+    make_rough_conductor(f32 alpha, Spectrum eta, Spectrum k,
+                         ChunkAllocator<> &material_allocator);
 
     static Material
-    make_plastic(Spectrum ext_ior, Spectrum int_ior, u32 diffuse_reflectance_id);
+    make_plastic(Spectrum ext_ior, Spectrum int_ior, u32 diffuse_reflectance_id,
+                 ChunkAllocator<> &material_allocator);
 
     static Material
     make_rough_plastic(f32 alpha, Spectrum ext_ior, Spectrum int_ior,
-                       u32 diffuse_reflectance_id);
+                       u32 diffuse_reflectance_id, ChunkAllocator<> &material_allocator);
 
     Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
@@ -66,14 +69,17 @@ struct Material {
     // TODO: discriminated ptr would be nice here...
     MaterialType type = MaterialType::Diffuse;
     bool is_twosided = false;
+
     union {
         DiffuseMaterial diffuse;
-        PlasticMaterial plastic;
-        RoughPlasticMaterial rough_plastic;
-        DielectricMaterial dielectric;
-        ConductorMaterial conductor;
-        RoughConductorMaterial rough_conductor;
+        PlasticMaterial *plastic;
+        RoughPlasticMaterial *rough_plastic;
+        DielectricMaterial *dielectric;
+        ConductorMaterial *conductor;
+        RoughConductorMaterial *rough_conductor;
     };
+
+    ~Material() {}
 };
 
 #endif // PT_MATERIAL_H

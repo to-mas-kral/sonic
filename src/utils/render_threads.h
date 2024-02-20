@@ -6,6 +6,7 @@
 #include "basic_types.h"
 
 #include <atomic>
+#include <barrier>
 #include <thread>
 #include <vector>
 
@@ -20,10 +21,7 @@ public:
     start_new_frame();
 
     void
-    spinlock();
-
-    void
-    render();
+    render(u32 thread_id);
 
 private:
     Integrator *integrator;
@@ -32,7 +30,8 @@ private:
     std::vector<std::jthread> threads{};
     bool should_stop = false;
 
-    std::atomic<u32> threads_done_in_frame = 0;
+    std::barrier<> start_work;
+    std::barrier<> end_work;
 
     /// 4x4 tiles
     uvec2 dimensions;

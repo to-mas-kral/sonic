@@ -34,7 +34,7 @@ child_node_attr(const pugi::xml_node parent, const std::string &node_name,
 }
 
 void
-SceneLoader::load_scene(Scene *sc) {
+SceneLoader::load_scene(Scene &sc) {
     auto scene = doc.child("scene");
 
     load_materials(scene, sc);
@@ -49,12 +49,12 @@ SceneLoader::load_scene(Scene *sc) {
         auto to_world_transform = parse_transform(transform_node);
 
         auto envmap = Envmap(file_path, to_world_transform);
-        sc->set_envmap(std::move(envmap));
+        sc.set_envmap(std::move(envmap));
     }
 }
 
 void
-SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
+SceneLoader::load_shapes(Scene &sc, const pugi::xml_node &scene) {
     for (pugi::xml_node shape : scene.children("shape")) {
         str type = shape.attribute("type").as_string();
 
@@ -67,7 +67,7 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
             mat_id = materials.at(bsdf_id);
         } else if (bsdf_node) {
             auto [mat, _] = load_material(sc, bsdf_node);
-            mat_id = sc->add_material(std::move(mat));
+            mat_id = sc.add_material(std::move(mat));
         } else {
             throw std::runtime_error("Shape has no material");
         }
@@ -99,23 +99,23 @@ SceneLoader::load_shapes(Scene *sc, const pugi::xml_node &scene) {
 }
 
 void
-SceneLoader::load_materials(pugi::xml_node scene, Scene *sc) {
+SceneLoader::load_materials(pugi::xml_node scene, Scene &sc) {
     // HACK: default material
     auto texture = Texture::make_constant_texture(RgbSpectrum::make(tuple3(0.5f)));
-    u32 tex_id = sc->add_texture(std::move(texture));
+    u32 tex_id = sc.add_texture(std::move(texture));
 
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
         auto [mat, id] = load_material(sc, bsdf);
 
-        u32 mat_id = sc->add_material(std::move(mat));
+        u32 mat_id = sc.add_material(std::move(mat));
         materials.insert({id, mat_id});
     }
 }
 
 Tuple<Material, std::string>
-SceneLoader::load_material(Scene *scene, pugi::xml_node &bsdf) {
+SceneLoader::load_material(Scene &scene, pugi::xml_node &bsdf) {
     str type = bsdf.attribute("type").as_string();
     std::string id = bsdf.attribute("id").as_string();
     bool is_twosided = false;
@@ -147,13 +147,13 @@ SceneLoader::load_material(Scene *scene, pugi::xml_node &bsdf) {
         mat = load_roughp_lastic_material(scene, bsdf);
         mat.is_twosided = is_twosided;
     } else if (type == "conductor") {
-        mat = load_conductor_material(bsdf);
+        mat = load_conductor_material(scene, bsdf);
         mat.is_twosided = is_twosided;
     } else if (type == "dielectric") {
-        mat = load_dielectric_material(bsdf);
+        mat = load_dielectric_material(scene, bsdf);
         mat.is_twosided = true;
     } else if (type == "roughconductor") {
-        mat = load_roughconductor_material(bsdf);
+        mat = load_roughconductor_material(scene, bsdf);
         mat.is_twosided = is_twosided;
     } else {
         spdlog::warn("Unknown BSDF type: {}, defaulting to diffuse", type);
@@ -164,7 +164,7 @@ SceneLoader::load_material(Scene *scene, pugi::xml_node &bsdf) {
 }
 
 Material
-SceneLoader::load_plastic_material(Scene *sc, const pugi::xml_node &bsdf) const {
+SceneLoader::load_plastic_material(Scene &sc, const pugi::xml_node &bsdf) const {
     Spectrum int_ior(POLYPROPYLENE_ETA);
     Spectrum ext_ior(AIR_ETA);
 
@@ -182,11 +182,12 @@ SceneLoader::load_plastic_material(Scene *sc, const pugi::xml_node &bsdf) const 
 
     auto reflectance_node = child_node(bsdf, "reflectance");
     u32 diffuse_reflectance_id = load_texture(sc, reflectance_node);
-    return Material::make_plastic(ext_ior, int_ior, diffuse_reflectance_id);
+    return Material::make_plastic(ext_ior, int_ior, diffuse_reflectance_id,
+                                  sc.material_allocator);
 }
 
 Material
-SceneLoader::load_roughp_lastic_material(Scene *sc, const pugi::xml_node &bsdf) const {
+SceneLoader::load_roughp_lastic_material(Scene &sc, const pugi::xml_node &bsdf) const {
     Spectrum int_ior(POLYPROPYLENE_ETA);
     Spectrum ext_ior(AIR_ETA);
 
@@ -211,15 +212,16 @@ SceneLoader::load_roughp_lastic_material(Scene *sc, const pugi::xml_node &bsdf) 
 
     f32 alpha = child_node_attr(bsdf, "alpha", "value").as_float();
 
-    return Material::make_rough_plastic(alpha, ext_ior, int_ior, diffuse_reflectance_id);
+    return Material::make_rough_plastic(alpha, ext_ior, int_ior, diffuse_reflectance_id,
+                                        sc.material_allocator);
 }
 
 Material
-SceneLoader::load_conductor_material(const pugi::xml_node &bsdf) const {
+SceneLoader::load_conductor_material(Scene &sc, const pugi::xml_node &bsdf) const {
     auto mat_node = child_node(bsdf, "material");
     if (mat_node) {
         if (mat_node.attribute("value").as_string() == str("none")) {
-            return Material::make_conductor_perfect();
+            return Material::make_conductor_perfect(sc.material_allocator);
         } else {
             throw std::runtime_error(
                 "Named material for rough conductors aren't implemented yet");
@@ -232,11 +234,11 @@ SceneLoader::load_conductor_material(const pugi::xml_node &bsdf) const {
     Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta));
     Spectrum k_spectrum(RgbSpectrumUnbounded::make(k));
 
-    return Material::make_conductor(eta_spectrum, k_spectrum);
+    return Material::make_conductor(eta_spectrum, k_spectrum, sc.material_allocator);
 }
 
 Material
-SceneLoader::load_roughconductor_material(const pugi::xml_node &bsdf) const {
+SceneLoader::load_roughconductor_material(Scene &sc, const pugi::xml_node &bsdf) const {
     f32 alpha = child_node_attr(bsdf, "alpha", "value").as_float();
     tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
     tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
@@ -244,11 +246,12 @@ SceneLoader::load_roughconductor_material(const pugi::xml_node &bsdf) const {
     Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta));
     Spectrum k_spectrum(RgbSpectrumUnbounded::make(k));
 
-    return Material::make_rough_conductor(alpha, eta_spectrum, k_spectrum);
+    return Material::make_rough_conductor(alpha, eta_spectrum, k_spectrum,
+                                          sc.material_allocator);
 }
 
 Material
-SceneLoader::load_dielectric_material(const pugi::xml_node &bsdf) const {
+SceneLoader::load_dielectric_material(Scene &sc, const pugi::xml_node &bsdf) const {
     Spectrum int_ior(GLASS_BK7_ETA);
     Spectrum ext_ior(AIR_ETA);
 
@@ -272,11 +275,12 @@ SceneLoader::load_dielectric_material(const pugi::xml_node &bsdf) const {
         specular_transmittance = Spectrum(RgbSpectrum::make(rgb));
     }
 
-    return Material::make_dielectric(ext_ior, int_ior, specular_transmittance);
+    return Material::make_dielectric(ext_ior, int_ior, specular_transmittance,
+                                     sc.material_allocator);
 }
 
 u32
-SceneLoader::load_texture(Scene *sc, const pugi::xml_node &texture_node) const {
+SceneLoader::load_texture(Scene &sc, const pugi::xml_node &texture_node) const {
     if (str(texture_node.name()) == "texture") {
         auto filename_node = child_node(texture_node, "filename");
         auto file_name = filename_node.attribute("value").as_string();
@@ -284,18 +288,18 @@ SceneLoader::load_texture(Scene *sc, const pugi::xml_node &texture_node) const {
 
         auto texture = Texture::make_image_texture(file_path, true);
 
-        u32 tex_id = sc->add_texture(std::move(texture));
+        u32 tex_id = sc.add_texture(std::move(texture));
         return tex_id;
     } else {
         tuple3 rgb = parse_tuple3(texture_node.attribute("value").as_string());
         auto texture = Texture::make_constant_texture(RgbSpectrum::make(rgb));
-        u32 tex_id = sc->add_texture(std::move(texture));
+        u32 tex_id = sc.add_texture(std::move(texture));
         return tex_id;
     }
 }
 
 Material
-SceneLoader::load_diffuse_material(Scene *sc, const pugi::xml_node &bsdf) {
+SceneLoader::load_diffuse_material(Scene &sc, const pugi::xml_node &bsdf) {
     auto reflectance_node = child_node(bsdf, "reflectance");
     u32 tex_id = load_texture(sc, reflectance_node);
     return Material::make_diffuse(tex_id);
@@ -392,7 +396,7 @@ SceneLoader::parse_tuple3(const std::string &str) {
 }
 
 Emitter
-SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
+SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene &sc) {
     str type = emitter_node.attribute("type").as_string();
     if (type != "area") {
         throw std::runtime_error(fmt::format("Unknown emitter type: {}", type));
@@ -411,7 +415,7 @@ SceneLoader::load_emitter(pugi::xml_node emitter_node, Scene *sc) {
 
 void
 SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                            Option<Emitter> emitter, Scene *sc) {
+                            Option<Emitter> emitter, Scene &sc) {
     // clang-format off
     std::vector<point3> pos = {
         point3(-1.,  -1., 0.),
@@ -441,12 +445,12 @@ SceneLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transf
         .emitter = emitter,
     };
 
-    sc->add_mesh(mp);
+    sc.add_mesh(mp);
 }
 
 void
 SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                       Option<Emitter> emitter, Scene *sc) {
+                       Option<Emitter> emitter, Scene &sc) {
     // clang-format off
     std::vector<point3> pos = {
         point3(-1.,  -1.,  1.),
@@ -486,12 +490,12 @@ SceneLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
         .emitter = emitter,
     };
 
-    sc->add_mesh(mp);
+    sc.add_mesh(mp);
 }
 
 void
 SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
-                         Option<Emitter> emitter, Scene *sc) {
+                         Option<Emitter> emitter, Scene &sc) {
     auto radius_node = child_node(node, "radius");
     f32 radius = radius_node.attribute("value").as_float();
     auto center_node = child_node(node, "center");
@@ -502,12 +506,12 @@ SceneLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
 
     point3 center = point3(x, y, z);
     auto sphere = SphereParams{center, radius, mat_id, emitter};
-    sc->add_sphere(sphere);
+    sc.add_sphere(sphere);
 }
 
 void
 SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                      Option<Emitter> emitter, Scene *sc) {
+                      Option<Emitter> emitter, Scene &sc) {
     std::string filename = shape_node.child("string").attribute("value").as_string();
     auto file_path = scene_base_path + "/" + filename;
 
@@ -637,7 +641,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         .emitter = std::move(emitter),
     };
 
-    sc->add_mesh(mp);
+    sc.add_mesh(mp);
 }
 
 Option<SceneAttribs>

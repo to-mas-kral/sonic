@@ -40,17 +40,25 @@ Tile::make_from_tile_index(u32 tile_index, uvec2 dimensions) {
     };
 }
 
-RenderThreads::RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator)
-    : integrator{integrator}, num_threads(std::thread::hardware_concurrency()),
-      dimensions(uvec2(scene_attribs.resx, scene_attribs.resy)) {
+u32
+get_num_threads() {
+    u32 num_threads = std::thread::hardware_concurrency();
     if (num_threads == 0) {
-        num_threads = 4;
+        spdlog::warn("Could not get the number of CPU cores, defaulting to 1 thread");
+        num_threads = 1;
     }
 
+    return num_threads;
+}
+
+RenderThreads::RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator)
+    : integrator{integrator}, num_threads(get_num_threads()), start_work{num_threads + 1},
+      end_work{num_threads + 1},
+      dimensions(uvec2(scene_attribs.resx, scene_attribs.resy)) {
     threads.reserve(num_threads);
 
     for (int i = 0; i < num_threads; ++i) {
-        auto t = std::jthread(&RenderThreads::render, this);
+        auto t = std::jthread([=, this] { render(i); });
         threads.push_back(std::move(t));
     }
 
@@ -64,46 +72,42 @@ RenderThreads::RenderThreads(const SceneAttribs &scene_attribs, Integrator *inte
 void
 RenderThreads::schedule_stop() {
     should_stop = true;
-    threads_done_in_frame = 0;
+    start_work.arrive_and_wait();
 }
 
 void
 RenderThreads::start_new_frame() {
     tile_counter = 0;
-    threads_done_in_frame = 0;
 
-    while (threads_done_in_frame != num_threads) {
-        // TODO: handle this synchronization better
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(100ms);
-    }
+    start_work.arrive_and_wait();
+    end_work.arrive_and_wait();
 }
 
 void
-RenderThreads::spinlock() {}
+RenderThreads::render(u32 thread_id) {
+    while (true) {
+        start_work.arrive_and_wait();
 
-void
-RenderThreads::render() {
-    while (!should_stop) {
-        const u32 tile_index = tile_counter.fetch_add(1);
+        if (should_stop) {
+            return;
+        }
 
-        if (tile_index < tiles_per_frame) {
-            auto tile = Tile::make_from_tile_index(tile_index, dimensions);
+        while (true) {
+            const u32 tile_index = tile_counter.fetch_add(1);
 
-            for (int x = tile.start_x; x <= tile.end_x; ++x) {
-                for (int y = tile.start_y; y <= tile.end_y; ++y) {
-                    integrator->integrate_pixel(uvec2(x, y));
+            if (tile_index < tiles_per_frame) {
+                auto tile = Tile::make_from_tile_index(tile_index, dimensions);
+
+                for (int x = tile.start_x; x <= tile.end_x; ++x) {
+                    for (int y = tile.start_y; y <= tile.end_y; ++y) {
+                        integrator->integrate_pixel(uvec2(x, y));
+                    }
                 }
-            }
-        } else {
-            threads_done_in_frame.fetch_add(1);
-
-            // FIXME: not 100% sure, but I think this requires a sync point to be actually
-            // correct
-            //  or maybe add another spinlock at the start of the frame...
-            while (threads_done_in_frame != 0) {
-                spinlock();
+            } else {
+                break;
             }
         }
+
+        end_work.arrive_and_wait();
     }
 }

@@ -43,6 +43,8 @@ struct Scene {
     std::vector<Light> lights{};
 
     std::vector<Texture> textures{};
+
+    ChunkAllocator<> material_allocator{};
     std::vector<Material> materials{};
 
     Envmap envmap{};
