@@ -1,5 +1,5 @@
 # Sonic
-GPU Path-Tracing project for a Computer Graphics class.
+Path-Tracing project for a Computer Graphics class.
 
 # Techniques / features
 - Path tracing:
