@@ -1,5 +1,5 @@
-# cuda-pt
-GPU Path-Tracing project for a Computer Graphics class.
+# Sonic
+Path-Tracing project for a Computer Graphics class.
 
 # Techniques / features
 - Path tracing:
