@@ -50,7 +50,6 @@ add_executable(pt
         src/integrator/integrator_type.h
         src/integrator/mis_nee_integrator.cpp
         src/integrator/intersection.h
-        src/integrator/bdpt_nee_integrator.cpp
 
         src/geometry/geometry.h
         src/geometry/geometry.cpp
@@ -85,6 +84,7 @@ add_executable(pt
         src/materials/rough_plastic.h
         src/materials/rough_plastic.cpp
         src/utils/sampler.cpp
+        src/settings.h
 )
 
 target_compile_options(pt PRIVATE

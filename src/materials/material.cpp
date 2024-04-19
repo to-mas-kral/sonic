@@ -114,6 +114,11 @@ Option<BSDFSample>
 Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
                  const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv,
                  bool is_frontfacing) const {
+    auto nowo = vec3::dot(normal, wo);
+    if (nowo == 0.f) {
+        return {};
+    }
+
     switch (type) {
     case MaterialType::Diffuse:
         return diffuse.sample(normal, wo, vec2(sample.x, sample.y), lambdas, textures,
@@ -154,6 +159,10 @@ Material::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ) const {
 spectral
 Material::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
                const Texture *textures, const vec2 &uv) const {
+    if (sgeom.is_degenerate()) {
+        return spectral::ZERO();
+    }
+
     switch (type) {
     case MaterialType::Diffuse:
         return diffuse.eval(sgeom, lambdas, textures, uv);

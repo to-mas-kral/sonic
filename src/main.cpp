@@ -5,6 +5,7 @@
 #include "io/progress_bar.h"
 #include "io/scene_loader.h"
 #include "render_context.h"
+#include "settings.h"
 #include "utils/basic_types.h"
 #include "utils/render_threads.h"
 
@@ -20,33 +21,38 @@ main(int argc, char **argv) {
      * Parse comdline arguments
      * */
 
-    u32 spp = 32;
-    bool silent = false;
+    Settings settings{};
     std::string scene_path{};
-    IntegratorType integrator_type = IntegratorType::MISNEE;
+    std::string out_filename{};
 
     CLI::App app{"A path-tracer by Tomáš Král, 2023-2024."};
     // argv = app.ensure_utf8(argv);
 
-    std::map<std::string, IntegratorType> map{{"naive", IntegratorType::Naive},
-                                              {"mis_nee", IntegratorType::MISNEE},
-                                              {"bdpt_nee", IntegratorType::BDPTNEE}};
+    std::map<std::string, IntegratorType> map{
+        {"naive", IntegratorType::Naive},
+        {"mis_nee", IntegratorType::MISNEE},
+    };
 
-    app.add_option("--samples", spp, "Samples per pixel (SPP).");
+    app.add_option("--samples", settings.spp, "Samples per pixel (SPP).");
     app.add_option("-s,--scene", scene_path, "Path to the scene file.");
-    app.add_flag("--silent,!--no-silent", silent, "Silent run.")->default_val(true);
-    app.add_option("-i,--integrator", integrator_type, "Integrator")
+    app.add_option("-o,--out", out_filename, "Path of the output file, without '.exr'");
+    app.add_flag("--silent,!--no-silent", settings.silent, "Silent run.")
+        ->default_val(true);
+    app.add_flag("--save-tx-separate", settings.save_tx_separate,
+                 "Save separate images for paths of increasing length")
+        ->default_val(false);
+    app.add_option("-i,--integrator", settings.integrator_type, "Integrator")
         ->transform(CLI::CheckedTransformer(map, CLI::ignore_case))
         ->default_val(IntegratorType::MISNEE);
 
-    CLI11_PARSE(app, argc, argv)
+    app.add_option("--start-frame", settings.start_frame,
+                   "Frame at which to start rendering. Useful for debugging");
 
-    std::string output_filename =
-        std::filesystem::path(scene_path).filename().stem().string() + ".exr";
+    CLI11_PARSE(app, argc, argv)
 
     spdlog::set_level(spdlog::level::info);
 
-    if (silent) {
+    if (settings.silent) {
         spdlog::set_level(spdlog::level::err);
     }
 
@@ -83,16 +89,17 @@ main(int argc, char **argv) {
     spdlog::info("Creating Embree acceleration structure");
     auto embree_device = EmbreeDevice(rc.scene);
 
-    Integrator integrator(integrator_type, &rc, &embree_device);
+    Integrator integrator(settings, &rc, &embree_device);
 
     RenderThreads render_threads(rc.attribs, &integrator);
 
-    spdlog::info("Rendering a {}x{} image at {} spp.", attribs.resx, attribs.resy, spp);
+    spdlog::info("Rendering a {}x{} image at {} spp.", attribs.resx, attribs.resy,
+                 settings.spp);
 
     ProgressBar pb;
     const auto start{std::chrono::steady_clock::now()};
 
-    for (u32 s = 1; s <= spp; s++) {
+    for (u32 s = 1; s <= settings.spp; s++) {
         render_threads.start_new_frame();
 
         const auto end{std::chrono::steady_clock::now()};
@@ -100,16 +107,16 @@ main(int argc, char **argv) {
 
         // Update the framebuffer when the number of samples doubles...
         if (std::popcount(s) == 1) {
-            ImageWriter::write_framebuffer(output_filename, rc.fb, s);
+            ImageWriter::write_framebuffer(out_filename, rc.fb, s);
         }
 
         integrator.frame += 1;
-        pb.print(s, spp, elapsed);
+        pb.print(s, settings.spp, elapsed);
     }
 
     render_threads.schedule_stop();
 
-    ImageWriter::write_framebuffer(output_filename, rc.fb, spp);
+    ImageWriter::write_framebuffer(out_filename, rc.fb, settings.spp);
 
     return 0;
 }

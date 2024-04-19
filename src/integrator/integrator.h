@@ -4,14 +4,14 @@
 #include "../embree_device.h"
 #include "../math/vecmath.h"
 #include "../render_context.h"
+#include "../settings.h"
 #include "../utils/basic_types.h"
 #include "../utils/sampler.h"
-#include "integrator_type.h"
 
 class Integrator {
 public:
-    Integrator(IntegratorType integrator_type, RenderContext *rc, EmbreeDevice *device)
-        : rc{rc}, integrator_type{integrator_type}, device{device} {}
+    Integrator(Settings settings, RenderContext *rc, EmbreeDevice *device)
+        : rc{rc}, settings{settings}, device{device} {}
 
     void
     integrate_pixel(uvec2 pixel) const {
@@ -28,13 +28,10 @@ public:
 
         SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
 
-        spectral radiance = spectral::ZERO();
+        spectral radiance = integrator_mis_nee(ray, sampler, lambdas);
 
-        if (integrator_type == IntegratorType::Naive ||
-            integrator_type == IntegratorType::MISNEE) {
-            radiance = integrator_mis_nee(ray, sampler, lambdas);
-        } else if (integrator_type == IntegratorType::BDPTNEE) {
-            radiance = integrator_bdpt_nee(ray, sampler, lambdas);
+        if (std::isnan(radiance[0]) || std::isinf(radiance[0])) {
+            fmt::println("\nerr at frame {} x {} y {}", frame, pixel.x, pixel.y);
         }
 
         rc->fb.get_pixels()[pixel_index] += lambdas.to_xyz(radiance);
@@ -42,14 +39,6 @@ public:
 
     spectral
     integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const;
-
-    spectral
-    integrator_bdpt_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const;
-
-    spectral
-    mis_xp_y1_y0(const Intersection &xp_its, const Intersection &y1_its,
-                 const SampledLambdas &lambdas, const std::vector<Texture> &textures,
-                 const vec2 &uv, const point3 &y0, const norm_vec3 &xp_wo) const;
 
     spectral
     light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,
@@ -79,7 +68,7 @@ private:
     }
 
     RenderContext *rc;
-    IntegratorType integrator_type;
+    Settings settings;
     EmbreeDevice *device;
 };
 #endif

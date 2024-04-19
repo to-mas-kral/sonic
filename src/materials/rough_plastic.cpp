@@ -42,9 +42,9 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
 
     // Figure out the angle of the ray that refracts from inside to outisde ωo
     f32 cos_theta_out = sgeom.nowo;
-    f32 sin_theta_out = std::sqrt(1.f - sqr(cos_theta_out));
+    f32 sin_theta_out = safe_sqrt(1.f - sqr(cos_theta_out));
     f32 sin_theta_in = sin_theta_out * rel_ior;
-    f32 cos_theta_in = std::sqrt(1.f - sqr(sin_theta_in));
+    f32 cos_theta_in = safe_sqrt(1.f - sqr(sin_theta_in));
     f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
     const Texture *texture = &textures[diffuse_reflectance_id];
@@ -103,6 +103,9 @@ RoughPlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, cons
         norm_vec3 sample_dir = sample_cosine_hemisphere(vec2(ξ.x, ξ.y));
         norm_vec3 ωi = transform_frame(sample_dir, normal);
         auto sgeom = ShadingGeometry::make(normal, ωi, ωo);
+        if (sgeom.is_degenerate()) {
+            return {};
+        }
 
         return BSDFSample{
             .bsdf = eval(sgeom, λ, textures, uv),

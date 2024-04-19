@@ -16,6 +16,9 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
     f32 cos_light = vec3::dot(shape_sample.normal, -pl);
 
     auto sgeom_light = ShadingGeometry::make(its.normal, pl, -traced_ray.dir);
+    if (sgeom_light.is_degenerate()) {
+        return spectral::ZERO();
+    }
 
     // Quickly precheck if light is reachable
     if (sgeom_light.nowi > 0.f && cos_light > 0.f) {
@@ -68,7 +71,8 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 }
 
 spectral
-Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const {
+Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
+                               const SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;
@@ -117,7 +121,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &
         if (its.has_light && is_frontfacing) {
             spectral emission = lights[its.light_id].emitter.emission(lambdas);
 
-            if (integrator_type == IntegratorType::Naive || depth == 1 ||
+            if (settings.integrator_type == IntegratorType::Naive || depth == 1 ||
                 last_hit_specular) {
                 // Primary ray hit, can't apply MIS...
                 radiance += throughput * emission;
@@ -126,6 +130,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &
                     bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its, emission);
 
                 radiance += bxdf_mis_contrib;
+                assert(!std::isnan(radiance[0]));
             }
         }
 
@@ -135,7 +140,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &
         }
 
         last_hit_specular = material->is_dirac_delta();
-        if (integrator_type != IntegratorType::Naive && !last_hit_specular) {
+        if (settings.integrator_type != IntegratorType::Naive && !last_hit_specular) {
             f32 light_sample = sampler.sample();
             auto sampled_light = sc.sample_lights(light_sample);
             if (sampled_light.has_value()) {
@@ -148,6 +153,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &
                               shape_sample, material, throughput, lambdas);
 
                 radiance += light_mis_contrib;
+                assert(!std::isnan(radiance[0]));
             }
         }
 
@@ -159,8 +165,10 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &
             break;
         }
         auto bsdf_sample = bsdf_sample_opt.value();
-
         auto sgeom_bxdf = ShadingGeometry::make(its.normal, bsdf_sample.wi, -ray.dir);
+        if (sgeom_bxdf.is_degenerate()) {
+            break;
+        }
 
         auto spawn_ray_normal =
             (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
@@ -185,6 +193,10 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &
             // FIXME: specular infinite path caused by self-intersections
             break;
         }
+    }
+
+    if (std::isnan(radiance[0]) || std::isinf(radiance[0])) {
+        spdlog::error("Invalid radiance at sample {}", frame);
     }
 
     return radiance;

@@ -1,5 +1,7 @@
 #include "render_threads.h"
 
+#include <xmmintrin.h>
+
 static constexpr u32 TILE_SIZE = 8;
 
 struct Tile {
@@ -85,6 +87,10 @@ RenderThreads::start_new_frame() {
 
 void
 RenderThreads::render(u32 thread_id) {
+    // Recommended by the Embree manual
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+
     while (true) {
         start_work.arrive_and_wait();
 

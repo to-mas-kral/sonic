@@ -12,3 +12,4 @@
 *.typ
 *.ncu-rep
 *.txt
+/cmake-build-relwithdebinfo/

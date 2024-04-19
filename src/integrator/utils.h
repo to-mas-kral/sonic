@@ -56,6 +56,12 @@ struct ShadingGeometry {
         };
     }
 
+    /// Detects the edge cases where wo or wi lie exactly on the tangent plane
+    bool
+    is_degenerate() const {
+        return nowi == 0.f || nowo == 0.f;
+    }
+
     f32 cos_theta;
     /// Dot product between normal and w_o.
     f32 nowo;
