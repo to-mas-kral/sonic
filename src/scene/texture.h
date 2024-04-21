@@ -66,7 +66,7 @@ public:
         // TODO: FIXME: figure out a better texture representation
         switch (data_type) {
         case TextureDataType::U8: {
-            u8 *pixels_u8 = reinterpret_cast<u8 *>(pixels);
+            u8 *pixels_u8 = static_cast<u8 *>(pixels);
             assert(num_channels == 3);
 
             f32 a = (f32)pixels_u8[num_channels * pixel_index] / 255.f;
@@ -76,7 +76,7 @@ public:
             return tuple3(a, b, c);
         }
         case TextureDataType::F32: {
-            f32 *pixels_f32 = reinterpret_cast<f32 *>(pixels);
+            f32 *pixels_f32 = static_cast<f32 *>(pixels);
             // assert(num_channels == 3);
 
             f32 a = pixels_f32[num_channels * pixel_index];
@@ -153,7 +153,7 @@ public:
         default:
             assert(false);
         }
-    };
+    }
 
     void
     free() const {

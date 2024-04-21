@@ -185,11 +185,11 @@ Spectrum::eval(const SampledLambdas &lambdas) const {
     case SpectrumType::Dense:
         return dense_spectrum.eval(lambdas);
     case SpectrumType::PiecewiseLinear:
-        return piecewise_spectrum.eval(lambdas);
+        return piecewise_spectrum->eval(lambdas);
     case SpectrumType::Rgb:
-        return rgb_spectrum.eval(lambdas);
+        return rgb_spectrum->eval(lambdas);
     case SpectrumType::RgbUnbounded:
-        return rgb_spectrum_unbounded.eval(lambdas);
+        return rgb_spectrum_unbounded->eval(lambdas);
     default:
         assert(false);
     }
@@ -203,11 +203,11 @@ Spectrum::eval_single(f32 lambda) const {
     case SpectrumType::Dense:
         return dense_spectrum.eval_single(lambda);
     case SpectrumType::PiecewiseLinear:
-        return piecewise_spectrum.eval_single(lambda);
+        return piecewise_spectrum->eval_single(lambda);
     case SpectrumType::Rgb:
-        return rgb_spectrum.eval_single(lambda);
+        return rgb_spectrum->eval_single(lambda);
     case SpectrumType::RgbUnbounded:
-        return rgb_spectrum_unbounded.eval_single(lambda);
+        return rgb_spectrum_unbounded->eval_single(lambda);
     default:
         assert(false);
     }

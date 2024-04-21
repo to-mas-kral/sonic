@@ -70,7 +70,7 @@ load_other_format_texture(const std::string &texture_path, bool is_rgb) {
         constexpr int num_channels_converted = 4;
 
         // Transform u8s to f32s
-        f32 *pixels_f32 = reinterpret_cast<f32 *>(
+        f32 *pixels_f32 = static_cast<f32 *>(
             std::malloc(width * height * num_channels_converted * sizeof(f32)));
 
         for (i32 p = 0; p < width * height; p++) {

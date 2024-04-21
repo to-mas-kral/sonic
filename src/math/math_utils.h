@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cmath>
+#include <numeric>
 
 static constexpr f32 EPS = 0.00001f;
 

@@ -1,7 +1,6 @@
 #ifndef PT_GEOMETRY_H
 #define PT_GEOMETRY_H
 
-#include "../math/sampling.h"
 #include "../math/vecmath.h"
 #include "../scene/emitter.h"
 #include "../utils/basic_types.h"
@@ -35,7 +34,7 @@ struct Mesh {
     u32
     num_triangles() const {
         return num_indices / 3;
-    };
+    }
 
     u32 pos_index;
     u32 indices_index;
@@ -74,15 +73,12 @@ struct Meshes {
 
     Array<u32, 3>
     get_tri_indices(u32 mesh_indices_index, u32 triangle) const;
-    ;
 
     Array<point3, 3>
     get_tri_pos(u32 mesh_pos_index, const Array<u32, 3> &tri_indices) const;
-    ;
 
     f32
     calc_tri_area(u32 mesh_indices_index, u32 mesh_pos_index, u32 triangle) const;
-    ;
 
     norm_vec3
     calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, u32 normals_index,

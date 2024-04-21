@@ -231,8 +231,8 @@ SceneLoader::load_conductor_material(Scene &sc, const pugi::xml_node &bsdf) cons
     tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
     tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
 
-    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta));
-    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k));
+    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta), &sc.spectrum_allocator);
+    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k), &sc.spectrum_allocator);
 
     return Material::make_conductor(eta_spectrum, k_spectrum, sc.material_allocator);
 }
@@ -243,8 +243,8 @@ SceneLoader::load_roughconductor_material(Scene &sc, const pugi::xml_node &bsdf)
     tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
     tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
 
-    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta));
-    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k));
+    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta), &sc.spectrum_allocator);
+    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k), &sc.spectrum_allocator);
 
     return Material::make_rough_conductor(alpha, eta_spectrum, k_spectrum,
                                           sc.material_allocator);
@@ -252,7 +252,7 @@ SceneLoader::load_roughconductor_material(Scene &sc, const pugi::xml_node &bsdf)
 
 Material
 SceneLoader::load_dielectric_material(Scene &sc, const pugi::xml_node &bsdf) const {
-    Spectrum int_ior(GLASS_BK7_ETA);
+    Spectrum int_ior(GLASS_BK7_ETA, &sc.spectrum_allocator);
     Spectrum ext_ior(AIR_ETA);
 
     auto int_ior_node = child_node(bsdf, "int_ior");
@@ -272,7 +272,7 @@ SceneLoader::load_dielectric_material(Scene &sc, const pugi::xml_node &bsdf) con
     Spectrum specular_transmittance(ConstantSpectrum::make(1.f));
     if (transmittance_node) {
         tuple3 rgb = parse_tuple3(transmittance_node.attribute("value").as_string());
-        specular_transmittance = Spectrum(RgbSpectrum::make(rgb));
+        specular_transmittance = Spectrum(RgbSpectrum::make(rgb), &sc.spectrum_allocator);
     }
 
     return Material::make_dielectric(ext_ior, int_ior, specular_transmittance,

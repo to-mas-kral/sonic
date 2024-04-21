@@ -23,7 +23,7 @@ main(int argc, char **argv) {
 
     Settings settings{};
     std::string scene_path{};
-    std::string out_filename{};
+    std::string out_filename = "out";
 
     CLI::App app{"A path-tracer by Tomáš Král, 2023-2024."};
     // argv = app.ensure_utf8(argv);

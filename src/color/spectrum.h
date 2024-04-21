@@ -1,6 +1,7 @@
 #ifndef PT_SPECTRUM_H
 #define PT_SPECTRUM_H
 
+#include "../utils/chunk_allocator.h"
 #include "cie_spectrums.h"
 #include "color_space.h"
 #include "sampled_spectrum.h"
@@ -86,7 +87,7 @@ struct RgbSpectrum {
     tuple3 sigmoid_coeff = tuple3(0.f);
 };
 
-struct RgbSpectrumUnbounded : public RgbSpectrum {
+struct RgbSpectrumUnbounded : RgbSpectrum {
     static RgbSpectrumUnbounded
     make(const tuple3 &rgb);
 
@@ -99,7 +100,7 @@ struct RgbSpectrumUnbounded : public RgbSpectrum {
     f32 scale = 1.f;
 };
 
-struct RgbSpectrumIlluminant : public RgbSpectrumUnbounded {
+struct RgbSpectrumIlluminant : RgbSpectrumUnbounded {
     static RgbSpectrumIlluminant
     make(const tuple3 &rgb, ColorSpace color_space);
 
@@ -122,18 +123,34 @@ enum class SpectrumType {
 };
 
 struct Spectrum {
-    explicit Spectrum(DenseSpectrum ds) : type{SpectrumType::Dense}, dense_spectrum{ds} {}
+    explicit
+    Spectrum(DenseSpectrum ds)
+        : type{SpectrumType::Dense}, dense_spectrum{ds} {}
 
-    explicit Spectrum(PiecewiseSpectrum ps)
-        : type{SpectrumType::PiecewiseLinear}, piecewise_spectrum{ps} {}
+    explicit
+    Spectrum(PiecewiseSpectrum ps, ChunkAllocator<> *spectrum_allocator)
+        : type{SpectrumType::PiecewiseLinear} {
+        piecewise_spectrum = spectrum_allocator->allocate<PiecewiseSpectrum>();
+        *piecewise_spectrum = ps;
+    }
 
-    explicit Spectrum(ConstantSpectrum cs)
+    explicit
+    Spectrum(ConstantSpectrum cs)
         : type{SpectrumType::Constant}, constant_spectrum{cs} {}
 
-    explicit Spectrum(RgbSpectrum rs) : type{SpectrumType::Rgb}, rgb_spectrum{rs} {}
+    explicit
+    Spectrum(RgbSpectrum rs, ChunkAllocator<> *spectrum_allocator)
+        : type{SpectrumType::Rgb} {
+        rgb_spectrum = spectrum_allocator->allocate<RgbSpectrum>();
+        *rgb_spectrum = rs;
+    }
 
-    explicit Spectrum(RgbSpectrumUnbounded rs)
-        : type{SpectrumType::RgbUnbounded}, rgb_spectrum_unbounded{rs} {}
+    explicit
+    Spectrum(RgbSpectrumUnbounded rs, ChunkAllocator<> *spectrum_allocator)
+        : type{SpectrumType::RgbUnbounded} {
+        rgb_spectrum_unbounded = spectrum_allocator->allocate<RgbSpectrumUnbounded>();
+        *rgb_spectrum_unbounded = rs;
+    }
 
     SampledSpectrum
     eval(const SampledLambdas &lambdas) const;
@@ -144,10 +161,10 @@ struct Spectrum {
     SpectrumType type;
     union {
         DenseSpectrum dense_spectrum;
-        PiecewiseSpectrum piecewise_spectrum;
+        PiecewiseSpectrum *piecewise_spectrum;
         ConstantSpectrum constant_spectrum{};
-        RgbSpectrum rgb_spectrum;
-        RgbSpectrumUnbounded rgb_spectrum_unbounded;
+        RgbSpectrum *rgb_spectrum;
+        RgbSpectrumUnbounded *rgb_spectrum_unbounded;
     };
 };
 

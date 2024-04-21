@@ -164,7 +164,7 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
     T y;
 };
 
-template <typename T> struct Vector2 : public Tuple2Base<Vector2, T> {
+template <typename T> struct Vector2 : Tuple2Base<Vector2, T> {
     using Tuple2Base<Vector2, T>::x;
     using Tuple2Base<Vector2, T>::y;
 
@@ -377,7 +377,7 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
         return sqrt(length_squared());
     }
 
-    inline NormalizedVector3
+    NormalizedVector3
     normalized();
 
     static f32
@@ -429,8 +429,8 @@ Vector3<T>::normalized() {
 }
 
 template <typename T>
-inline Vector3<T>
-Vector3<T>::reflect(const Vector3<T> &vec, const NormalizedVector3 &normal) {
+Vector3<T>
+Vector3<T>::reflect(const Vector3 &vec, const NormalizedVector3 &normal) {
     return -vec + normal * dot(normal, vec) * 2.f;
 }
 

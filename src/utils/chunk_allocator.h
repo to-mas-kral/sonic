@@ -3,6 +3,8 @@
 
 #include <memory_resource>
 #include <vector>
+#include <cstdlib>
+#include <cassert>
 
 struct ChunkRecord {
     static ChunkRecord
@@ -19,7 +21,8 @@ struct ChunkRecord {
 
 template <size_t CHUNK_SIZE = 8 * 8192> class ChunkAllocator {
 public:
-    explicit ChunkAllocator() {
+    explicit
+    ChunkAllocator() {
         void *next_chunk = std::aligned_alloc(8, CHUNK_SIZE);
         m_chunks.push_back(ChunkRecord::make(next_chunk));
     }
@@ -44,11 +47,12 @@ public:
         // return_ptr can be nullptr if space is too small, but that was already checked
         assert(return_ptr != nullptr);
 
-        chunk.current_ptr = (std::byte *)return_ptr + T_SIZE;
-        return reinterpret_cast<T *>(return_ptr);
+        chunk.current_ptr = static_cast<std::byte *>(return_ptr) + T_SIZE;
+        return static_cast<T *>(return_ptr);
     }
 
-    ~ChunkAllocator() {
+    ~
+    ChunkAllocator() {
         for (auto &chunk : m_chunks) {
             std::free(chunk.start_ptr);
         }

@@ -7,7 +7,6 @@
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
-#include "common.h"
 #include "conductor.h"
 #include "dielectric.h"
 #include "diffuse.h"
@@ -65,8 +64,7 @@ struct Material {
 
     bool
     is_dirac_delta() const;
-
-    // TODO: discriminated ptr would be nice here...
+    
     MaterialType type = MaterialType::Diffuse;
     bool is_twosided = false;
 
@@ -78,8 +76,6 @@ struct Material {
         ConductorMaterial *conductor;
         RoughConductorMaterial *rough_conductor;
     };
-
-    ~Material() {}
 };
 
 #endif // PT_MATERIAL_H

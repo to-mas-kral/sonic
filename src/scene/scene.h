@@ -11,13 +11,14 @@
 struct Scene {
     Scene() = default;
 
-    ~Scene();
+    ~
+    Scene();
 
     void
     set_envmap(Envmap &&a_envmap) {
         envmap = std::move(a_envmap);
         has_envmap = true;
-    };
+    }
 
     void
     add_mesh(MeshParams mp);
@@ -45,6 +46,7 @@ struct Scene {
     std::vector<Texture> textures{};
 
     ChunkAllocator<> material_allocator{};
+    ChunkAllocator<> spectrum_allocator{};
     std::vector<Material> materials{};
 
     Envmap envmap{};

@@ -70,7 +70,7 @@ public:
 
     Option<Intersection>
     cast_ray(point3 orig, vec3 dir) {
-        struct RTCRayHit rayhit {};
+        RTCRayHit rayhit {};
         rayhit.ray.org_x = orig.x;
         rayhit.ray.org_y = orig.y;
         rayhit.ray.org_z = orig.z;
@@ -113,7 +113,7 @@ public:
         // tfar is relative to the ray length
         f32 tfar = 0.999f;
 
-        struct RTCRay rtc_ray {};
+        RTCRay rtc_ray {};
         rtc_ray.org_x = orig.x;
         rtc_ray.org_y = orig.y;
         rtc_ray.org_z = orig.z;
@@ -174,8 +174,6 @@ public:
 
             size_t pos_byte_offset = mesh.pos_index * sizeof(point3);
             size_t indices_byte_offset = mesh.indices_index * sizeof(u32);
-            size_t normals_byte_offset = mesh.normals_index * sizeof(vec3);
-            size_t uvs_byte_offset = mesh.uvs_index * sizeof(vec2);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3,
                                        pos.data(), pos_byte_offset, sizeof(point3),
@@ -184,34 +182,6 @@ public:
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
                                        indices.data(), indices_byte_offset,
                                        3 * sizeof(u32), mesh.num_indices / 3);
-
-            u32 attr_count = 0;
-            u32 normals_slot;
-            u32 uvs_slot;
-
-            if (mesh.has_normals) {
-                normals_slot = attr_count;
-                attr_count++;
-            }
-
-            if (mesh.has_uvs) {
-                uvs_slot = attr_count;
-                attr_count++;
-            }
-
-            rtcSetGeometryVertexAttributeCount(geom, attr_count);
-            if (mesh.has_normals) {
-                rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX_ATTRIBUTE,
-                                           normals_slot, RTC_FORMAT_FLOAT3,
-                                           normals.data(), normals_byte_offset,
-                                           sizeof(vec3), mesh.num_vertices);
-            }
-
-            if (mesh.has_uvs) {
-                rtcSetSharedGeometryBuffer(
-                    geom, RTC_BUFFER_TYPE_VERTEX_ATTRIBUTE, uvs_slot, RTC_FORMAT_FLOAT2,
-                    uvs.data(), uvs_byte_offset, sizeof(vec2), mesh.num_vertices);
-            }
 
             rtcCommitGeometry(geom);
 

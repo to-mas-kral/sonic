@@ -1,6 +1,8 @@
 
 #include "geometry.h"
 
+#include "../math/sampling.h"
+
 void
 Geometry::add_mesh(const MeshParams &mp, Option<u32> lights_start_id) {
     u32 num_indices = mp.indices->size();
@@ -163,7 +165,7 @@ Meshes::calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, u32 normals_index,
         norm_vec3 normal = vec3::cross(v0, v1).normalized();
         if (normal.any_nan()) {
             // TODO: Degenerate triangle hack...
-            normal = vec3(0.5f, 0.3f, -0.7f).normalized();
+            normal = vec3(0.0f, 0.0f, 1.0f).normalized();
         }
 
         return normal;
