@@ -2,9 +2,8 @@
 #define PT_COLOR_SPACE_H
 
 #include "../math/transform.h"
-#include "../utils/basic_types.h"
-#include "sampled_spectrum.h"
 
+#include "../utils/basic_types.h"
 enum class ColorSpace : u8 {
     sRGB,
 };

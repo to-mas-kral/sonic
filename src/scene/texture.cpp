@@ -8,14 +8,14 @@
 void
 transform_rgb_to_spectrum(f32 *pixels, i32 width, i32 height) {
     for (i32 p = 0; p < width * height; p++) {
-        f32 r = pixels[4 * p + 0];
-        f32 g = pixels[4 * p + 1];
-        f32 b = pixels[4 * p + 2];
+        f32 r = pixels[3 * p + 0];
+        f32 g = pixels[3 * p + 1];
+        f32 b = pixels[3 * p + 2];
 
         RgbSpectrum spectrum = RgbSpectrum::make(tuple3(r, g, b));
-        pixels[4 * p + 0] = spectrum.sigmoid_coeff.x;
-        pixels[4 * p + 1] = spectrum.sigmoid_coeff.y;
-        pixels[4 * p + 2] = spectrum.sigmoid_coeff.z;
+        pixels[3 * p + 0] = spectrum.sigmoid_coeff.x;
+        pixels[3 * p + 1] = spectrum.sigmoid_coeff.y;
+        pixels[3 * p + 2] = spectrum.sigmoid_coeff.z;
     }
 }
 
@@ -32,7 +32,7 @@ load_exr_texture(const std::string &texture_path, bool is_rgb) {
     f32 *pixels = nullptr;
     i32 width = 0;
     i32 height = 0;
-    constexpr u32 num_channels = 4;
+    u32 num_channels = 4;
 
     const char *err = nullptr;
     i32 ret = LoadEXR(&pixels, &width, &height, texture_path.c_str(), &err);
@@ -47,7 +47,21 @@ load_exr_texture(const std::string &texture_path, bool is_rgb) {
     check_texture_dimensions(width, height);
 
     if (is_rgb) {
-        transform_rgb_to_spectrum(pixels, width, height);
+        // Convert form 4 channels to 3
+        f32 *pixels_3_channels =
+            static_cast<f32 *>(std::malloc(width * height * 3 * sizeof(f32)));
+
+        for (i32 p = 0; p < width * height; p++) {
+            pixels_3_channels[3 * p + 0] = pixels[num_channels * p + 0] / 255.f;
+            pixels_3_channels[3 * p + 1] = pixels[num_channels * p + 1] / 255.f;
+            pixels_3_channels[3 * p + 2] = pixels[num_channels * p + 2] / 255.f;
+
+            std::free(pixels);
+            pixels = pixels_3_channels;
+
+            transform_rgb_to_spectrum(pixels, width, height);
+            num_channels = 3;
+        }
     }
 
     return ImageTexture(0, 0, pixels, num_channels, TextureDataType::F32);
@@ -67,20 +81,19 @@ load_other_format_texture(const std::string &texture_path, bool is_rgb) {
             throw std::runtime_error("Invalid RGB texture channel count");
         }
 
-        constexpr int num_channels_converted = 4;
+        constexpr int num_channels_converted = 3;
 
         // Transform u8s to f32s
         f32 *pixels_f32 = static_cast<f32 *>(
             std::malloc(width * height * num_channels_converted * sizeof(f32)));
 
         for (i32 p = 0; p < width * height; p++) {
-            pixels_f32[4 * p + 0] =
+            pixels_f32[num_channels_converted * p + 0] =
                 static_cast<f32>(pixels[num_channels * p + 0]) / 255.f;
-            pixels_f32[4 * p + 1] =
+            pixels_f32[num_channels_converted * p + 1] =
                 static_cast<f32>(pixels[num_channels * p + 1]) / 255.f;
-            pixels_f32[4 * p + 2] =
+            pixels_f32[num_channels_converted * p + 2] =
                 static_cast<f32>(pixels[num_channels * p + 2]) / 255.f;
-            pixels_f32[4 * p + 3] = 1.f;
         }
 
         stbi_image_free(pixels);
@@ -102,5 +115,47 @@ ImageTexture::make(const std::string &texture_path, bool is_rgb) {
         return load_exr_texture(texture_path, is_rgb);
     } else {
         return load_other_format_texture(texture_path, is_rgb);
+    }
+}
+
+tuple3
+ImageTexture::fetch(const vec2 &uv) const {
+    f32 foo;
+    f32 ufrac = std::modf(uv.x, &foo);
+    f32 vfrac = std::modf(uv.y, &foo);
+
+    f32 u = ufrac < 0.f ? 1.f + ufrac : ufrac;
+    f32 v = vfrac < 0.f ? 1.f + vfrac : vfrac;
+
+    vec2 xy_sized = vec2(u, 1.f - v) * vec2(width - 1U, height - 1U);
+
+    u32 x = xy_sized.x;
+    u32 y = xy_sized.y;
+    u64 pixel_index = x + (width * y);
+
+    // TODO: FIXME: figure out a better texture representation
+    switch (data_type) {
+    case TextureDataType::U8: {
+        u8 *pixels_u8 = static_cast<u8 *>(pixels);
+        assert(num_channels == 3);
+
+        f32 a = (f32)pixels_u8[num_channels * pixel_index] / 255.f;
+        f32 b = (f32)pixels_u8[num_channels * pixel_index + 1] / 255.f;
+        f32 c = (f32)pixels_u8[num_channels * pixel_index + 2] / 255.f;
+
+        return tuple3(a, b, c);
+    }
+    case TextureDataType::F32: {
+        f32 *pixels_f32 = static_cast<f32 *>(pixels);
+        // assert(num_channels == 3);
+
+        f32 a = pixels_f32[num_channels * pixel_index];
+        f32 b = pixels_f32[num_channels * pixel_index + 1];
+        f32 c = pixels_f32[num_channels * pixel_index + 2];
+
+        return tuple3(a, b, c);
+    }
+    default:
+        assert(false);
     }
 }

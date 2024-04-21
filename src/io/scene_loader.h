@@ -8,7 +8,6 @@
 #include <pugixml.hpp>
 
 #include "../math/vecmath.h"
-#include "../scene/envmap.h"
 #include "../scene/scene.h"
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"

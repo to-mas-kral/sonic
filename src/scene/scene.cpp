@@ -1,14 +1,14 @@
 #include "scene.h"
 
 u32
-Scene::add_material(Material &&material) {
+Scene::add_material(const Material &material) {
     u32 mat_id = materials.size();
     materials.push_back(material);
     return mat_id;
 }
 
 u32
-Scene::add_texture(Texture &&texture) {
+Scene::add_texture(const Texture &texture) {
     u32 texture_id = textures.size();
     textures.push_back(texture);
     return texture_id;

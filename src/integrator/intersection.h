@@ -1,7 +1,6 @@
 #ifndef PT_INTERSECTION_H
 #define PT_INTERSECTION_H
 
-#include "../geometry/geometry.h"
 #include "../geometry/ray.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
@@ -30,17 +29,17 @@ struct Intersection {
     vec2 uv;
 };
 
-inline constexpr float
+constexpr float
 origin() {
     return 1.0f / 32.0f;
 }
 
-inline constexpr float
+constexpr float
 float_scale() {
     return 1.0f / 65536.0f;
 }
 
-inline constexpr float
+constexpr float
 int_scale() {
     return 256.0f;
 }
@@ -63,7 +62,7 @@ offset_ray(const point3 &p, const norm_vec3 &n) {
 }
 
 inline Ray
-spawn_ray(point3 &pos, const norm_vec3 &spawn_ray_normal, const norm_vec3 &wi) {
+spawn_ray(const point3 &pos, const norm_vec3 &spawn_ray_normal, const norm_vec3 &wi) {
     point3 offset_orig = offset_ray(pos, spawn_ray_normal);
     return Ray(offset_orig, wi);
 }

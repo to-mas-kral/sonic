@@ -6,7 +6,7 @@
 
 /// Data from: https://refractiveindex.info/?shelf=glass&book=BK7&page=SCHOTT (public
 /// domain)
-Array<f32, 58> GLASS_BK7_ETA_RAW = Array<f32, 58>{
+inline auto GLASS_BK7_ETA_RAW = Array<f32, 58>{
     300.f,
     322.f,
     344.f,

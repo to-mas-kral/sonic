@@ -49,46 +49,7 @@ public:
     make(const std::string &texture_path, bool is_rgb);
 
     tuple3
-    fetch(const vec2 &uv) const {
-        f32 foo;
-        f32 ufrac = std::modf(uv.x, &foo);
-        f32 vfrac = std::modf(uv.y, &foo);
-
-        f32 u = ufrac < 0.f ? 1.f + ufrac : ufrac;
-        f32 v = vfrac < 0.f ? 1.f + vfrac : vfrac;
-
-        vec2 xy_sized = vec2(u, 1.f - v) * vec2(width - 1U, height - 1U);
-
-        u32 x = xy_sized.x;
-        u32 y = xy_sized.y;
-        u64 pixel_index = x + (width * y);
-
-        // TODO: FIXME: figure out a better texture representation
-        switch (data_type) {
-        case TextureDataType::U8: {
-            u8 *pixels_u8 = static_cast<u8 *>(pixels);
-            assert(num_channels == 3);
-
-            f32 a = (f32)pixels_u8[num_channels * pixel_index] / 255.f;
-            f32 b = (f32)pixels_u8[num_channels * pixel_index + 1] / 255.f;
-            f32 c = (f32)pixels_u8[num_channels * pixel_index + 2] / 255.f;
-
-            return tuple3(a, b, c);
-        }
-        case TextureDataType::F32: {
-            f32 *pixels_f32 = static_cast<f32 *>(pixels);
-            // assert(num_channels == 3);
-
-            f32 a = pixels_f32[num_channels * pixel_index];
-            f32 b = pixels_f32[num_channels * pixel_index + 1];
-            f32 c = pixels_f32[num_channels * pixel_index + 2];
-
-            return tuple3(a, b, c);
-        }
-        default:
-            assert(false);
-        }
-    };
+    fetch(const vec2 &uv) const;
 
     void
     free() const {
@@ -109,7 +70,6 @@ enum class TextureType : u8 {
     Image,
 };
 
-// TODO: templated texture ? IDK if it's a good idea
 class Texture {
 public:
     Texture() = default;

@@ -26,10 +26,10 @@ struct Scene {
     add_sphere(SphereParams sp);
 
     u32
-    add_material(Material &&material);
+    add_material(const Material &material);
 
     u32
-    add_texture(Texture &&texture);
+    add_texture(const Texture &texture);
 
     void
     init_light_sampler();

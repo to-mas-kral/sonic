@@ -67,7 +67,7 @@ SceneLoader::load_shapes(Scene &sc, const pugi::xml_node &scene) {
             mat_id = materials.at(bsdf_id);
         } else if (bsdf_node) {
             auto [mat, _] = load_material(sc, bsdf_node);
-            mat_id = sc.add_material(std::move(mat));
+            mat_id = sc.add_material(mat);
         } else {
             throw std::runtime_error("Shape has no material");
         }
@@ -102,14 +102,14 @@ void
 SceneLoader::load_materials(pugi::xml_node scene, Scene &sc) {
     // HACK: default material
     auto texture = Texture::make_constant_texture(RgbSpectrum::make(tuple3(0.5f)));
-    u32 tex_id = sc.add_texture(std::move(texture));
+    u32 tex_id = sc.add_texture(texture);
 
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
         auto [mat, id] = load_material(sc, bsdf);
 
-        u32 mat_id = sc.add_material(std::move(mat));
+        u32 mat_id = sc.add_material(mat);
         materials.insert({id, mat_id});
     }
 }
@@ -288,12 +288,12 @@ SceneLoader::load_texture(Scene &sc, const pugi::xml_node &texture_node) const {
 
         auto texture = Texture::make_image_texture(file_path, true);
 
-        u32 tex_id = sc.add_texture(std::move(texture));
+        u32 tex_id = sc.add_texture(texture);
         return tex_id;
     } else {
         tuple3 rgb = parse_tuple3(texture_node.attribute("value").as_string());
         auto texture = Texture::make_constant_texture(RgbSpectrum::make(rgb));
-        u32 tex_id = sc.add_texture(std::move(texture));
+        u32 tex_id = sc.add_texture(texture);
         return tex_id;
     }
 }
@@ -638,7 +638,7 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
         .normals = (face_normals) ? nullptr : &normals,
         .uvs = &uvs,
         .material_id = mat_id,
-        .emitter = std::move(emitter),
+        .emitter = emitter,
     };
 
     sc.add_mesh(mp);

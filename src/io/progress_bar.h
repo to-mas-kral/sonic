@@ -14,14 +14,14 @@ public:
     // Progress is from 0..1
     void
     print(u64 current_count, u64 total_count, std::chrono::duration<f64> elapsed) {
-        f64 progress = (f64)(current_count) / (f64)(total_count);
+        f64 progress = static_cast<f64>(current_count) / static_cast<f64>(total_count);
 
         fmt::print("\r");
         fmt::print("Sample {} / {} - {:.0f}%", current_count, total_count,
                    progress * 100);
         fmt::print("{}", bar_start);
 
-        u32 done_count = (u32)((f64)bar_length * progress);
+        u32 done_count = static_cast<u32>(static_cast<f64>(bar_length) * progress);
 
         for (int a = 0; a < done_count; a++) {
             fmt::print("{}", bar_filler_done);

@@ -1,11 +1,11 @@
 
 #include "sampled_spectrum.h"
-#include "cie_spectrums.h"
 #include "spectrum.h"
 
 #include <limits>
 
-SampledSpectrum::SampledSpectrum(const Array<f32, N_SPECTRUM_SAMPLES> &p_vals)
+SampledSpectrum::
+SampledSpectrum(const Array<f32, N_SPECTRUM_SAMPLES> &p_vals)
     : vals(p_vals) {}
 
 SampledSpectrum
@@ -190,9 +190,9 @@ constexpr f32 PDF = 1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBD
 
 vec3
 SampledLambdas::to_xyz(const SampledSpectrum &radiance) {
-    SampledSpectrum x = CIE_X.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
-    SampledSpectrum y = CIE_Y.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
-    SampledSpectrum z = CIE_Z.eval(static_cast<const SampledLambdas &>(*this)) * radiance;
+    SampledSpectrum x = CIE_X.eval(*this) * radiance;
+    SampledSpectrum y = CIE_Y.eval(*this) * radiance;
+    SampledSpectrum z = CIE_Z.eval(*this) * radiance;
 
     x.div_pdf(PDF);
     y.div_pdf(PDF);
