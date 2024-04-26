@@ -96,7 +96,7 @@ main(int argc, char **argv) {
     spdlog::info("Rendering a {}x{} image at {} spp.", attribs.resx, attribs.resy,
                  settings.spp);
 
-    ProgressBar pb;
+    ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};
 
     for (u32 s = 1; s <= settings.spp; s++) {
@@ -114,7 +114,7 @@ main(int argc, char **argv) {
         pb.print(s, settings.spp, elapsed);
     }
 
-    render_threads.schedule_stop();
+    render_threads.stop();
 
     ImageWriter::write_framebuffer(out_filename, rc.fb, settings.spp);
 

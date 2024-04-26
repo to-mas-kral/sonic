@@ -15,7 +15,7 @@ public:
     RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator);
 
     void
-    schedule_stop();
+    stop();
 
     void
     start_new_frame();

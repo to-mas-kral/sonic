@@ -64,7 +64,7 @@ SceneLoader::load_shapes(Scene &sc, const pugi::xml_node &scene) {
         auto bsdf_node = shape.child("bsdf");
         if (ref_node) {
             std::string bsdf_id = ref_node.attribute("id").as_string();
-            mat_id = materials.at(bsdf_id);
+            mat_id = materials_cache.at(bsdf_id);
         } else if (bsdf_node) {
             auto [mat, _] = load_material(sc, bsdf_node);
             mat_id = sc.add_material(mat);
@@ -110,7 +110,7 @@ SceneLoader::load_materials(pugi::xml_node scene, Scene &sc) {
         auto [mat, id] = load_material(sc, bsdf);
 
         u32 mat_id = sc.add_material(mat);
-        materials.insert({id, mat_id});
+        materials_cache.insert({id, mat_id});
     }
 }
 

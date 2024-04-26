@@ -72,7 +72,7 @@ RenderThreads::RenderThreads(const SceneAttribs &scene_attribs, Integrator *inte
 }
 
 void
-RenderThreads::schedule_stop() {
+RenderThreads::stop() {
     should_stop = true;
     start_work.arrive_and_wait();
 }

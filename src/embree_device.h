@@ -164,8 +164,6 @@ public:
     initialize_meshes() {
         auto &pos = scene->geometry.meshes.pos;
         auto &indices = scene->geometry.meshes.indices;
-        auto &normals = scene->geometry.meshes.normals;
-        auto &uvs = scene->geometry.meshes.uvs;
 
         auto &meshes = scene->geometry.meshes.meshes;
         mesh_count = meshes.size();

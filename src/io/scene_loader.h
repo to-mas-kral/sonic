@@ -25,7 +25,7 @@ struct SceneAttribs {
 /// Only supports a very limited subset of features...
 class SceneLoader {
 public:
-    SceneLoader() : materials(std::unordered_map<std::string, u32>{}){};
+    SceneLoader() : materials_cache(std::unordered_map<std::string, u32>{}){};
 
     explicit SceneLoader(std::string scene_path) {
         pugi::xml_parse_result result = doc.load_file(scene_path.data());
@@ -107,7 +107,7 @@ private:
 
     std::string scene_base_path;
     pugi::xml_document doc;
-    std::unordered_map<std::string, u32> materials;
+    std::unordered_map<std::string, u32> materials_cache;
 };
 
 #endif // PT_SCENE_LOADER_H
