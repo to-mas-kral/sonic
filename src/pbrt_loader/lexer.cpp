@@ -90,16 +90,16 @@ Lexer::skip_whitespace_and_comments() {
 
 std::optional<char>
 Lexer::peek_char() const {
-    if (!src.empty()) {
-        return src.at(0);
+    if (!src->eof()) {
+        return src->peek();
     } else {
         return {};
     }
 }
 
 void
-Lexer::advance() {
-    if (!src.empty()) {
-        src.remove_prefix(1);
+Lexer::advance() const {
+    if (!src->eof()) {
+        src->get();
     }
 }

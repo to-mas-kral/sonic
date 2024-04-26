@@ -3,7 +3,11 @@
 
 #include <optional>
 #include <stdexcept>
-#include <string_view>
+#include <utility>
+
+#include "../utils/basic_types.h"
+
+#include <istream>
 
 enum class LexemeType {
     String,
@@ -19,7 +23,7 @@ struct Lexeme {
     Lexeme(const LexemeType type)
         : type(type) {}
 
-    Lexeme(const LexemeType type, const std::string_view &src) : type(type), src(src) {}
+    Lexeme(const LexemeType type, std::string src) : type(type), src(std::move(src)) {}
 
     bool
     operator==(const Lexeme &other) const {
@@ -27,14 +31,14 @@ struct Lexeme {
     }
 
     LexemeType type;
-    std::string_view src{};
+    std::string src{};
 };
 
 class Lexer {
 public:
     explicit
-    Lexer(const std::string_view &src)
-        : src(src) {}
+    Lexer(std::istream *src)
+        : src{src} {}
 
     Lexeme
     peek();
@@ -44,27 +48,31 @@ public:
 
 private:
     template <typename F>
-    std::string_view
+    std::string
     advance_while(F test) {
-        auto chars_matched = 0;
-        const auto size = src.size();
+        std::string str{};
 
-        while (chars_matched < size) {
-            const auto ch = src.at(chars_matched);
+        while (true) {
+            const auto next_ch = peek_char();
+            if (!next_ch.has_value()) {
+                break;
+            }
+
+            const auto ch = next_ch.value();
+
             if (!test(ch)) {
                 break;
             }
 
-            chars_matched++;
+            advance();
+            str.push_back(ch);
         }
 
-        if (chars_matched == 0) {
+        if (str.empty()) {
             throw std::runtime_error("lexeme inner error: 0 matched chars");
         }
 
-        const auto substr = src.substr(0, chars_matched);
-        src.remove_prefix(chars_matched);
-        return substr;
+        return str;
     }
 
     Lexeme
@@ -80,9 +88,10 @@ private:
     peek_char() const;
 
     void
-    advance();
+    advance() const;
 
-    std::string_view src{};
+    // TODO: there might be some overhead to using istreams... could roll my own
+    std::istream *src;
     std::optional<Lexeme> lexeme_buf{};
 };
 
