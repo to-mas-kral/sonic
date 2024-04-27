@@ -93,8 +93,8 @@ main(int argc, char **argv) {
 
     RenderThreads render_threads(rc.attribs, &integrator);
 
-    spdlog::info("Rendering a {}x{} image at {} spp.", attribs.resx, attribs.resy,
-                 settings.spp);
+    spdlog::info("Rendering a {}x{} image at {} spp.", attribs.camera_attribs.resx,
+                 attribs.camera_attribs.resy, settings.spp);
 
     ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};

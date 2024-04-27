@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #[[Main executable]]
 
-add_executable(pt
-        src/main.cpp
+add_library(pt_lib
         src/render_context.h
         src/framebuffer.h
         src/camera.h
@@ -89,37 +88,45 @@ add_executable(pt
         src/pbrt_loader/pbrt_loader.h
         src/pbrt_loader/lexer.cpp
         src/pbrt_loader/lexer.h
-        src/pbrt_loader/lexer_test.cpp
+        src/scene/scene_attribs.h
+        src/pbrt_loader/param.h
 )
 
-target_compile_options(pt PRIVATE
+target_compile_options(pt_lib PUBLIC
         $<$<CONFIG:Debug>:-fsanitize=address,undefined>
 )
 
-target_link_options(pt PRIVATE
+target_link_options(pt_lib PUBLIC
         $<$<CONFIG:Debug>:-fsanitize=address,undefined>
 )
 
 find_package(fmt CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE fmt::fmt)
+target_link_libraries(pt_lib PUBLIC fmt::fmt)
 
 find_package(tinyexr CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE unofficial::tinyexr::tinyexr)
+target_link_libraries(pt_lib PUBLIC unofficial::tinyexr::tinyexr)
 
 find_package(Stb REQUIRED)
-target_include_directories(pt PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(pt_lib PUBLIC ${Stb_INCLUDE_DIR})
 
 find_package(CLI11 CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE CLI11::CLI11)
+target_link_libraries(pt_lib PUBLIC CLI11::CLI11)
 
 find_package(pugixml CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE pugixml::pugixml)
+target_link_libraries(pt_lib PUBLIC pugixml::pugixml)
 
 find_package(spdlog CONFIG REQUIRED)
-target_link_libraries(pt PRIVATE spdlog::spdlog)
+target_link_libraries(pt_lib PUBLIC spdlog::spdlog)
 
 find_package(embree 4 REQUIRED)
-target_link_libraries(pt PRIVATE embree)
+target_link_libraries(pt_lib PUBLIC embree)
+
+
+add_executable(pt
+        src/main.cpp
+)
+
+target_link_libraries(pt PRIVATE pt_lib)
 
 #[[Packaging]]
 
@@ -140,12 +147,12 @@ add_custom_target(
 add_dependencies(pt run_rgb2spec_opt)
 
 #[[Tests]]
-
-# TODO: pull dependencies into a library for pt and test...
 add_executable(tests
-        src/pbrt_loader/lexer.cpp
-        src/pbrt_loader/lexer_test.cpp
+        src/pbrt_loader/test_lexer.cpp
+        src/pbrt_loader/test_params_parser.cpp
 )
+
+target_link_libraries(tests PRIVATE pt_lib)
 
 find_package(Catch2 3 REQUIRED)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)

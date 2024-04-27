@@ -6,6 +6,7 @@
 #include "../materials/material.h"
 #include "envmap.h"
 #include "light.h"
+#include "scene_attribs.h"
 #include "texture.h"
 
 struct Scene {
@@ -51,6 +52,8 @@ struct Scene {
 
     Envmap envmap{};
     bool has_envmap = false;
+
+    SceneAttribs attribs{};
 };
 
 #endif // PT_SCENE_H

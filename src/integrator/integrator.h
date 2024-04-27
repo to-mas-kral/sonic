@@ -15,7 +15,8 @@ public:
 
     void
     integrate_pixel(uvec2 pixel) const {
-        uvec2 dim = uvec2(rc->attribs.resx, rc->attribs.resy);
+        uvec2 dim =
+            uvec2(rc->attribs.camera_attribs.resx, rc->attribs.camera_attribs.resy);
 
         auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
@@ -24,7 +25,7 @@ public:
 
         auto cam_sample = sampler.sample2();
         auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam,
-                           rc->attribs.camera_to_world);
+                           rc->attribs.camera_attribs.camera_to_world);
 
         SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
 

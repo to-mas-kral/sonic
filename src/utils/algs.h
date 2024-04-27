@@ -5,6 +5,8 @@
 
 #include <cassert>
 
+// TODO: teplace with std::<something>
+
 template <typename Accessor, typename T>
 u32
 binary_search_interval(size_t size, const Accessor &accessor, T val) {

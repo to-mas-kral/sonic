@@ -9,16 +9,9 @@
 
 #include "../math/vecmath.h"
 #include "../scene/scene.h"
+#include "../scene/scene_attribs.h"
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"
-
-struct SceneAttribs {
-    u32 resx = 1280;
-    u32 resy = 720;
-    f32 fov = 30.f;
-    u32 max_depth = 0;
-    mat4 camera_to_world = mat4::identity();
-};
 
 /// Loader for Mitsuba's scene format:
 /// https://mitsuba.readthedocs.io/en/stable/src/key_topics/scene_format.html#scene-xml-file-format
@@ -27,7 +20,8 @@ class SceneLoader {
 public:
     SceneLoader() : materials_cache(std::unordered_map<std::string, u32>{}){};
 
-    explicit SceneLoader(std::string scene_path) {
+    explicit
+    SceneLoader(std::string scene_path) {
         pugi::xml_parse_result result = doc.load_file(scene_path.data());
         if (!result) {
             throw std::runtime_error(

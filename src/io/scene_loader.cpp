@@ -646,15 +646,15 @@ SceneLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transfo
 
 Option<SceneAttribs>
 SceneLoader::load_scene_attribs() {
-    SceneAttribs attribs;
+    SceneAttribs attribs{};
     auto scene = doc.child("scene");
 
     for (pugi::xml_node def : scene.children("default")) {
         str name = def.attribute("name").as_string();
         if (name == "resx") {
-            attribs.resx = def.attribute("value").as_uint();
+            attribs.camera_attribs.resx = def.attribute("value").as_uint();
         } else if (name == "resy") {
-            attribs.resy = def.attribute("value").as_uint();
+            attribs.camera_attribs.resy = def.attribute("value").as_uint();
         } else if (name == "max_depth") {
             attribs.max_depth = def.attribute("value").as_uint();
         }
@@ -664,13 +664,13 @@ SceneLoader::load_scene_attribs() {
     for (pugi::xml_node f : sensor.children("float")) {
         str name = f.attribute("name").as_string();
         if (name == "fov") {
-            attribs.fov = f.attribute("value").as_float();
+            attribs.camera_attribs.fov = f.attribute("value").as_float();
         }
     }
 
     auto transform = sensor.child("transform");
     if (transform) {
-        attribs.camera_to_world = parse_transform(transform);
+        attribs.camera_attribs.camera_to_world = parse_transform(transform);
     }
 
     return attribs;

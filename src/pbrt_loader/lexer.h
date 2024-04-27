@@ -50,6 +50,7 @@ private:
     template <typename F>
     std::string
     advance_while(F test) {
+        // TODO: tweak the default size of this...
         std::string str{};
 
         while (true) {

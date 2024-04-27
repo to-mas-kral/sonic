@@ -53,10 +53,11 @@ get_num_threads() {
     return num_threads;
 }
 
-RenderThreads::RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator)
+RenderThreads::
+RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator)
     : integrator{integrator}, num_threads(get_num_threads()), start_work{num_threads + 1},
-      end_work{num_threads + 1},
-      dimensions(uvec2(scene_attribs.resx, scene_attribs.resy)) {
+      end_work{num_threads + 1}, dimensions(uvec2(scene_attribs.camera_attribs.resx,
+                                                  scene_attribs.camera_attribs.resy)) {
     threads.reserve(num_threads);
 
     for (int i = 0; i < num_threads; ++i) {
@@ -64,7 +65,8 @@ RenderThreads::RenderThreads(const SceneAttribs &scene_attribs, Integrator *inte
         threads.push_back(std::move(t));
     }
 
-    u64 frame_area = scene_attribs.resx * scene_attribs.resy;
+    u64 frame_area =
+        scene_attribs.camera_attribs.resx * scene_attribs.camera_attribs.resy;
     u64 tile_area = TILE_SIZE * TILE_SIZE;
 
     tiles_per_frame = (frame_area + tile_area - 1) / tile_area;

@@ -28,7 +28,7 @@ struct SquareMatrix4 {
     inverse() const;
 
     SquareMatrix4
-    operator*(f32 mul);;
+    operator*(f32 mul);
 
     /// *this* transform is performed first
     SquareMatrix4
@@ -59,7 +59,7 @@ struct SquareMatrix4 {
     transform_point(const point3 &p) const;
 
     /// Column-major matrix
-    f32 mat[4][4];
+    f32 mat[4][4]{};
 };
 
 struct SquareMatrix3 {

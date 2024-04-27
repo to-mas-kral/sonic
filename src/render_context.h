@@ -10,10 +10,13 @@
 /// Render Context is a collection of data needed for the integrators to do their job.
 class RenderContext {
 public:
-    explicit RenderContext(SceneAttribs &attribs) : attribs(attribs) {
-        f32 aspect = static_cast<f32>(attribs.resx) / static_cast<f32>(attribs.resy);
-        cam = Camera(attribs.fov, aspect);
-        fb = Framebuffer(attribs.resx, attribs.resy);
+    explicit
+    RenderContext(const SceneAttribs &attribs)
+        : attribs(attribs) {
+        const f32 aspect = static_cast<f32>(attribs.camera_attribs.resx) /
+                           static_cast<f32>(attribs.camera_attribs.resy);
+        cam = Camera(attribs.camera_attribs.fov, aspect);
+        fb = Framebuffer(attribs.camera_attribs.resx, attribs.camera_attribs.resy);
     }
 
     Scene scene{};
