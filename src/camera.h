@@ -13,6 +13,7 @@ public:
         viewport_width = viewport_height * aspect;
 
         // TODO: take fov_axis from scene parameters
+        // TODO: in PBRT, fov is along the shorter axis...
         f32 axis = viewport_width;
         f32 focal_length = -(axis / 2.f) / tanf((fov * (M_PIf / 180.f)) / 2.f);
 

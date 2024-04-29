@@ -91,15 +91,24 @@ Lexer::skip_whitespace_and_comments() {
 std::optional<char>
 Lexer::peek_char() const {
     if (!src->eof()) {
-        return src->peek();
+        const auto ch = src->peek();
+        // istringstream seems to return -1 for the last character...
+        if (ch == -1) {
+            return {};
+        } else {
+            return ch;
+        }
     } else {
         return {};
     }
 }
 
 void
-Lexer::advance() const {
+Lexer::advance() {
     if (!src->eof()) {
-        src->get();
+        const auto ch = src->get();
+        if (ch == '\n') {
+            newline_counter++;
+        }
     }
 }

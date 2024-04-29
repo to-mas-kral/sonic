@@ -29,8 +29,8 @@ add_library(pt_lib
         src/utils/render_threads.h
         src/utils/render_threads.cpp
 
-        src/io/scene_loader.cpp
-        src/io/scene_loader.h
+        src/mitsuba_loader/mitsuba_loader.cpp
+        src/mitsuba_loader/mitsuba_loader.h
         src/io/image_writer.h
         src/io/progress_bar.h
 
@@ -121,6 +121,8 @@ target_link_libraries(pt_lib PUBLIC spdlog::spdlog)
 find_package(embree 4 REQUIRED)
 target_link_libraries(pt_lib PUBLIC embree)
 
+find_package(unofficial-miniply CONFIG REQUIRED)
+target_link_libraries(pt_lib PRIVATE unofficial::miniply::miniply)
 
 add_executable(pt
         src/main.cpp
@@ -150,6 +152,8 @@ add_dependencies(pt run_rgb2spec_opt)
 add_executable(tests
         src/pbrt_loader/test_lexer.cpp
         src/pbrt_loader/test_params_parser.cpp
+        src/pbrt_loader/test_pbrt_loader.cpp
+        src/math/test_transform.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)

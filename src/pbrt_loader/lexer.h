@@ -1,13 +1,12 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <istream>
 #include <optional>
 #include <stdexcept>
 #include <utility>
 
 #include "../utils/basic_types.h"
-
-#include <istream>
 
 enum class LexemeType {
     String,
@@ -45,6 +44,8 @@ public:
 
     Lexeme
     next();
+
+    u32 newline_counter = 1;
 
 private:
     template <typename F>
@@ -89,7 +90,7 @@ private:
     peek_char() const;
 
     void
-    advance() const;
+    advance();
 
     // TODO: there might be some overhead to using istreams... could roll my own
     std::istream *src;

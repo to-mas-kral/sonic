@@ -12,6 +12,9 @@ struct Light {
     power(const Geometry &geom) const {
         // Mitusba's format doesn't use twosided lights from what I can tell
         f32 area = geom.shape_area(shape);
+        if (emitter.twosided) {
+            area *= 2.f;
+        }
         return M_PI * emitter.power() * area;
     }
 };

@@ -53,6 +53,10 @@ struct Mesh {
 };
 
 // Used only for mesh creation
+// TODO: refactor this whole thing... use pointers to already allocated memory...
+// TODO: also think about validation... validating the index buffers would be robust
+//       against UB...
+// TODO: refactor to norm_vec3... ?
 struct MeshParams {
     std::vector<u32> *indices;
     std::vector<point3> *pos;

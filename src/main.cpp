@@ -3,7 +3,8 @@
 #include "integrator/integrator_type.h"
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
-#include "io/scene_loader.h"
+#include "mitsuba_loader/mitsuba_loader.h"
+#include "pbrt_loader/pbrt_loader.h"
 #include "render_context.h"
 #include "settings.h"
 #include "utils/basic_types.h"
@@ -33,6 +34,8 @@ main(int argc, char **argv) {
         {"mis_nee", IntegratorType::MISNEE},
     };
 
+    // TODO: add num threads option
+
     app.add_option("--samples", settings.spp, "Samples per pixel (SPP).");
     app.add_option("-s,--scene", scene_path, "Path to the scene file.");
     app.add_option("-o,--out", out_filename, "Path of the output file, without '.exr'");
@@ -60,29 +63,26 @@ main(int argc, char **argv) {
      * Load scene attribs from the scene file
      * */
 
-    SceneLoader scene_loader;
-    try {
-        scene_loader = SceneLoader(scene_path);
-    } catch (const std::exception &e) {
-        spdlog::error("Error while loading the scene: {}", e.what());
-        return 1;
-    }
-    auto attrib_result = scene_loader.load_scene_attribs();
-    if (!attrib_result.has_value()) {
-        spdlog::error("Error while getting scene attribs");
-        return 1;
-    }
-    SceneAttribs attribs = attrib_result.value();
-
-    RenderContext rc(attribs);
+    Scene scene{};
 
     spdlog::info("Loading the scene");
     try {
-        scene_loader.load_scene(rc.scene);
+        if (scene_path.ends_with(".xml")) {
+            auto scene_loader = MitsubaLoader(scene_path);
+            scene_loader.load_scene(scene);
+        } else if (scene_path.ends_with(".pbrt")) {
+            auto scene_loader = PbrtLoader(scene_path);
+            scene_loader.load_scene(scene);
+        } else {
+            spdlog::error("Unknown scene file format");
+            return 1;
+        }
     } catch (const std::exception &e) {
         spdlog::error("Error while loading the scene {}", e.what());
         return 1;
     }
+
+    RenderContext rc(std::move(scene));
 
     rc.scene.init_light_sampler();
 
@@ -93,12 +93,12 @@ main(int argc, char **argv) {
 
     RenderThreads render_threads(rc.attribs, &integrator);
 
-    spdlog::info("Rendering a {}x{} image at {} spp.", attribs.camera_attribs.resx,
-                 attribs.camera_attribs.resy, settings.spp);
+    spdlog::info("Rendering a {}x{} image at {} spp.", rc.attribs.film.resx,
+                 rc.attribs.film.resy, settings.spp);
 
     ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};
-
+    // TODO: actually use correct filename
     for (u32 s = 1; s <= settings.spp; s++) {
         render_threads.start_new_frame();
 

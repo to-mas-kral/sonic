@@ -1,8 +1,8 @@
 #include "transform.h"
 
-SquareMatrix4::SquareMatrix4(f32 m00, f32 m01, f32 m02, f32 m03, f32 m10, f32 m11,
-                             f32 m12, f32 m13, f32 m20, f32 m21, f32 m22, f32 m23,
-                             f32 m30, f32 m31, f32 m32, f32 m33) {
+SquareMatrix4::
+SquareMatrix4(f32 m00, f32 m01, f32 m02, f32 m03, f32 m10, f32 m11, f32 m12, f32 m13,
+              f32 m20, f32 m21, f32 m22, f32 m23, f32 m30, f32 m31, f32 m32, f32 m33) {
     // clang-format on
     mat[0][0] = m00;
     mat[0][1] = m01;
@@ -130,7 +130,7 @@ SquareMatrix4::inverse() const {
 }
 
 SquareMatrix4
-SquareMatrix4::operator*(f32 mul) {
+SquareMatrix4::operator*(f32 mul) const {
     auto new_mat = *this;
 
     for (int i = 0; i < 4; i++) {
@@ -210,6 +210,57 @@ SquareMatrix4::from_euler_z(f32 a) {
     // clang-format on
 }
 
+SquareMatrix4
+SquareMatrix4::from_translate(f32 x, f32 y, f32 z) {
+    // clang-format off
+    return SquareMatrix4(
+        1.f, 0.f, 0.f, 0.f,
+        0.f, 1.f, 0.f, 0.f,
+        0.f, 0.f, 1.f, 0.f,
+        x,   y,   z,   1.f
+    );
+    // clang-format on
+}
+
+SquareMatrix4
+SquareMatrix4::from_scale(f32 x, f32 y, f32 z) {
+    // clang-format off
+    return SquareMatrix4(
+        x,   0.f, 0.f, 0.f,
+        0.f, y,   0.f, 0.f,
+        0.f, 0.f, z,   0.f,
+        0.f, 0.f, 0.f, 1.f
+    );
+    // clang-format on
+}
+
+SquareMatrix4
+SquareMatrix4::from_lookat(vec3 eye, vec3 look, vec3 up) {
+    // Taken from PBRTv4
+    const auto dir = (look - eye).normalized();
+    const auto right = vec3::cross(up.normalized(), dir).normalized();
+    const auto new_up = vec3::cross(dir, right);
+
+    auto mat = SquareMatrix4();
+
+    mat.mat[0][0] = right.x;
+    mat.mat[1][0] = right.y;
+    mat.mat[2][0] = right.z;
+    mat.mat[3][0] = 0.f;
+    mat.mat[0][1] = new_up.x;
+    mat.mat[1][1] = new_up.y;
+    mat.mat[2][1] = new_up.z;
+    mat.mat[3][1] = 0.f;
+    mat.mat[0][2] = dir.x;
+    mat.mat[1][2] = dir.y;
+    mat.mat[2][2] = dir.z;
+    mat.mat[3][2] = 0.f;
+
+    mat.mat[3][3] = 1.f;
+
+    return mat;
+}
+
 vec3
 SquareMatrix4::transform_vec(const vec3 &v) const {
     f32 x = v.x;
@@ -241,8 +292,9 @@ SquareMatrix4::transform_point(const point3 &p) const {
     }
 }
 
-SquareMatrix3::SquareMatrix3(f32 m00, f32 m01, f32 m02, f32 m10, f32 m11, f32 m12,
-                             f32 m20, f32 m21, f32 m22) {
+SquareMatrix3::
+SquareMatrix3(f32 m00, f32 m01, f32 m02, f32 m10, f32 m11, f32 m12, f32 m20, f32 m21,
+              f32 m22) {
     // clang-format on
     mat[0][0] = m00;
     mat[0][1] = m01;

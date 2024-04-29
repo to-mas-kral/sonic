@@ -54,6 +54,37 @@ struct Scene {
     bool has_envmap = false;
 
     SceneAttribs attribs{};
+
+    Scene(const Scene &other) = delete;
+
+    Scene(Scene &&other) noexcept
+        : geometry(std::move(other.geometry)),
+          light_sampler(std::move(other.light_sampler)), lights(std::move(other.lights)),
+          textures(std::move(other.textures)),
+          material_allocator(other.material_allocator),
+          spectrum_allocator(other.spectrum_allocator),
+          materials(std::move(other.materials)), envmap(std::move(other.envmap)),
+          has_envmap(other.has_envmap), attribs(other.attribs) {}
+
+    Scene &
+    operator=(const Scene &other) = delete;
+
+    Scene &
+    operator=(Scene &&other) noexcept {
+        if (this == &other)
+            return *this;
+        geometry = std::move(other.geometry);
+        light_sampler = std::move(other.light_sampler);
+        lights = std::move(other.lights);
+        textures = std::move(other.textures);
+        material_allocator = other.material_allocator;
+        spectrum_allocator = other.spectrum_allocator;
+        materials = std::move(other.materials);
+        envmap = std::move(other.envmap);
+        has_envmap = other.has_envmap;
+        attribs = other.attribs;
+        return *this;
+    }
 };
 
 #endif // PT_SCENE_H

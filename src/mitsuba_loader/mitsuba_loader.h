@@ -16,12 +16,12 @@
 /// Loader for Mitsuba's scene format:
 /// https://mitsuba.readthedocs.io/en/stable/src/key_topics/scene_format.html#scene-xml-file-format
 /// Only supports a very limited subset of features...
-class SceneLoader {
+class MitsubaLoader {
 public:
-    SceneLoader() : materials_cache(std::unordered_map<std::string, u32>{}){};
+    MitsubaLoader() : materials_cache(std::unordered_map<std::string, u32>{}){};
 
     explicit
-    SceneLoader(std::string scene_path) {
+    MitsubaLoader(std::string scene_path) {
         pugi::xml_parse_result result = doc.load_file(scene_path.data());
         if (!result) {
             throw std::runtime_error(
@@ -32,8 +32,8 @@ public:
         scene_base_path = path.parent_path();
     }
 
-    std::optional<SceneAttribs>
-    load_scene_attribs();
+    SceneAttribs
+    load_scene_attribs(SceneAttribs &attribs);
     void
     load_scene(Scene &sc);
 

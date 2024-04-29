@@ -2,8 +2,8 @@
 #define PT_RENDER_THREADS_H
 
 #include "../integrator/integrator.h"
-#include "../io/scene_loader.h"
 #include "basic_types.h"
+#include "../scene/scene_attribs.h"
 
 #include <atomic>
 #include <barrier>

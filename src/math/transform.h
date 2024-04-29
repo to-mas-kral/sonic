@@ -28,7 +28,7 @@ struct SquareMatrix4 {
     inverse() const;
 
     SquareMatrix4
-    operator*(f32 mul);
+    operator*(f32 mul)const;
 
     /// *this* transform is performed first
     SquareMatrix4
@@ -51,6 +51,15 @@ struct SquareMatrix4 {
     /// Angle is in radians!
     static SquareMatrix4
     from_euler_z(f32 a);
+
+    static SquareMatrix4
+    from_translate(f32 x, f32 y, f32 z);
+
+    static SquareMatrix4
+    from_scale(f32 x, f32 y, f32 z);
+
+    static SquareMatrix4
+    from_lookat(vec3 eye, vec3 look, vec3 up);
 
     vec3
     transform_vec(const vec3 &v) const;

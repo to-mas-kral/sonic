@@ -120,6 +120,7 @@ enum class SpectrumType {
     PiecewiseLinear,
     Rgb,
     RgbUnbounded,
+    RgbIlluminant,
 };
 
 struct Spectrum {
@@ -152,6 +153,13 @@ struct Spectrum {
         *rgb_spectrum_unbounded = rs;
     }
 
+    explicit
+    Spectrum(RgbSpectrumIlluminant rs, ChunkAllocator<> *spectrum_allocator)
+        : type{SpectrumType::RgbIlluminant} {
+        rgb_spectrum_illuminant = spectrum_allocator->allocate<RgbSpectrumIlluminant>();
+        *rgb_spectrum_illuminant = rs;
+    }
+
     SampledSpectrum
     eval(const SampledLambdas &lambdas) const;
 
@@ -165,6 +173,7 @@ struct Spectrum {
         ConstantSpectrum constant_spectrum{};
         RgbSpectrum *rgb_spectrum;
         RgbSpectrumUnbounded *rgb_spectrum_unbounded;
+        RgbSpectrumIlluminant *rgb_spectrum_illuminant;
     };
 };
 

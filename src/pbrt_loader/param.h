@@ -35,6 +35,10 @@ enum class ParamType {
 };
 
 struct Param {
+    Param()
+        : type{ParamType::Simple}, value_type(ValueType::Int), name{std::string{}},
+          inner{0} {}
+
     explicit
     Param(std::string &&name)
         : type{ParamType::Simple}, value_type(ValueType::Int), name{name}, inner{0} {}
@@ -56,10 +60,6 @@ struct Param {
 
     Param(std::string &&name, const vec3 value)
         : type{ParamType::Single}, value_type{ValueType::Vector3}, name{name},
-          inner{value} {}
-
-    Param(std::string &&name, const norm_vec3 value)
-        : type{ParamType::Single}, value_type{ValueType::Normal}, name{name},
           inner{value} {}
 
     Param(std::string &&name, const tuple3 value)
@@ -95,8 +95,8 @@ struct Param {
         : type{ParamType::List}, value_type{ValueType::Vector3}, name{name},
           inner{value} {}
 
-    Param(std::string &&name, std::vector<norm_vec3> &&value)
-        : type{ParamType::List}, value_type{ValueType::Normal}, name{name}, inner{value} {
+    Param(std::string &&name, std::vector<std::string> &&value)
+        : type{ParamType::List}, value_type{ValueType::String}, name{name}, inner{value} {
     }
 
     ParamType type;
@@ -104,9 +104,9 @@ struct Param {
     ValueType value_type;
     std::string name;
 
-    std::variant<i32, f32, vec2, point3, vec3, norm_vec3, tuple3, bool, std::string,
+    std::variant<i32, f32, vec2, point3, vec3, tuple3, bool, std::string,
                  std::vector<i32>, std::vector<f32>, std::vector<vec2>,
-                 std::vector<point3>, std::vector<vec3>, std::vector<norm_vec3>>
+                 std::vector<point3>, std::vector<vec3>, std::vector<std::string>>
         inner;
 
     Param(const Param &other) = delete;
@@ -139,6 +139,41 @@ struct ParamsList {
         params.push_back(std::move(param));
     }
 
+    Param &
+    next_param() {
+        if (index < params.size()) {
+            return params.at(index++);
+        } else {
+            throw std::runtime_error("Param list is empty");
+        }
+    }
+
+    Param &
+    expect(const ParamType pt) {
+        auto &next = next_param();
+        if (next.type != pt) {
+            throw std::runtime_error("Wrong Param type");
+        }
+
+        return next;
+    }
+
+    std::span<Param>
+    get_remaining() {
+        if (index < params.size()) {
+            auto span = std::span(params);
+            span = span.subspan(index);
+            return span;
+        } else {
+            return std::span<Param>();
+        }
+    }
+
+private:
+#ifdef TEST_PUBLIC
+public:
+#endif
+    i32 index = 0;
     std::vector<Param> params{};
 };
 
