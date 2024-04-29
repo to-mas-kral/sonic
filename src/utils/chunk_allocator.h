@@ -1,10 +1,11 @@
 #ifndef PT_CHUNK_ALLOCATOR_H
 #define PT_CHUNK_ALLOCATOR_H
 
-#include <memory_resource>
-#include <vector>
-#include <cstdlib>
 #include <cassert>
+#include <cstdlib>
+#include <memory_resource>
+#include <spdlog/spdlog.h>
+#include <vector>
 
 struct ChunkRecord {
     static ChunkRecord
@@ -51,9 +52,27 @@ public:
         return static_cast<T *>(return_ptr);
     }
 
+    ChunkAllocator(const ChunkAllocator &other) = delete;
+
+    ChunkAllocator(ChunkAllocator &&other) noexcept
+        : m_chunks(std::move(other.m_chunks)),
+          m_bytes_remaining(other.m_bytes_remaining) {}
+
+    ChunkAllocator &
+    operator=(const ChunkAllocator &other) = delete;
+
+    ChunkAllocator &
+    operator=(ChunkAllocator &&other) noexcept {
+        if (this == &other)
+            return *this;
+        m_chunks = std::move(other.m_chunks);
+        m_bytes_remaining = other.m_bytes_remaining;
+        return *this;
+    }
+
     ~
     ChunkAllocator() {
-        for (auto &chunk : m_chunks) {
+        for (const auto &chunk : m_chunks) {
             std::free(chunk.start_ptr);
         }
     }

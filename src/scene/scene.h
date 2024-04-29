@@ -61,8 +61,8 @@ struct Scene {
         : geometry(std::move(other.geometry)),
           light_sampler(std::move(other.light_sampler)), lights(std::move(other.lights)),
           textures(std::move(other.textures)),
-          material_allocator(other.material_allocator),
-          spectrum_allocator(other.spectrum_allocator),
+          material_allocator(std::move(other.material_allocator)),
+          spectrum_allocator(std::move(other.spectrum_allocator)),
           materials(std::move(other.materials)), envmap(std::move(other.envmap)),
           has_envmap(other.has_envmap), attribs(other.attribs) {}
 
@@ -77,8 +77,8 @@ struct Scene {
         light_sampler = std::move(other.light_sampler);
         lights = std::move(other.lights);
         textures = std::move(other.textures);
-        material_allocator = other.material_allocator;
-        spectrum_allocator = other.spectrum_allocator;
+        material_allocator = std::move(other.material_allocator);
+        spectrum_allocator = std::move(other.spectrum_allocator);
         materials = std::move(other.materials);
         envmap = std::move(other.envmap);
         has_envmap = other.has_envmap;
