@@ -236,29 +236,19 @@ SquareMatrix4::from_scale(f32 x, f32 y, f32 z) {
 
 SquareMatrix4
 SquareMatrix4::from_lookat(vec3 eye, vec3 look, vec3 up) {
-    // Taken from PBRTv4
+    // Taken from GLM
     const auto dir = (look - eye).normalized();
-    const auto right = vec3::cross(up.normalized(), dir).normalized();
+    const auto right = vec3::cross(up, dir).normalized();
     const auto new_up = vec3::cross(dir, right);
 
-    auto mat = SquareMatrix4();
-
-    mat.mat[0][0] = right.x;
-    mat.mat[1][0] = right.y;
-    mat.mat[2][0] = right.z;
-    mat.mat[3][0] = 0.f;
-    mat.mat[0][1] = new_up.x;
-    mat.mat[1][1] = new_up.y;
-    mat.mat[2][1] = new_up.z;
-    mat.mat[3][1] = 0.f;
-    mat.mat[0][2] = dir.x;
-    mat.mat[1][2] = dir.y;
-    mat.mat[2][2] = dir.z;
-    mat.mat[3][2] = 0.f;
-
-    mat.mat[3][3] = 1.f;
-
-    return mat;
+    // clang-format off
+    return SquareMatrix4(
+        right.x, new_up.x, dir.x, 0.f,
+        right.y, new_up.y, dir.y, 0.f,
+        right.z, new_up.z, dir.z, 0.f,
+        -vec3::dot(right, eye), -vec3::dot(new_up, eye), -vec3::dot(dir, eye), 1.f
+    );
+    // clang-format on
 }
 
 vec3

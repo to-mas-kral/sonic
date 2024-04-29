@@ -82,6 +82,9 @@ private:
     load_plymesh(Scene &sc, ParamsList &params) const;
 
     void
+    load_sphere(Scene &sc, ParamsList &params) const;
+
+    void
     area_light_source(Scene &sc);
 
     Lexeme

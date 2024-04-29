@@ -315,7 +315,7 @@ PbrtLoader::load_scene_description(Scene &sc) {
         } else if (directive.src == "AreaLightSource") {
             area_light_source(sc);
         } else if (directive.src == "ReverseOrientation") {
-            throw std::runtime_error("'ReverseOrientation' unimplemented");
+            current_astate.reverse_orientation = true;
         } else if (directive.src == "Material") {
             spdlog::warn("Material ignored");
             const auto _ = parse_param_list();
@@ -369,10 +369,10 @@ PbrtLoader::load_shape(Scene &sc) {
 
 void
 PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params) const {
-    std::optional<std::vector<u32>> indices{};
-    std::optional<std::vector<point3>> pos{};
-    std::optional<std::vector<vec3>> normals{};
-    std::optional<std::vector<vec2>> uvs{};
+    std::vector<u32> indices{};
+    std::vector<point3> pos{};
+    std::vector<vec3> normals{};
+    std::vector<vec2> uvs{};
 
     for (auto &p : params.get_remaining()) {
         if (p.name == "indices") {
@@ -404,25 +404,31 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params) const {
         }
     }
 
-    if (pos->empty()) {
+    if (pos.empty()) {
         throw std::runtime_error("'trianglemesh' Shape without positions");
     }
 
     // indices are required, unless exactly three vertices are specified.
-    if (indices->empty()) {
-        if (pos->size() == 3) {
+    if (indices.empty()) {
+        if (pos.size() == 3) {
             indices = std::vector{0u, 1u, 2u};
         } else {
             throw std::runtime_error("'trianglemesh' Shape without indices");
         }
     }
 
+    if (current_astate.reverse_orientation) {
+        for (auto &normal : normals) {
+            normal = -normal;
+        }
+    }
+
     // TODO: correct material
     const auto mp = MeshParams{
-        .indices = &indices.value(),
-        .pos = &pos.value(),
-        .normals = normals.has_value() ? &normals.value() : nullptr,
-        .uvs = uvs.has_value() ? &uvs.value() : nullptr,
+        .indices = &indices,
+        .pos = &pos,
+        .normals = !normals.empty() ? &normals : nullptr,
+        .uvs = !uvs.empty() ? &uvs : nullptr,
         .material_id = 0,
         .emitter = current_astate.emitter,
     };
@@ -450,7 +456,8 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
     const auto filepath = std::filesystem::absolute(file_directory).append(filename);
     miniply::PLYReader reader(filepath.c_str());
     if (!reader.valid()) {
-        throw std::runtime_error(fmt::format("Can't read PLY file '{}'", filename));
+        throw std::runtime_error(
+            fmt::format("Can't read PLY file '{}'", filepath.string()));
     }
 
     std::vector<point3> pos{};
@@ -512,6 +519,12 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
         throw std::runtime_error(fmt::format("PLY error in '{}'", filename));
     }
 
+    if (current_astate.reverse_orientation) {
+        for (auto &normal : normals) {
+            normal = -normal;
+        }
+    }
+
     // TODO: pass correct material
     const auto mp = MeshParams{
         .indices = &indices,
@@ -523,6 +536,24 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
     };
 
     sc.add_mesh(mp);
+}
+
+void
+PbrtLoader::load_sphere(Scene &sc, ParamsList &params) const {
+    auto radius = 1.f;
+
+    for (const auto &p : params.get_remaining()) {
+        if (p.name == "radius") {
+            radius = std::get<f32>(p.inner);
+        } else {
+            spdlog::warn("Ignored Sphere param: '{}'", p.name);
+        }
+    }
+
+    sc.add_sphere(SphereParams{.center = point3(0.f),
+                               .radius = radius,
+                               .material_id = 0,
+                               .emitter = current_astate.emitter});
 }
 
 // TODO: need to refactor the whole light-emitter nonsense... probably need to have the
