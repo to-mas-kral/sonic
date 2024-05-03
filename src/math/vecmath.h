@@ -381,6 +381,8 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
 
     Vector3(T x, T y, T z) : Tuple3Base<Vector3, T>(x, y, z) {}
 
+    Vector3() : Tuple3Base<Vector3, T>(0.f) {}
+
     T
     length_squared() const {
         return sqr(x) + sqr(y) + sqr(z);

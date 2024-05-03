@@ -1,17 +1,48 @@
 #include "scene.h"
 
-u32
-Scene::add_material(const Material &material) {
-    u32 mat_id = materials.size();
-    materials.push_back(material);
-    return mat_id;
+#include "../color/spectral_data.h"
+
+Scene::
+Scene() {
+    builtin_spectra.insert({"metal-Au-eta", Spectrum(AU_ETA, &spectrum_allocator)});
+    builtin_spectra.insert({"metal-Au-k", Spectrum(AU_K, &spectrum_allocator)});
+    builtin_spectra.insert({"metal-Ag-eta", Spectrum(AG_ETA, &spectrum_allocator)});
+    builtin_spectra.insert({"metal-Ag-k", Spectrum(AG_K, &spectrum_allocator)});
+    builtin_spectra.insert({"metal-Cu-eta", Spectrum(CU_ETA, &spectrum_allocator)});
+    builtin_spectra.insert({"metal-Cu-k", Spectrum(CU_K, &spectrum_allocator)});
+
+    builtin_spectra.insert({"glass-BK7", Spectrum(GLASS_BK7_ETA, &spectrum_allocator)});
+
+    for (const auto &spectrum : builtin_spectra) {
+        builtin_textures.insert(
+            {spectrum.first,
+             add_texture(Texture::make_constant_texture(spectrum.second))});
+    }
+
+    builtin_textures.insert(
+        {"reflectance", add_texture(Texture::make_constant_texture(0.5f))});
+    builtin_textures.insert(
+        {"roughness", add_texture(Texture::make_constant_texture(0.f))});
+    builtin_textures.insert(
+        {"eta-dielectric", add_texture(Texture::make_constant_texture(1.5f))});
+    builtin_textures.insert({"eta-conductor", add_texture(Texture::make_constant_texture(
+                                                  builtin_spectra.at("metal-Cu-eta")))});
+    builtin_textures.insert({"k-conductor", add_texture(Texture::make_constant_texture(
+                                                builtin_spectra.at("metal-Cu-k")))});
 }
 
-u32
+MaterialId
+Scene::add_material(const Material &material) {
+    const u32 mat_id = materials.size();
+    materials.push_back(material);
+    return MaterialId(mat_id);
+}
+
+TextureId
 Scene::add_texture(const Texture &texture) {
-    u32 texture_id = textures.size();
+    const u32 texture_id = textures.size();
     textures.push_back(texture);
-    return texture_id;
+    return TextureId{texture_id};
 }
 
 void
@@ -53,7 +84,8 @@ Scene::add_sphere(SphereParams sp) {
     geometry.add_sphere(sp, light_id);
 }
 
-Scene::~Scene() {
+Scene::~
+Scene() {
     for (auto &tex : textures) {
         tex.free();
     }

@@ -18,7 +18,7 @@
 /// Only supports a very limited subset of features...
 class MitsubaLoader {
 public:
-    MitsubaLoader() : materials_cache(std::unordered_map<std::string, u32>{}){};
+    MitsubaLoader() : materials_cache(std::unordered_map<std::string, MaterialId>{}){};
 
     explicit
     MitsubaLoader(std::string scene_path) {
@@ -39,20 +39,20 @@ public:
 
 private:
     static void
-    load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
+    load_rectangle(pugi::xml_node shape, MaterialId mat_id, const mat4 &transform,
                    Option<Emitter>, Scene &sc);
 
     static void
-    load_cube(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
+    load_cube(pugi::xml_node shape_node, MaterialId mat_id, const mat4 &transform,
               Option<Emitter>, Scene &sc);
 
     void
-    load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
+    load_obj(pugi::xml_node shape_node, MaterialId mat_id, const mat4 &transform,
              Option<Emitter>, Scene &sc);
 
     void
-    load_sphere(pugi::xml_node node, u32 id, mat4 mat_1, Option<Emitter> emitter_id,
-                Scene &sc);
+    load_sphere(pugi::xml_node node, MaterialId id, mat4 mat_1,
+                Option<Emitter> emitter_id, Scene &sc);
 
     void
     load_materials(pugi::xml_node scene_node, Scene &sc);
@@ -96,12 +96,12 @@ private:
     static mat4
     parse_transform_rotate(const pugi::xml_node &transform_node);
 
-    u32
+    TextureId
     load_texture(Scene &sc, const pugi::xml_node &texture_node) const;
 
     std::string scene_base_path;
     pugi::xml_document doc;
-    std::unordered_map<std::string, u32> materials_cache;
+    std::unordered_map<std::string, MaterialId> materials_cache;
 };
 
 #endif // PT_SCENE_LOADER_H

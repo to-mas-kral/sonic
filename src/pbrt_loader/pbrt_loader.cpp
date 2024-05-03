@@ -3,6 +3,10 @@
 #include <charconv>
 #include <miniply.h>
 
+#include "../color/spectral_data.h"
+
+using namespace std::literals;
+
 Lexer
 init_lexer(const std::filesystem::path &file_path, std::vector<char> &buf,
            std::ifstream &file_stream) {
@@ -24,14 +28,6 @@ PbrtLoader(std::istream &istream)
 void
 PbrtLoader::load_scene(Scene &sc) {
     sc.attribs = SceneAttribs::pbrt_defaults();
-
-    // TODO: HACK default material
-    auto texture = Texture::make_constant_texture(RgbSpectrum::make(tuple3(0.5f)));
-    u32 tex_id = sc.add_texture(texture);
-    auto mat = Material::make_diffuse(tex_id);
-    // TODO: figure out two-sidedness...
-    mat.is_twosided = true;
-    sc.add_material(mat);
 
     load_screenwide_options(sc);
     load_scene_description(sc);
@@ -58,8 +54,7 @@ PbrtLoader::load_screenwide_options(Scene &sc) {
             spdlog::warn("'PixelFilter' ignored");
             const auto _ = parse_param_list();
         } else if (directive.src == "Integrator") {
-            spdlog::warn("'Integrator' ignored");
-            const auto _ = parse_param_list();
+            load_integrator(sc);
         } else if (directive.src == "Accelerator") {
             spdlog::warn("'Accelerator' ignored");
             const auto _ = parse_param_list();
@@ -108,19 +103,15 @@ PbrtLoader::load_camera(Scene &sc) {
     sc.attribs.camera.camera_to_world = current_astate.ctm.inverse();
 
     if (type.name == "perspective") {
-        auto next_params = params.get_remaining();
-        for (auto &p : next_params) {
-            if (p.name == "fov") {
-                if (p.value_type != ValueType::Float) {
-                    throw std::runtime_error("Invalid 'fov' param type");
-                }
-
-                sc.attribs.camera.fov = std::get<f32>(p.inner);
-            }
+        const auto fov = params.get_optional("fov", ValueType::Float);
+        if (fov.has_value()) {
+            sc.attribs.camera.fov = std::get<f32>(fov.value()->inner);
         }
     } else {
         spdlog::warn("Camera type '{}' unimplemented, using default", type.name);
     }
+
+    params.warn_unused_params("Camera"sv);
 }
 
 void
@@ -133,18 +124,34 @@ PbrtLoader::load_film(Scene &sc) {
                      type.name);
     }
 
-    auto next_params = params.get_remaining();
-    for (auto &p : next_params) {
-        if (p.name == "xresolution") {
-            sc.attribs.film.resx = std::get<i32>(p.inner);
-        } else if (p.name == "yresolution") {
-            sc.attribs.film.resy = std::get<i32>(p.inner);
-        } else if (p.name == "filename") {
-            sc.attribs.film.filename = std::get<std::string>(p.inner);
-        } else {
-            spdlog::warn("Unimplemented Film parameter: '{}'", p.name);
-        }
+    const auto resx = params.get_optional("xresolution", ValueType::Int);
+    if (resx.has_value()) {
+        sc.attribs.film.resx = std::get<i32>(resx.value()->inner);
     }
+
+    const auto resy = params.get_optional("yresolution", ValueType::Int);
+    if (resy.has_value()) {
+        sc.attribs.film.resy = std::get<i32>(resy.value()->inner);
+    }
+
+    const auto filename = params.get_optional("filename", ValueType::String);
+    if (filename.has_value()) {
+        sc.attribs.film.filename = std::get<std::string>(filename.value()->inner);
+    }
+
+    params.warn_unused_params("Film"sv);
+}
+
+void
+PbrtLoader::load_integrator(Scene &sc) {
+    auto params = parse_param_list();
+
+    const auto &maxdepth_p = params.get_optional("maxdepth", ValueType::Int);
+    if (maxdepth_p.has_value()) {
+        sc.attribs.max_depth = std::get<i32>(maxdepth_p.value()->inner);
+    }
+
+    params.warn_unused_params("Integrator");
 }
 
 void
@@ -211,7 +218,6 @@ PbrtLoader::load_lookat() {
     const auto up_z = parse_float();
     const auto up = vec3(up_x, up_y, up_z);
 
-    // TODO: lookat is most likely wrong
     const auto trans = mat4::from_lookat(eye, look, up);
     current_astate.ctm = current_astate.ctm.compose(trans);
 }
@@ -220,7 +226,7 @@ void
 PbrtLoader::load_transform() {
     // Some files can have the numbers in brackets...
     auto p = parse_param("float", std::move(std::string("")));
-    const auto array = std::get<std::vector<f32>>(p.inner);
+    const auto &array = std::get<std::vector<f32>>(p.inner);
 
     if (array.size() != 16) {
         throw std::runtime_error("Transform has wrong amount of elements");
@@ -242,7 +248,7 @@ void
 PbrtLoader::load_concat_transform() {
     // Some files can have the numbers in brackets...
     auto p = parse_param("float", std::move(std::string("")));
-    const auto array = std::get<std::vector<f32>>(p.inner);
+    const auto &array = std::get<std::vector<f32>>(p.inner);
 
     if (array.size() != 16) {
         throw std::runtime_error("Transform has wrong amount of elements");
@@ -317,17 +323,14 @@ PbrtLoader::load_scene_description(Scene &sc) {
         } else if (directive.src == "ReverseOrientation") {
             current_astate.reverse_orientation = true;
         } else if (directive.src == "Material") {
-            spdlog::warn("Material ignored");
-            const auto _ = parse_param_list();
+            load_material(sc);
         } else if (directive.src == "MakeNamedMaterial") {
-            spdlog::warn("'MakeNamedMaterial' ignored");
-            const auto _ = parse_param_list();
+            load_make_named_material(sc);
         } else if (directive.src == "NamedMaterial") {
-            spdlog::warn("'NamedMaterial' ignored");
+            load_named_material();
             const auto _ = parse_param_list();
         } else if (directive.src == "Texture") {
-            spdlog::warn("'Texture' ignored");
-            const auto _ = parse_param_list();
+            load_texture(sc);
         } else {
             throw std::runtime_error(
                 fmt::format("Unknown screenwide directive: '{}'", directive.src));
@@ -338,7 +341,6 @@ PbrtLoader::load_scene_description(Scene &sc) {
 void
 PbrtLoader::attribute_begin() {
     astates.push_back(current_astate);
-    current_astate = AttributeState{};
 }
 
 void
@@ -367,6 +369,8 @@ PbrtLoader::load_shape(Scene &sc) {
     }
 }
 
+// TODO: should I validate indices ?
+
 void
 PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params) const {
     std::vector<u32> indices{};
@@ -374,34 +378,26 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params) const {
     std::vector<vec3> normals{};
     std::vector<vec2> uvs{};
 
-    for (auto &p : params.get_remaining()) {
-        if (p.name == "indices") {
-            const auto array = std::get<std::vector<i32>>(p.inner);
-            // indices->reserve(array.size());
-            //  TODO: think about validation... ints could be negative... but indices
-            //  could also be too large... should probably be validated against the oter
-            //  buffers
-            indices = std::vector<u32>(array.begin(), array.end());
-        }
+    const auto &p_p = params.get_required("P", ValueType::Point3);
+    const auto &pos_array = std::get<std::vector<point3>>(p_p.inner);
+    pos = std::vector(pos_array);
 
-        if (p.name == "P") {
-            const auto array = std::get<std::vector<point3>>(p.inner);
-            pos = std::vector(array);
-        }
+    const auto indices_p = params.get_optional("indices", ValueType::Int);
+    if (indices_p.has_value()) {
+        auto &array = std::get<std::vector<i32>>(indices_p.value()->inner);
+        indices = std::vector<u32>(array.begin(), array.end());
+    }
 
-        if (p.name == "N") {
-            const auto array = std::get<std::vector<vec3>>(p.inner);
-            normals = std::vector(array);
-        }
+    const auto n_p = params.get_optional("N", ValueType::Vector3);
+    if (n_p.has_value()) {
+        const auto &array = std::get<std::vector<vec3>>(n_p.value()->inner);
+        normals = std::vector(array);
+    }
 
-        if (p.name == "S") {
-            spdlog::warn("per-face tangents are ignored");
-        }
-
-        if (p.name == "uv") {
-            const auto array = std::get<std::vector<vec2>>(p.inner);
-            uvs = std::vector(array);
-        }
+    const auto uv_p = params.get_optional("uv", ValueType::Vector2);
+    if (uv_p.has_value()) {
+        const auto &array = std::get<std::vector<vec2>>(uv_p.value()->inner);
+        uvs = std::vector(array);
     }
 
     if (pos.empty()) {
@@ -423,37 +419,31 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params) const {
         }
     }
 
-    // TODO: correct material
+    if (current_astate.reverse_orientation && normals.empty()) {
+        // TODO: fix reverseorientation for this case
+        spdlog::warn("ReverseOrientation without specified normals");
+    }
+
     const auto mp = MeshParams{
         .indices = &indices,
         .pos = &pos,
         .normals = !normals.empty() ? &normals : nullptr,
         .uvs = !uvs.empty() ? &uvs : nullptr,
-        .material_id = 0,
+        .material_id = current_astate.material,
         .emitter = current_astate.emitter,
     };
 
     sc.add_mesh(mp);
+
+    params.warn_unused_params("Shape trianglemesh"sv);
 }
 
 void
 PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
-    std::string filename{};
+    const auto &filename_p = params.get_required("filename", ValueType::String);
+    const auto filename = std::get<std::string>(filename_p.inner);
 
-    auto par = params.get_remaining();
-    for (auto &p : par) {
-        if (p.name == "filename") {
-            filename = std::get<std::string>(p.inner);
-        } else {
-            spdlog::warn("'{}' is unimplemented", p.name);
-        }
-    }
-
-    if (filename.empty()) {
-        throw std::runtime_error("'plymesh' filename not specified");
-    }
-
-    const auto filepath = std::filesystem::absolute(file_directory).append(filename);
+    const auto filepath = absolute(file_directory).append(filename);
     miniply::PLYReader reader(filepath.c_str());
     if (!reader.valid()) {
         throw std::runtime_error(
@@ -465,7 +455,7 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
     std::vector<vec2> uv{};
     std::vector<u32> indices{};
 
-    uint32_t indexes[3];
+    u32 indexes[3];
     bool gotVerts = false;
     bool gotFaces = false;
 
@@ -484,6 +474,12 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
                 uv.resize(numverts);
                 reader.extract_properties(indexes, 2, miniply::PLYPropertyType::Float,
                                           uv.data());
+            }
+
+            if (reader.find_normal(indexes)) {
+                normals.resize(numverts);
+                reader.extract_properties(indexes, 3, miniply::PLYPropertyType::Float,
+                                          normals.data());
             }
             gotVerts = true;
         } else if (reader.element_is(miniply::kPLYFaceElement) && reader.load_element() &&
@@ -519,41 +515,46 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params) const {
         throw std::runtime_error(fmt::format("PLY error in '{}'", filename));
     }
 
+    if (current_astate.reverse_orientation && normals.empty()) {
+        // TODO: fix reverseorientation for this case
+        spdlog::warn("ReverseOrientation without specified normals");
+    }
+
     if (current_astate.reverse_orientation) {
         for (auto &normal : normals) {
             normal = -normal;
         }
     }
 
-    // TODO: pass correct material
     const auto mp = MeshParams{
         .indices = &indices,
         .pos = &pos,
         .normals = normals.empty() ? nullptr : &normals,
         .uvs = uv.empty() ? nullptr : &uv,
-        .material_id = 0,
+        .material_id = current_astate.material,
         .emitter = current_astate.emitter,
     };
 
     sc.add_mesh(mp);
+
+    params.warn_unused_params("Shape plymesh"sv);
 }
 
 void
 PbrtLoader::load_sphere(Scene &sc, ParamsList &params) const {
     auto radius = 1.f;
 
-    for (const auto &p : params.get_remaining()) {
-        if (p.name == "radius") {
-            radius = std::get<f32>(p.inner);
-        } else {
-            spdlog::warn("Ignored Sphere param: '{}'", p.name);
-        }
+    const auto sphere_p = params.get_optional("radius", ValueType::Float);
+    if (sphere_p.has_value()) {
+        radius = std::get<f32>(sphere_p.value()->inner);
     }
 
     sc.add_sphere(SphereParams{.center = point3(0.f),
                                .radius = radius,
-                               .material_id = 0,
+                               .material_id = current_astate.material,
                                .emitter = current_astate.emitter});
+
+    params.warn_unused_params("Shape Sphere"sv);
 }
 
 // TODO: need to refactor the whole light-emitter nonsense... probably need to have the
@@ -574,23 +575,28 @@ PbrtLoader::area_light_source(Scene &sc) {
         &sc.spectrum_allocator);
     auto scale = 1.f;
 
-    for (auto const &p : params.get_remaining()) {
-        if (p.name == "twosided") {
-            twosided = std::get<bool>(p.inner);
-        } else if (p.name == "scale") {
-            scale = std::get<f32>(p.inner);
-        } else if (p.name == "L") {
-            // TODO: will need some general spectrum-loader later
-            if (p.value_type == ValueType::Rgb) {
-                // TODO: setting scale is order-dependent...
-                radiance = Spectrum(
-                    RgbSpectrumIlluminant::make(scale * std::get<tuple3>(p.inner),
-                                                current_astate.color_space),
-                    &sc.spectrum_allocator);
-            } else {
-                throw std::runtime_error("AreaLight with radiance described other than "
-                                         "in RGB is not implemented");
-            }
+    const auto twosided_p = params.get_optional("twosided", ValueType::Bool);
+    if (twosided_p.has_value()) {
+        twosided = std::get<bool>(twosided_p.value()->inner);
+    }
+
+    const auto scale_p = params.get_optional("scale", ValueType::Float);
+    if (scale_p.has_value()) {
+        scale = std::get<f32>(scale_p.value()->inner);
+    }
+
+    const auto l_p = params.get_optional("L");
+    if (l_p.has_value()) {
+        const auto p = l_p.value();
+        // TODO: will need some general spectrum-loader later
+        if (p->value_type == ValueType::Rgb) {
+            radiance =
+                Spectrum(RgbSpectrumIlluminant::make(scale * std::get<tuple3>(p->inner),
+                                                     current_astate.color_space),
+                         &sc.spectrum_allocator);
+        } else {
+            throw std::runtime_error("AreaLight with radiance described other than "
+                                     "in RGB is not implemented");
         }
     }
 
@@ -600,6 +606,269 @@ PbrtLoader::area_light_source(Scene &sc) {
     // calculations
 
     current_astate.emitter = emitter;
+
+    params.warn_unused_params("AreaLightSource"sv);
+}
+
+void
+PbrtLoader::load_material(Scene &sc) {
+    auto params = parse_param_list();
+    const auto &type_p = params.expect(ParamType::Simple);
+
+    const auto mat = parse_material_description(sc, type_p.name, params);
+    current_astate.material = sc.add_material(mat);
+
+    params.warn_unused_params("Material"sv);
+}
+
+void
+PbrtLoader::load_make_named_material(Scene &sc) {
+    auto params = parse_param_list();
+
+    const auto &name_p = params.expect(ParamType::Simple);
+
+    const auto &type_p = params.expect(ParamType::Single);
+    if (type_p.name != "type") {
+        throw std::runtime_error("Wrong NamedMaterial type param");
+    }
+
+    const auto &type = std::get<std::string>(type_p.inner);
+    const auto mat = parse_material_description(sc, type, params);
+
+    const auto mat_id = sc.add_material(mat);
+    materials.insert({name_p.name, mat_id});
+
+    params.warn_unused_params("MakeNamedMaterial"sv);
+}
+
+Material
+PbrtLoader::parse_material_description(Scene &sc, const std::string &type,
+                                       ParamsList &params) {
+    auto mat = Material::make_diffuse(TextureId{0});
+
+    if (type == "coateddiffuse") {
+        mat = parse_coateddiffuse_material(sc, params);
+    } else if (type == "diffuse") {
+        mat = parse_diffuse_material(sc, params);
+    } else if (type == "dielectric") {
+        mat = parse_dielectric_material(sc, params);
+    } else if (type == "conductor") {
+        mat = parse_conductor_material(sc, params);
+    } else {
+        spdlog::warn("Material '{}' is unimplemented, defaulting to diffuse", type);
+    }
+
+    mat.is_twosided = true;
+    return mat;
+}
+
+RoughnessDescription
+PbrtLoader::parse_material_roughness(Scene &sc, ParamsList &params) {
+    const auto roughness_p = params.get_optional("roughness");
+    if (roughness_p.has_value()) {
+        const auto &roughness = *roughness_p.value();
+        const auto tex = parse_inline_float_texture(roughness, sc);
+        return RoughnessDescription{
+            .type = RoughnessDescription::RoughnessType::Isotropic,
+            .roughness = tex,
+            .uroughness = TextureId{0},
+            .vroughness = TextureId{0},
+        };
+    }
+
+    const auto uroughness_opt = params.get_optional("uroughness");
+    const auto vroughness_opt = params.get_optional("vroughness");
+
+    if (uroughness_opt.has_value() && vroughness_opt.has_value()) {
+        const auto &uroughness_p = *uroughness_opt.value();
+        const auto &vroughness_p = *vroughness_opt.value();
+
+        if (uroughness_p.value_type == ValueType::Float &&
+            vroughness_p.value_type == ValueType::Float) {
+            const auto uroughness = std::get<f32>(uroughness_p.inner);
+            const auto vroughness = std::get<f32>(vroughness_p.inner);
+
+            if (uroughness != vroughness) {
+                spdlog::warn("Roughness Anisotropy isn't implemented yet");
+            }
+
+            const auto tex = sc.add_texture(Texture::make_constant_texture(uroughness));
+
+            return RoughnessDescription{
+                .type = RoughnessDescription::RoughnessType::Isotropic,
+                .roughness = tex,
+                .uroughness = TextureId{0},
+                .vroughness = TextureId{0},
+            };
+        } else {
+            spdlog::warn("Roughness Anisotropy isn't implemented yet");
+            const auto tex =
+                get_texture_id_or_default(sc, params, "uroughness", "roughness");
+            return RoughnessDescription{
+                .type = RoughnessDescription::RoughnessType::Isotropic,
+                .roughness = tex,
+                .uroughness = TextureId{0},
+                .vroughness = TextureId{0},
+            };
+        }
+    }
+
+    const auto tex = get_texture_id_or_default(sc, params, "uroughness", "roughness");
+    return RoughnessDescription{
+        .type = RoughnessDescription::RoughnessType::Isotropic,
+        .roughness = tex,
+        .uroughness = TextureId{0},
+        .vroughness = TextureId{0},
+    };
+}
+
+Material
+PbrtLoader::parse_coateddiffuse_material(Scene &sc, ParamsList &params) {
+    const auto ext_ior = Spectrum(AIR_ETA);
+    // TODO: get coateddiffuse IOR
+    const auto int_ior = Spectrum(POLYPROPYLENE_ETA);
+    const auto reflectance =
+        get_texture_id_or_default(sc, params, "reflectance", "reflectance");
+
+    const auto roughness = parse_material_roughness(sc, params);
+
+    return Material::make_rough_plastic(roughness.roughness, ext_ior, int_ior,
+                                        reflectance, sc.material_allocator);
+}
+
+Material
+PbrtLoader::parse_diffuse_material(Scene &sc, ParamsList &params) {
+    const auto texture =
+        get_texture_id_or_default(sc, params, "reflectance", "reflectance");
+    return Material::make_diffuse(texture);
+}
+
+Material
+PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
+    // TODO: dielectric rough material not implemented
+    // TODO: move this inside the scene spectra...
+    // const auto ext_ior = Spectrum(AIR_ETA);
+    const auto ext_ior = Spectrum(ConstantSpectrum::make(1.f));
+    const auto trans = Spectrum(ConstantSpectrum::make(1.f));
+    const auto int_ior = get_texture_id_or_default(sc, params, "eta", "eta-dielectric");
+
+    return Material::make_dielectric(ext_ior, int_ior, trans, sc.material_allocator);
+}
+
+Material
+PbrtLoader::parse_conductor_material(Scene &sc, ParamsList &params) {
+    const auto eta = get_texture_id_or_default(sc, params, "eta", "eta-conductor");
+    const auto k = get_texture_id_or_default(sc, params, "k", "k-conductor");
+    const auto roughness = parse_material_roughness(sc, params);
+
+    return Material::make_rough_conductor(roughness.roughness, eta, k,
+                                          sc.material_allocator);
+}
+
+TextureId
+PbrtLoader::get_texture_id_or_default(Scene &sc, ParamsList &params,
+                                      const std::string &name,
+                                      const std::string &default_tex) {
+    const auto opt_p = params.get_optional(name);
+
+    if (!opt_p.has_value()) {
+        return sc.builtin_textures.at(default_tex);
+    }
+
+    const auto p = opt_p.value();
+    if (p->value_type == ValueType::Texture) {
+        const auto &tex_name = std::get<std::string>(p->inner);
+        return textures.at(tex_name);
+    }
+
+    if (p->name == "eta") {
+        return parse_inline_spectrum_texture(*p, sc);
+    } else if (p->name == "k") {
+        return parse_inline_spectrum_texture(*p, sc);
+    } else if (p->name == "reflectance") {
+        return parse_inline_spectrum_texture(*p, sc);
+    } else {
+        throw std::runtime_error(fmt::format("Unimplemented texture: '{}'", p->name));
+    }
+}
+
+// TODO: probably should validate here, that the texture has correct params
+
+TextureId
+PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) {
+    if (param.value_type == ValueType::Rgb) {
+        const auto spectrum = RgbSpectrum::make(std::get<tuple3>(param.inner));
+        return sc.add_texture(Texture::make_constant_texture(spectrum));
+    } else if (param.value_type == ValueType::String) {
+        return sc.builtin_textures.at(std::get<std::string>(param.inner));
+    } else if (param.value_type == ValueType::Float) {
+        return sc.add_texture(Texture::make_constant_texture(std::get<f32>(param.inner)));
+    } else {
+        // TODO: implement other spectrum types
+        spdlog::warn("Spectrum texture '{}' unimplemented, getting default", param.name);
+        return sc.add_texture(
+            Texture::make_constant_texture(RgbSpectrum::make(tuple3(0.8, 0.5, 0.3))));
+    }
+}
+
+TextureId
+PbrtLoader::parse_inline_float_texture(const Param &param, Scene &sc) {
+    if (param.value_type == ValueType::Float) {
+        const auto fl = std::get<f32>(param.inner);
+        return sc.add_texture(Texture::make_constant_texture(fl));
+    } else if (param.value_type == ValueType::Texture) {
+        const auto texture_name = std::get<std::string>(param.inner);
+        return textures.at(texture_name);
+    } else {
+        // TODO: implement other spectrum types
+        spdlog::warn("Float texture '{}' unimplemented, getting default", param.name);
+        return sc.add_texture(Texture::make_constant_texture(1.f));
+    }
+}
+
+void
+PbrtLoader::load_named_material() {
+    auto params = parse_param_list();
+    const auto &p = params.next_param();
+    current_astate.material = materials.at(p.name);
+}
+
+void
+PbrtLoader::load_texture(Scene &sc) {
+    auto params = parse_param_list();
+
+    const auto &name = params.expect(ParamType::Simple).name;
+    const auto &type = params.expect(ParamType::Simple).name;
+    if (type != "spectrum" && type != "float") {
+        throw std::runtime_error(fmt::format("Invalid texture type: '{}'", type));
+    }
+
+    const auto &tex_class = params.expect(ParamType::Simple).name;
+
+    Texture tex;
+
+    if (tex_class == "imagemap") {
+        const auto &filename_p = params.get_required("filename", ValueType::String);
+        const auto filename = std::get<std::string>(filename_p.inner);
+
+        const auto is_rgb = type == "spectrum";
+        const auto path = absolute(file_directory).append(filename);
+        tex = Texture::make_image_texture(path, is_rgb);
+    } else if (tex_class == "scale") {
+        const auto &tex_p = params.get_required("tex", ValueType::Texture);
+        const auto tex_name = std::get<std::string>(tex_p.inner);
+
+        const auto id = textures.at(tex_name);
+        textures.insert({name, id});
+    } else {
+        throw std::runtime_error(
+            fmt::format("Unimplemented texture class: '{}'", tex_class));
+    }
+
+    const auto id = sc.add_texture(tex);
+    textures.insert({name, id});
+
+    params.warn_unused_params("Texture");
 }
 
 ParamsList
@@ -615,7 +884,7 @@ PbrtLoader::parse_param_list() {
             lexer.next();
 
             auto param = Param(std::move(std::string{""}));
-            params.push(std::move(param));
+            params.add(std::move(param));
 
             continue;
         }
@@ -627,7 +896,7 @@ PbrtLoader::parse_param_list() {
             lexer.next();
 
             auto param = Param(std::move(type_or_param.src));
-            params.push(std::move(param));
+            params.add(std::move(param));
 
             continue;
         }
@@ -637,7 +906,7 @@ PbrtLoader::parse_param_list() {
         expect(LexemeType::Quotes);
 
         auto param = parse_param(type_or_param.src, std::move(name.src));
-        params.push(std::move(param));
+        params.add(std::move(param));
     }
 
     return params;
@@ -703,8 +972,6 @@ PbrtLoader::parse_param(const std::string_view &type, std::string &&name) {
 
 Param
 PbrtLoader::parse_spectrum_param(std::string &&name) {
-    spdlog::warn(name);
-
     auto has_brackets = false;
     if (lexer.peek().type == LexemeType::OpenBracket) {
         lexer.next();
@@ -728,7 +995,7 @@ PbrtLoader::parse_spectrum_param(std::string &&name) {
             vals.push_back(val);
         }
 
-        param = Param(std::move(name), std::move(vals));
+        param = Param(std::move(name), std::move(vals), ValueType::Spectrum);
     }
 
     if (has_brackets) {

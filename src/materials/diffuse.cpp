@@ -10,9 +10,8 @@ DiffuseMaterial::pdf(const ShadingGeometry &sgeom) {
 spectral
 DiffuseMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
                       const Texture *textures, const vec2 &uv) const {
-    const Texture *texture = &textures[reflectance_tex_id];
-    tuple3 refl_sigmoid_coeff = texture->fetch(uv);
-    spectral refl = RgbSpectrum::from_coeff(refl_sigmoid_coeff).eval(lambdas);
+    const Texture *texture = &textures[reflectance_tex_id.inner];
+    auto refl = texture->fetch_spectrum(uv).eval(lambdas);
 
     return refl / M_PIf;
 }

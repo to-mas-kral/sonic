@@ -3,6 +3,7 @@
 
 #include "../integrator/utils.h"
 #include "../scene/texture.h"
+#include "../scene/texture_id.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
 
@@ -18,7 +19,7 @@ struct DiffuseMaterial {
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &sample,
            const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv) const;
 
-    u32 reflectance_tex_id;
+    TextureId reflectance_tex_id;
 };
 
 #endif // PT_DIFFUSE_H

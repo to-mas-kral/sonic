@@ -40,9 +40,8 @@ PlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambda
         f32 cos_theta_in = std::sqrt(1.f - sqr(sin_theta_in));
         f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-        const Texture *texture = &textures[diffuse_reflectance_id];
-        tuple3 refl_sigmoid_coeff = texture->fetch(uv);
-        spectral α = RgbSpectrum::from_coeff(refl_sigmoid_coeff).eval(lambdas);
+        const Texture *texture = &textures[diffuse_reflectance_id.inner];
+        auto α = texture->fetch_spectrum(uv).eval(lambdas);
 
         f32 re = 0.919317f;
         f32 ior_pow = int_ior_s;

@@ -140,17 +140,15 @@ struct Spectrum {
         : type{SpectrumType::Constant}, constant_spectrum{cs} {}
 
     explicit
-    Spectrum(RgbSpectrum rs, ChunkAllocator<> *spectrum_allocator)
+    Spectrum(RgbSpectrum rs)
         : type{SpectrumType::Rgb} {
-        rgb_spectrum = spectrum_allocator->allocate<RgbSpectrum>();
-        *rgb_spectrum = rs;
+        rgb_spectrum = rs;
     }
 
     explicit
-    Spectrum(RgbSpectrumUnbounded rs, ChunkAllocator<> *spectrum_allocator)
+    Spectrum(RgbSpectrumUnbounded rs)
         : type{SpectrumType::RgbUnbounded} {
-        rgb_spectrum_unbounded = spectrum_allocator->allocate<RgbSpectrumUnbounded>();
-        *rgb_spectrum_unbounded = rs;
+        rgb_spectrum_unbounded = rs;
     }
 
     explicit
@@ -171,8 +169,8 @@ struct Spectrum {
         DenseSpectrum dense_spectrum;
         PiecewiseSpectrum *piecewise_spectrum;
         ConstantSpectrum constant_spectrum{};
-        RgbSpectrum *rgb_spectrum;
-        RgbSpectrumUnbounded *rgb_spectrum_unbounded;
+        RgbSpectrum rgb_spectrum;
+        RgbSpectrumUnbounded rgb_spectrum_unbounded;
         RgbSpectrumIlluminant *rgb_spectrum_illuminant;
     };
 };

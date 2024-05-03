@@ -60,7 +60,7 @@ MitsubaLoader::load_shapes(Scene &sc, const pugi::xml_node &scene) {
     for (pugi::xml_node shape : scene.children("shape")) {
         str type = shape.attribute("type").as_string();
 
-        u32 mat_id;
+        MaterialId mat_id{0};
 
         auto ref_node = shape.child("ref");
         auto bsdf_node = shape.child("bsdf");
@@ -104,14 +104,14 @@ void
 MitsubaLoader::load_materials(pugi::xml_node scene, Scene &sc) {
     // HACK: default material
     auto texture = Texture::make_constant_texture(RgbSpectrum::make(tuple3(0.5f)));
-    u32 tex_id = sc.add_texture(texture);
+    TextureId tex_id = sc.add_texture(texture);
 
     auto bsdfs = scene.children("bsdf");
 
     for (auto bsdf : bsdfs) {
         auto [mat, id] = load_material(sc, bsdf);
 
-        u32 mat_id = sc.add_material(mat);
+        MaterialId mat_id = sc.add_material(mat);
         materials_cache.insert({id, mat_id});
     }
 }
@@ -137,7 +137,7 @@ MitsubaLoader::load_material(Scene &scene, pugi::xml_node &bsdf) {
     }
 
     // Default material - 50% reflectance
-    Material mat = Material::make_diffuse(0);
+    Material mat = Material::make_diffuse(TextureId{0});
 
     if (type == "diffuse") {
         mat = load_diffuse_material(scene, bsdf);
@@ -183,7 +183,7 @@ MitsubaLoader::load_plastic_material(Scene &sc, const pugi::xml_node &bsdf) cons
     }
 
     auto reflectance_node = child_node(bsdf, "reflectance");
-    u32 diffuse_reflectance_id = load_texture(sc, reflectance_node);
+    auto diffuse_reflectance_id = load_texture(sc, reflectance_node);
     return Material::make_plastic(ext_ior, int_ior, diffuse_reflectance_id,
                                   sc.material_allocator);
 }
@@ -210,12 +210,13 @@ MitsubaLoader::load_roughp_lastic_material(Scene &sc, const pugi::xml_node &bsdf
     Spectrum diffuse_reflectance(ConstantSpectrum::make(0.5f));
 
     auto reflectance_node = child_node(bsdf, "reflectance");
-    u32 diffuse_reflectance_id = load_texture(sc, reflectance_node);
+    auto diffuse_reflectance_id = load_texture(sc, reflectance_node);
 
     f32 alpha = child_node_attr(bsdf, "alpha", "value").as_float();
+    const auto alpha_tex = sc.add_texture(Texture::make_constant_texture(alpha));
 
-    return Material::make_rough_plastic(alpha, ext_ior, int_ior, diffuse_reflectance_id,
-                                        sc.material_allocator);
+    return Material::make_rough_plastic(alpha_tex, ext_ior, int_ior,
+                                        diffuse_reflectance_id, sc.material_allocator);
 }
 
 Material
@@ -233,10 +234,13 @@ MitsubaLoader::load_conductor_material(Scene &sc, const pugi::xml_node &bsdf) co
     tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
     tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
 
-    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta), &sc.spectrum_allocator);
-    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k), &sc.spectrum_allocator);
+    auto eta_spectrum = RgbSpectrumUnbounded::make(eta);
+    auto k_spectrum = RgbSpectrumUnbounded::make(k);
 
-    return Material::make_conductor(eta_spectrum, k_spectrum, sc.material_allocator);
+    auto eta_tex = sc.add_texture(Texture::make_constant_texture(eta_spectrum));
+    auto k_tex = sc.add_texture(Texture::make_constant_texture(k_spectrum));
+
+    return Material::make_conductor(eta_tex, k_tex, sc.material_allocator);
 }
 
 Material
@@ -245,10 +249,15 @@ MitsubaLoader::load_roughconductor_material(Scene &sc, const pugi::xml_node &bsd
     tuple3 eta = parse_tuple3(child_node_attr(bsdf, "eta", "value").as_string());
     tuple3 k = parse_tuple3(child_node_attr(bsdf, "k", "value").as_string());
 
-    Spectrum eta_spectrum(RgbSpectrumUnbounded::make(eta), &sc.spectrum_allocator);
-    Spectrum k_spectrum(RgbSpectrumUnbounded::make(k), &sc.spectrum_allocator);
+    auto eta_spectrum = RgbSpectrumUnbounded::make(eta);
+    auto k_spectrum = RgbSpectrumUnbounded::make(k);
 
-    return Material::make_rough_conductor(alpha, eta_spectrum, k_spectrum,
+    auto eta_tex = sc.add_texture(Texture::make_constant_texture(eta_spectrum));
+    auto k_tex = sc.add_texture(Texture::make_constant_texture(k_spectrum));
+
+    auto alpha_tex = sc.add_texture(Texture::make_constant_texture(alpha));
+
+    return Material::make_rough_conductor(alpha_tex, eta_tex, k_tex,
                                           sc.material_allocator);
 }
 
@@ -274,14 +283,17 @@ MitsubaLoader::load_dielectric_material(Scene &sc, const pugi::xml_node &bsdf) c
     Spectrum specular_transmittance(ConstantSpectrum::make(1.f));
     if (transmittance_node) {
         tuple3 rgb = parse_tuple3(transmittance_node.attribute("value").as_string());
-        specular_transmittance = Spectrum(RgbSpectrum::make(rgb), &sc.spectrum_allocator);
+        specular_transmittance = Spectrum(RgbSpectrum::make(rgb));
     }
 
-    return Material::make_dielectric(ext_ior, int_ior, specular_transmittance,
+    auto int_ior_tex =
+        sc.add_texture(Texture::make_constant_texture(int_ior.eval_single(400.f)));
+
+    return Material::make_dielectric(ext_ior, int_ior_tex, specular_transmittance,
                                      sc.material_allocator);
 }
 
-u32
+TextureId
 MitsubaLoader::load_texture(Scene &sc, const pugi::xml_node &texture_node) const {
     if (str(texture_node.name()) == "texture") {
         auto filename_node = child_node(texture_node, "filename");
@@ -290,12 +302,12 @@ MitsubaLoader::load_texture(Scene &sc, const pugi::xml_node &texture_node) const
 
         auto texture = Texture::make_image_texture(file_path, true);
 
-        u32 tex_id = sc.add_texture(texture);
+        auto tex_id = sc.add_texture(texture);
         return tex_id;
     } else {
         tuple3 rgb = parse_tuple3(texture_node.attribute("value").as_string());
         auto texture = Texture::make_constant_texture(RgbSpectrum::make(rgb));
-        u32 tex_id = sc.add_texture(texture);
+        auto tex_id = sc.add_texture(texture);
         return tex_id;
     }
 }
@@ -303,7 +315,7 @@ MitsubaLoader::load_texture(Scene &sc, const pugi::xml_node &texture_node) const
 Material
 MitsubaLoader::load_diffuse_material(Scene &sc, const pugi::xml_node &bsdf) {
     auto reflectance_node = child_node(bsdf, "reflectance");
-    u32 tex_id = load_texture(sc, reflectance_node);
+    auto tex_id = load_texture(sc, reflectance_node);
     return Material::make_diffuse(tex_id);
 }
 
@@ -416,8 +428,8 @@ MitsubaLoader::load_emitter(pugi::xml_node emitter_node, Scene &sc) {
 }
 
 void
-MitsubaLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
-                              Option<Emitter> emitter, Scene &sc) {
+MitsubaLoader::load_rectangle(pugi::xml_node shape, MaterialId mat_id,
+                              const mat4 &transform, Option<Emitter> emitter, Scene &sc) {
     // clang-format off
     std::vector<point3> pos = {
         point3(-1.,  -1., 0.),
@@ -451,7 +463,7 @@ MitsubaLoader::load_rectangle(pugi::xml_node shape, u32 mat_id, const mat4 &tran
 }
 
 void
-MitsubaLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform,
+MitsubaLoader::load_cube(pugi::xml_node shape, MaterialId mat_id, const mat4 &transform,
                          Option<Emitter> emitter, Scene &sc) {
     // clang-format off
     std::vector<point3> pos = {
@@ -496,7 +508,7 @@ MitsubaLoader::load_cube(pugi::xml_node shape, u32 mat_id, const mat4 &transform
 }
 
 void
-MitsubaLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
+MitsubaLoader::load_sphere(pugi::xml_node node, MaterialId mat_id, mat4 transform,
                            Option<Emitter> emitter, Scene &sc) {
     auto radius_node = child_node(node, "radius");
     f32 radius = radius_node.attribute("value").as_float();
@@ -512,8 +524,8 @@ MitsubaLoader::load_sphere(pugi::xml_node node, u32 mat_id, mat4 transform,
 }
 
 void
-MitsubaLoader::load_obj(pugi::xml_node shape_node, u32 mat_id, const mat4 &transform,
-                        Option<Emitter> emitter, Scene &sc) {
+MitsubaLoader::load_obj(pugi::xml_node shape_node, MaterialId mat_id,
+                        const mat4 &transform, Option<Emitter> emitter, Scene &sc) {
     std::string filename = shape_node.child("string").attribute("value").as_string();
     auto file_path = scene_base_path + "/" + filename;
 

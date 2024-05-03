@@ -12,9 +12,9 @@ public:
         viewport_height = 2.f;
         viewport_width = viewport_height * aspect;
 
-        // TODO: take fov_axis from scene parameters
-        // TODO: in PBRT, fov is along the shorter axis...
-        f32 axis = viewport_width;
+        // TODO: for mitsuba take fov_axis from scene parameters
+        // for PBRT, its the shorter axis...
+        f32 axis = std::min(viewport_width, viewport_height);
         f32 focal_length = -(axis / 2.f) / tanf((fov * (M_PIf / 180.f)) / 2.f);
 
         origin = point3(0.f);
@@ -26,7 +26,7 @@ public:
 
     Ray
     get_ray(f32 s, f32 t) const {
-        vec3 offset = vec3(1.f - s, t, 0.f) * vec3(viewport_width, viewport_height, 0.f);
+        vec3 offset = vec3(s, t, 0.f) * vec3(viewport_width, viewport_height, 0.f);
         point3 screencoord = bottom_left + offset;
 
         return Ray(origin, (screencoord - origin).normalized());

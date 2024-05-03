@@ -2,6 +2,7 @@
 #define PT_DIELECTRIC_H
 
 #include "../scene/texture.h"
+#include "../scene/texture_id.h"
 #include "bsdf_sample.h"
 
 struct DielectricMaterial {
@@ -16,7 +17,7 @@ struct DielectricMaterial {
            const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv,
            bool is_frontfacing) const;
 
-    Spectrum m_int_ior;
+    TextureId m_int_ior;
     Spectrum m_ext_ior;
     Spectrum m_transmittance;
 };

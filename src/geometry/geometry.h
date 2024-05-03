@@ -4,6 +4,7 @@
 #include "../math/vecmath.h"
 #include "../scene/emitter.h"
 #include "../utils/basic_types.h"
+#include "../materials/material_id.h"
 
 #include <vector>
 
@@ -27,7 +28,7 @@ struct ShapeSample {
 };
 
 struct Mesh {
-    Mesh(u32 indices_index, u32 pos_index, u32 material_id, Option<u32> p_lights_start_id,
+    Mesh(u32 indices_index, u32 pos_index, MaterialId material_id, Option<u32> p_lights_start_id,
          u32 num_indices, u32 num_vertices, Option<u32> p_normals_index,
          Option<u32> p_uvs_index);
 
@@ -49,7 +50,7 @@ struct Mesh {
     bool has_uvs = false;
     bool has_light = false;
     u32 lights_start_id;
-    u32 material_id;
+    MaterialId material_id;
 };
 
 // Used only for mesh creation
@@ -62,7 +63,7 @@ struct MeshParams {
     std::vector<point3> *pos;
     std::vector<vec3> *normals = nullptr; // may be null
     std::vector<vec2> *uvs = nullptr;     // may be null
-    u32 material_id;
+    MaterialId material_id;
     Option<Emitter> emitter = {};
 };
 
@@ -100,7 +101,7 @@ struct Meshes {
 struct SphereParams {
     point3 center;
     f32 radius;
-    u32 material_id;
+    MaterialId material_id;
     Option<Emitter> emitter = {};
 };
 
@@ -112,7 +113,7 @@ struct SphereVertex {
 // SOA layout
 struct Spheres {
     std::vector<SphereVertex> vertices{};
-    std::vector<u32> material_ids{};
+    std::vector<MaterialId> material_ids{};
     std::vector<bool> has_light{};
     std::vector<u32> light_ids{};
     u32 num_spheres = 0;

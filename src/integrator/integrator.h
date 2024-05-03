@@ -15,8 +15,7 @@ public:
 
     void
     integrate_pixel(uvec2 pixel) const {
-        uvec2 dim =
-            uvec2(rc->attribs.film.resx, rc->attribs.film.resy);
+        uvec2 dim = uvec2(rc->attribs.film.resx, rc->attribs.film.resy);
 
         auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
@@ -26,6 +25,12 @@ public:
         auto cam_sample = sampler.sample2();
         auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam,
                            rc->attribs.camera.camera_to_world);
+
+        if (settings.render_normals) {
+            const auto aov = render_aov(ray);
+            rc->fb.get_pixels()[pixel_index] += aov;
+            return;
+        }
 
         SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
 
@@ -46,6 +51,16 @@ public:
               const LightSample &light_sample, const norm_vec3 &geom_normal,
               const ShapeSample &shape_sample, const Material *material,
               const spectral &throughput, const SampledLambdas &lambdas) const;
+
+    vec3
+    render_aov(Ray ray) const {
+        auto opt_its = device->cast_ray(ray);
+        if (opt_its.has_value()) {
+            return opt_its->normal;
+        } else {
+            return vec3(0.f);
+        }
+    }
 
     u32 frame = 0;
 

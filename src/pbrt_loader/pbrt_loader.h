@@ -5,7 +5,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <map>
 #include <vector>
 
 #include "../math/transform.h"
@@ -16,8 +15,20 @@ struct AttributeState {
     SquareMatrix4 ctm = SquareMatrix4::identity();
     bool reverse_orientation = false;
     std::optional<Emitter> emitter{};
-    // material
+    MaterialId material{0};
     ColorSpace color_space{ColorSpace::sRGB};
+};
+
+// Only used in a private function... not sure if it could be moved somewhere else ?
+struct RoughnessDescription {
+    enum class RoughnessType {
+        Isotropic,
+        Anisotropic,
+    } type;
+
+    TextureId roughness;
+    TextureId uroughness;
+    TextureId vroughness;
 };
 
 // TODO: consider a custom allocator in the future
@@ -41,6 +52,9 @@ private:
 
     void
     load_film(Scene &sc);
+
+    void
+    load_integrator(Scene &sc);
 
     void
     load_identity();
@@ -86,6 +100,46 @@ private:
 
     void
     area_light_source(Scene &sc);
+
+    void
+    load_material(Scene &sc);
+
+    void
+    load_make_named_material(Scene &sc);
+
+    Material
+    parse_material_description(Scene &sc, const std::string &type, ParamsList &params);
+
+    RoughnessDescription
+    parse_material_roughness(Scene &sc, ParamsList &params);
+
+    Material
+    parse_coateddiffuse_material(Scene &sc, ParamsList &params);
+
+    Material
+    parse_diffuse_material(Scene &sc, ParamsList &params);
+
+    Material
+    parse_dielectric_material(Scene &sc, ParamsList &params);
+
+    Material
+    parse_conductor_material(Scene &sc, ParamsList &params);
+
+    TextureId
+    get_texture_id_or_default(Scene &sc, ParamsList &params, const std::string &name,
+                              const std::string &default_tex);
+
+    TextureId
+    parse_inline_spectrum_texture(const Param &param, Scene &sc);
+
+    TextureId
+    parse_inline_float_texture(const Param &param, Scene &sc);
+
+    void
+    load_named_material();
+
+    void
+    load_texture(Scene &sc);
 
     Lexeme
     expect(LexemeType lt);
@@ -169,7 +223,9 @@ private:
     std::filesystem::path file_directory{};
     Lexer lexer;
 
-    std::map<std::string, u32> materials{};
+    // TODO: could choose more efficient map
+    std::unordered_map<std::string, MaterialId> materials{};
+    std::unordered_map<std::string, TextureId> textures{};
     std::vector<AttributeState> astates{};
     AttributeState current_astate{};
 };

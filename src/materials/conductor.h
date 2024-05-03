@@ -3,6 +3,7 @@
 
 #include "../integrator/utils.h"
 #include "../scene/texture.h"
+#include "../scene/texture_id.h"
 #include "bsdf_sample.h"
 
 struct ConductorMaterial {
@@ -20,9 +21,9 @@ struct ConductorMaterial {
     // No Fresnel calculations, perfect reflector...
     bool m_perfect;
     // real part of the IOR
-    Spectrum m_eta;
+    TextureId m_eta;
     // absorption coefficient
-    Spectrum m_k;
+    TextureId m_k;
 };
 
 #endif // PT_CONDUCTOR_H

@@ -41,8 +41,7 @@ main(int argc, char **argv) {
     app.add_option("-o,--out", out_filename, "Path of the output file, without '.exr'");
     app.add_flag("--silent,!--no-silent", settings.silent, "Silent run.")
         ->default_val(true);
-    app.add_flag("--save-tx-separate", settings.save_tx_separate,
-                 "Save separate images for paths of increasing length")
+    app.add_flag("--normals", settings.render_normals, "Render normals AOV")
         ->default_val(false);
     app.add_option("-i,--integrator", settings.integrator_type, "Integrator")
         ->transform(CLI::CheckedTransformer(map, CLI::ignore_case))

@@ -8,9 +8,10 @@
 #include "light.h"
 #include "scene_attribs.h"
 #include "texture.h"
+#include "texture_id.h"
 
 struct Scene {
-    Scene() = default;
+    Scene();
 
     ~
     Scene();
@@ -18,7 +19,6 @@ struct Scene {
     void
     set_envmap(Envmap &&a_envmap) {
         envmap = std::move(a_envmap);
-        has_envmap = true;
     }
 
     void
@@ -26,10 +26,10 @@ struct Scene {
     void
     add_sphere(SphereParams sp);
 
-    u32
+    MaterialId
     add_material(const Material &material);
 
-    u32
+    TextureId
     add_texture(const Texture &texture);
 
     void
@@ -45,13 +45,15 @@ struct Scene {
     std::vector<Light> lights{};
 
     std::vector<Texture> textures{};
+    std::unordered_map<std::string, TextureId> builtin_textures{};
 
     ChunkAllocator<> material_allocator{};
-    ChunkAllocator<> spectrum_allocator{};
     std::vector<Material> materials{};
 
-    Envmap envmap{};
-    bool has_envmap = false;
+    ChunkAllocator<> spectrum_allocator{};
+    std::unordered_map<std::string, Spectrum> builtin_spectra{};
+
+    std::optional<Envmap> envmap{};
 
     SceneAttribs attribs{};
 
@@ -62,9 +64,9 @@ struct Scene {
           light_sampler(std::move(other.light_sampler)), lights(std::move(other.lights)),
           textures(std::move(other.textures)),
           material_allocator(std::move(other.material_allocator)),
+          materials(std::move(other.materials)),
           spectrum_allocator(std::move(other.spectrum_allocator)),
-          materials(std::move(other.materials)), envmap(std::move(other.envmap)),
-          has_envmap(other.has_envmap), attribs(other.attribs) {}
+          envmap(std::move(other.envmap)), attribs(std::move(other.attribs)) {}
 
     Scene &
     operator=(const Scene &other) = delete;
@@ -81,7 +83,6 @@ struct Scene {
         spectrum_allocator = std::move(other.spectrum_allocator);
         materials = std::move(other.materials);
         envmap = std::move(other.envmap);
-        has_envmap = other.has_envmap;
         attribs = other.attribs;
         return *this;
     }

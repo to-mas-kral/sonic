@@ -3,6 +3,7 @@
 
 #include "../integrator/utils.h"
 #include "../scene/texture.h"
+#include "../scene/texture_id.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
 
@@ -26,7 +27,7 @@ struct PlasticMaterial {
 
     Spectrum ext_ior;
     Spectrum int_ior;
-    u32 diffuse_reflectance_id;
+    TextureId diffuse_reflectance_id;
 };
 
 #endif // PT_PLASTIC_H

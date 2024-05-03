@@ -101,11 +101,11 @@ Geometry::shape_area(ShapeIndex si) const {
     }
 }
 
-Mesh::Mesh(u32 indices_index, u32 pos_index, u32 material_id,
+Mesh::Mesh(u32 indices_index, u32 pos_index, MaterialId material_id,
            Option<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
            Option<u32> p_normals_index, Option<u32> p_uvs_index)
-    : indices_index(indices_index), pos_index(pos_index), material_id(material_id),
-      num_indices(num_indices), num_vertices(num_vertices) {
+    : pos_index(pos_index), indices_index(indices_index), num_vertices(num_vertices),
+      num_indices(num_indices), material_id(material_id) {
 
     if (p_lights_start_id.has_value()) {
         lights_start_id = p_lights_start_id.value();

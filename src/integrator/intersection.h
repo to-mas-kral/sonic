@@ -2,13 +2,14 @@
 #define PT_INTERSECTION_H
 
 #include "../geometry/ray.h"
+#include "../materials/material_id.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
 struct Intersection {
     static Intersection
     make_empty() {
-        return Intersection{.material_id = 0,
+        return Intersection{.material_id = MaterialId{0},
                             .light_id = 0,
                             .has_light = false,
                             .normal{0.f, 1.f, 0.f},
@@ -17,7 +18,7 @@ struct Intersection {
                             .uv{0.f, 0.f}};
     }
 
-    u32 material_id;
+    MaterialId material_id;
     u32 light_id;
     bool has_light;
     /// "shading" normal affected by interpolation or normal maps

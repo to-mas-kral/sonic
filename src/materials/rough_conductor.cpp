@@ -2,26 +2,32 @@
 #include "common.h"
 
 f32
-RoughConductorMaterial::pdf(const ShadingGeometry &sgeom) const {
-    return TrowbridgeReitzGGX::pdf(sgeom, m_alpha);
+RoughConductorMaterial::pdf(const ShadingGeometry &sgeom, const Texture *textures,
+                            const vec2 &uv) const {
+    const auto alpha = fetch_alpha(textures, m_alpha, uv);
+    return TrowbridgeReitzGGX::pdf(sgeom, alpha);
 }
 
 spectral
-RoughConductorMaterial::eval(const ShadingGeometry &sgeom,
-                             const SampledLambdas &lambdas) const {
+RoughConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
+                             const Texture *textures, const vec2 &uv) const {
     // TODO: have to store the current IOR... when it isn't 1...
-    spectral rel_ior = m_eta.eval(lambdas);
-    spectral k = m_k.eval(lambdas);
+    auto eta_spec = textures[m_eta.inner].fetch_spectrum(uv);
+    auto k_spec = textures[m_k.inner].fetch_spectrum(uv);
+    const auto alpha = fetch_alpha(textures, m_alpha, uv);
 
-    f32 D = TrowbridgeReitzGGX::D(sgeom.noh, m_alpha);
+    spectral rel_ior = eta_spec.eval(lambdas);
+    spectral k = k_spec.eval(lambdas);
+
+    f32 D = TrowbridgeReitzGGX::D(sgeom.noh, alpha);
 
     spectral fresnel = spectral::ZERO();
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
         fresnel[i] = fresnel_conductor(std::complex<f32>(rel_ior[i], k[i]), sgeom.howo);
     }
 
-    float G = TrowbridgeReitzGGX::G1(sgeom.nowi, sgeom.howo, m_alpha) *
-              TrowbridgeReitzGGX::G1(sgeom.nowo, sgeom.howo, m_alpha);
+    float G = TrowbridgeReitzGGX::G1(sgeom.nowi, sgeom.howo, alpha) *
+              TrowbridgeReitzGGX::G1(sgeom.nowo, sgeom.howo, alpha);
     return (fresnel * G * D) / (4.f * sgeom.nowo * sgeom.nowi);
 
     // TODO: try the height-correlated smith
@@ -33,7 +39,9 @@ Option<BSDFSample>
 RoughConductorMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
                                const vec2 &ξ, const SampledLambdas &lambdas,
                                const Texture *textures, const vec2 &uv) const {
-    norm_vec3 wi = TrowbridgeReitzGGX::sample(normal, wo, ξ, m_alpha);
+    const auto alpha = fetch_alpha(textures, m_alpha, uv);
+
+    norm_vec3 wi = TrowbridgeReitzGGX::sample(normal, wo, ξ, alpha);
     auto sgeom = ShadingGeometry::make(normal, wi, wo);
 
     if (sgeom.nowi * sgeom.nowo <= 0.f) {
@@ -41,9 +49,9 @@ RoughConductorMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
     }
 
     return BSDFSample{
-        .bsdf = eval(sgeom, lambdas),
+        .bsdf = eval(sgeom, lambdas, textures, uv),
         .wi = wi,
-        .pdf = pdf(sgeom),
+        .pdf = pdf(sgeom, textures, uv),
         .did_refract = false,
     };
 }

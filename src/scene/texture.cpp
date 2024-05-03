@@ -2,8 +2,14 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#include "../color/spectrum.h"
 #include "texture.h"
+
+#include <cmath>
+#include <fmt/core.h>
+#include <tinyexr.h>
+
+#include "../color/spectrum.h"
+#include "../utils/chunk_allocator.h"
 
 void
 transform_rgb_to_spectrum(f32 *pixels, i32 width, i32 height) {
@@ -118,8 +124,8 @@ ImageTexture::make(const std::string &texture_path, bool is_rgb) {
     }
 }
 
-tuple3
-ImageTexture::fetch(const vec2 &uv) const {
+u64
+ImageTexture::calc_index(const vec2 &uv) const {
     f32 foo;
     f32 ufrac = std::modf(uv.x, &foo);
     f32 vfrac = std::modf(uv.y, &foo);
@@ -131,19 +137,16 @@ ImageTexture::fetch(const vec2 &uv) const {
 
     u32 x = xy_sized.x;
     u32 y = xy_sized.y;
-    u64 pixel_index = x + (width * y);
+    return x + (width * y);
+}
 
-    // TODO: FIXME: figure out a better texture representation
+Spectrum
+ImageTexture::fetch_spectrum(const vec2 &uv) const {
+    auto pixel_index = calc_index(uv);
+
     switch (data_type) {
     case TextureDataType::U8: {
-        u8 *pixels_u8 = static_cast<u8 *>(pixels);
-        assert(num_channels == 3);
-
-        f32 a = (f32)pixels_u8[num_channels * pixel_index] / 255.f;
-        f32 b = (f32)pixels_u8[num_channels * pixel_index + 1] / 255.f;
-        f32 c = (f32)pixels_u8[num_channels * pixel_index + 2] / 255.f;
-
-        return tuple3(a, b, c);
+        return Spectrum(ConstantSpectrum::make(1.f));
     }
     case TextureDataType::F32: {
         f32 *pixels_f32 = static_cast<f32 *>(pixels);
@@ -153,7 +156,31 @@ ImageTexture::fetch(const vec2 &uv) const {
         f32 b = pixels_f32[num_channels * pixel_index + 1];
         f32 c = pixels_f32[num_channels * pixel_index + 2];
 
-        return tuple3(a, b, c);
+        return Spectrum(RgbSpectrum::from_coeff(tuple3(a, b, c)));
+    }
+    default:
+        assert(false);
+    }
+}
+
+f32
+ImageTexture::fetch_float(const vec2 &uv) const {
+    auto pixel_index = calc_index(uv);
+
+    switch (data_type) {
+    case TextureDataType::U8: {
+        u8 *pixels_u8 = static_cast<u8 *>(pixels);
+
+        f32 a = (f32)pixels_u8[num_channels * pixel_index] / 255.f;
+        return a;
+    }
+    case TextureDataType::F32: {
+        f32 *pixels_f32 = static_cast<f32 *>(pixels);
+        // assert(num_channels == 3);
+
+        f32 a = pixels_f32[num_channels * pixel_index];
+
+        return a;
     }
     default:
         assert(false);

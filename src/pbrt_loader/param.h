@@ -1,14 +1,17 @@
 #ifndef PARAM_H
 #define PARAM_H
 
+#include <spdlog/spdlog.h>
 #include <vector>
 
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
-#include <spdlog/spdlog.h>
-
 struct TextureValue {
+    std::string str;
+};
+
+struct SpectrumValue {
     std::string str;
 };
 
@@ -27,6 +30,40 @@ enum class ValueType {
     String,
     Texture,
 };
+
+inline std::string_view
+to_string(const ValueType e) {
+    using namespace std::literals;
+
+    switch (e) {
+    case ValueType::Int:
+        return "Int"sv;
+    case ValueType::Float:
+        return "Float"sv;
+    case ValueType::Point2:
+        return "Point2"sv;
+    case ValueType::Vector2:
+        return "Vector2"sv;
+    case ValueType::Point3:
+        return "Point3"sv;
+    case ValueType::Vector3:
+        return "Vector3"sv;
+    case ValueType::Normal:
+        return "Normal"sv;
+    case ValueType::Spectrum:
+        return "Spectrum"sv;
+    case ValueType::Rgb:
+        return "Rgb"sv;
+    case ValueType::Bool:
+        return "Bool"sv;
+    case ValueType::String:
+        return "String"sv;
+    case ValueType::Texture:
+        return "Texture"sv;
+    default:
+        return "unknown"sv;
+    }
+}
 
 enum class ParamType {
     Simple,
@@ -77,11 +114,16 @@ struct Param {
         : type{ParamType::Single}, value_type{ValueType::Texture}, name{name},
           inner{value.str} {}
 
+    Param(std::string &&name, SpectrumValue &&value)
+        : type{ParamType::Single}, value_type{ValueType::Spectrum}, name{name},
+          inner{value.str} {}
+
     Param(std::string &&name, std::vector<i32> &&value)
         : type{ParamType::List}, value_type{ValueType::Int}, name{name}, inner{value} {}
 
-    Param(std::string &&name, std::vector<f32> &&value)
-        : type{ParamType::List}, value_type{ValueType::Float}, name{name}, inner{value} {}
+    Param(std::string &&name, std::vector<f32> &&value,
+          const ValueType vt = ValueType::Float)
+        : type{ParamType::List}, value_type{vt}, name{name}, inner{value} {}
 
     Param(std::string &&name, std::vector<vec2> &&value)
         : type{ParamType::List}, value_type{ValueType::Vector2}, name{name},
@@ -99,6 +141,7 @@ struct Param {
         : type{ParamType::List}, value_type{ValueType::String}, name{name}, inner{value} {
     }
 
+    bool was_accessed{false};
     ParamType type;
     // Don't care about the value type for Simple Params
     ValueType value_type;
@@ -135,14 +178,75 @@ struct Param {
 
 struct ParamsList {
     void
-    push(Param &&param) {
+    add(Param &&param) {
+        if (params_by_name.contains(param.name)) {
+            const auto id = params_by_name.at(param.name);
+            if (params[id].value_type == param.value_type) {
+                throw std::runtime_error(
+                    fmt::format("Param '{}' already present in param list", param.name));
+            }
+        }
+
+        auto p_index = params.size();
+        params_by_name.insert({param.name, p_index});
         params.push_back(std::move(param));
+    }
+
+    std::optional<Param *>
+    get_optional(const std::string &name, const ValueType vt) {
+        if (!params_by_name.contains(name)) {
+            return {};
+        }
+
+        const auto p_index = params_by_name.at(name);
+        auto &p = params[p_index];
+
+        if (p.value_type != vt) {
+            throw std::runtime_error(fmt::format("Param '{}' has wrong type: '{}'", name,
+                                                 to_string(p.value_type)));
+        }
+
+        p.was_accessed = true;
+        return &p;
+    }
+
+    std::optional<Param *>
+    get_optional(const std::string &name) {
+        if (!params_by_name.contains(name)) {
+            return {};
+        }
+
+        const auto p_index = params_by_name.at(name);
+        auto &p = params[p_index];
+
+        p.was_accessed = true;
+        return &p;
+    }
+
+    Param &
+    get_required(const std::string &name, const ValueType vt) {
+        if (!params_by_name.contains(name)) {
+            throw std::runtime_error(fmt::format("Param '{}' is not present", name));
+        }
+
+        const auto p_index = params_by_name.at(name);
+        auto &p = params[p_index];
+
+        if (p.value_type != vt) {
+            throw std::runtime_error(fmt::format("Param '{}' has wrong type: '{}'", name,
+                                                 to_string(p.value_type)));
+        }
+
+        p.was_accessed = true;
+        return p;
     }
 
     Param &
     next_param() {
         if (index < params.size()) {
-            return params.at(index++);
+            auto &p = params.at(index++);
+            p.was_accessed = true;
+            return p;
         } else {
             throw std::runtime_error("Param list is empty");
         }
@@ -155,17 +259,19 @@ struct ParamsList {
             throw std::runtime_error("Wrong Param type");
         }
 
+        next.was_accessed = true;
+
         return next;
     }
 
-    std::span<Param>
-    get_remaining() {
-        if (index < params.size()) {
-            auto span = std::span(params);
-            span = span.subspan(index);
-            return span;
-        } else {
-            return std::span<Param>();
+    void
+    warn_unused_params(const std::string_view directive) {
+        for (const auto &p : params) {
+            if (!p.was_accessed) {
+                // TODO: could provide better diagnostic by printing the whole params list
+                spdlog::warn("Param '{}' was ignored in directive '{}'", p.name,
+                             directive);
+            }
         }
     }
 
@@ -175,6 +281,7 @@ public:
 #endif
     i32 index = 0;
     std::vector<Param> params{};
+    std::unordered_map<std::string, std::size_t> params_by_name{};
 };
 
 #endif // PARAM_H

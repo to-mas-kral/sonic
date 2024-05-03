@@ -32,7 +32,7 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
 
             spectral bxdf_light =
                 material->eval(sgeom_light, lambdas, sc.textures.data(), its.uv);
-            f32 mat_pdf = material->pdf(sgeom_light, lambdas);
+            f32 mat_pdf = material->pdf(sgeom_light, lambdas, sc.textures.data(), its.uv);
 
             f32 weight_light = mis_power_heuristic(pdf_light, mat_pdf);
 
@@ -89,11 +89,10 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
     while (true) {
         auto opt_its = device->cast_ray(ray);
         if (!opt_its.has_value()) {
-            if (!sc.has_envmap) {
+            if (!sc.envmap.has_value()) {
                 break;
             } else {
-                const Envmap *envmap = &sc.envmap;
-                spectral envrad = envmap->get_ray_radiance(ray, lambdas);
+                spectral envrad = sc.envmap.value().get_ray_radiance(ray, lambdas);
 
                 // TODO: do envmap sampling...
                 radiance += envrad;
@@ -106,7 +105,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
         auto bsdf_sample_rand = sampler.sample3();
         auto rr_sample = sampler.sample();
 
-        auto material = &materials[its.material_id];
+        auto material = &materials[its.material_id.inner];
         bool is_frontfacing = vec3::dot(-ray.dir, its.normal) >= 0.f;
 
         if (!is_frontfacing && !material->is_twosided) {

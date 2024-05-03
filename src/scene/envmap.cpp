@@ -23,7 +23,8 @@ img[u + v * width] *= sin_theta;
 }
 }*/
 
-Envmap::Envmap(const std::string &texture_path, const mat4 &to_world_transform)
+Envmap::
+Envmap(const std::string &texture_path, const mat4 &to_world_transform)
     : ImageTexture(ImageTexture::make(texture_path, true)),
       to_world_transform(to_world_transform.inverse()) {
     std::vector<f32> img(width * height, 0.f);
@@ -45,15 +46,14 @@ Envmap::get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
     uv *= pi_reciprocals;
     uv += 0.5;
 
-    auto coeff = fetch(uv);
-    return RgbSpectrum::from_coeff(coeff).eval(lambdas);
+    return fetch_spectrum(uv).eval(lambdas);
 }
 
-Tuple<tuple3, norm_vec3, f32>
+Tuple<Spectrum, norm_vec3, f32>
 Envmap::sample(const vec2 &sample) {
     auto [uv, pdf] = sampling_dist.sample(sample);
     if (pdf == 0.f) {
-        return {tuple3(0.f), norm_vec3(0.f), pdf};
+        return {Spectrum(ConstantSpectrum::make(0.f)), norm_vec3(0.f), pdf};
     }
 
     f32 theta = uv[1] * M_PIf;
@@ -70,7 +70,7 @@ Envmap::sample(const vec2 &sample) {
         pdf = 0.f;
     }
 
-    return {fetch(uv), dir, pdf};
+    return {fetch_spectrum(uv), dir, pdf};
 }
 
 f32

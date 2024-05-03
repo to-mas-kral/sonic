@@ -90,6 +90,9 @@ add_library(pt_lib
         src/pbrt_loader/lexer.h
         src/scene/scene_attribs.h
         src/pbrt_loader/param.h
+        src/materials/material_id.h
+        src/materials/material_id.h
+        src/scene/texture_id.h
 )
 
 target_compile_options(pt_lib PUBLIC
