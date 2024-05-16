@@ -263,7 +263,7 @@ MitsubaLoader::load_roughconductor_material(Scene &sc, const pugi::xml_node &bsd
 
 Material
 MitsubaLoader::load_dielectric_material(Scene &sc, const pugi::xml_node &bsdf) const {
-    Spectrum int_ior(GLASS_BK7_ETA, &sc.spectrum_allocator);
+    Spectrum int_ior(GLASS_BK7_ETA);
     Spectrum ext_ior(AIR_ETA);
 
     auto int_ior_node = child_node(bsdf, "int_ior");
@@ -424,7 +424,7 @@ MitsubaLoader::load_emitter(pugi::xml_node emitter_node, Scene &sc) {
     tuple3 emittance_rgb = parse_tuple3(rgb_node.attribute("value").as_string());
     auto emittance = RgbSpectrumIlluminant::make(emittance_rgb, ColorSpace::sRGB);
 
-    return Emitter(Spectrum(emittance, &sc.spectrum_allocator), false);
+    return Emitter(Spectrum(emittance), false);
 }
 
 void

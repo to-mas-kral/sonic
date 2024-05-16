@@ -2,19 +2,18 @@
 #include "common.h"
 
 f32
-RoughConductorMaterial::pdf(const ShadingGeometry &sgeom, const Texture *textures,
-                            const vec2 &uv) const {
-    const auto alpha = fetch_alpha(textures, m_alpha, uv);
+RoughConductorMaterial::pdf(const ShadingGeometry &sgeom, const vec2 &uv) const {
+    const auto alpha = fetch_alpha(m_alpha, uv);
     return TrowbridgeReitzGGX::pdf(sgeom, alpha);
 }
 
 spectral
 RoughConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
-                             const Texture *textures, const vec2 &uv) const {
+                             const vec2 &uv) const {
     // TODO: have to store the current IOR... when it isn't 1...
-    auto eta_spec = textures[m_eta.inner].fetch_spectrum(uv);
-    auto k_spec = textures[m_k.inner].fetch_spectrum(uv);
-    const auto alpha = fetch_alpha(textures, m_alpha, uv);
+    auto eta_spec = m_eta->fetch(uv);
+    auto k_spec = m_k->fetch(uv);
+    const auto alpha = fetch_alpha(m_alpha, uv);
 
     spectral rel_ior = eta_spec.eval(lambdas);
     spectral k = k_spec.eval(lambdas);
@@ -38,8 +37,8 @@ RoughConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas 
 Option<BSDFSample>
 RoughConductorMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
                                const vec2 &ξ, const SampledLambdas &lambdas,
-                               const Texture *textures, const vec2 &uv) const {
-    const auto alpha = fetch_alpha(textures, m_alpha, uv);
+                               const vec2 &uv) const {
+    const auto alpha = fetch_alpha(m_alpha, uv);
 
     norm_vec3 wi = TrowbridgeReitzGGX::sample(normal, wo, ξ, alpha);
     auto sgeom = ShadingGeometry::make(normal, wi, wo);
@@ -49,9 +48,9 @@ RoughConductorMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
     }
 
     return BSDFSample{
-        .bsdf = eval(sgeom, lambdas, textures, uv),
+        .bsdf = eval(sgeom, lambdas, uv),
         .wi = wi,
-        .pdf = pdf(sgeom, textures, uv),
+        .pdf = pdf(sgeom, uv),
         .did_refract = false,
     };
 }

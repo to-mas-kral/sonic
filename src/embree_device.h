@@ -14,30 +14,84 @@ errorFunction(void *userPtr, enum RTCError error, const char *str) {
     spdlog::error(fmt::format("Embree error {}: {}", (i32)error, str));
 }
 
+inline void
+filter_intersect_mesh(const RTCFilterFunctionNArguments *args) {
+    assert(args->context);
+
+    const auto *hit = reinterpret_cast<RTCHit *const>(args->hit);
+
+    // Not sure why this is needed, but it's in the Embree tutorials...
+    if (args->valid[0] != -1) {
+        return;
+    }
+
+    const auto *mesh = (Mesh *)args->geometryUserPtr;
+
+    const auto bary = vec2(hit->u, hit->v);
+    const auto bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
+    const auto uv = mesh->calc_uvs(hit->primID, bar);
+    const auto alpha = mesh->alpha->fetch(uv);
+
+    const auto alpha_rand = 0.5f;
+
+    if (alpha_rand > alpha) {
+        args->valid[0] = 0;
+    }
+}
+
+inline void
+filter_intersect_sphere(const RTCFilterFunctionNArguments *args) {
+    assert(args->context);
+
+    const auto *hit = reinterpret_cast<RTCHit *const>(args->hit);
+    const auto *ray = reinterpret_cast<RTCRay *const>(args->ray);
+
+    // Not sure why this is needed, but it's in the Embree tutorials...
+    if (args->valid[0] != -1) {
+        return;
+    }
+
+    const auto *spheres = (Spheres *)args->geometryUserPtr;
+
+    const auto orig = point3(ray->org_x, ray->org_y, ray->org_z);
+    const auto dir = vec3(ray->dir_x, ray->dir_y, ray->dir_z);
+
+    const auto raypos = orig + ray->tfar * dir;
+    const auto normal = Spheres::calc_normal(raypos, spheres->vertices[hit->primID].pos);
+    const auto uv = Spheres::calc_uvs(normal);
+
+    const auto alpha = spheres->alphas[hit->primID]->fetch(uv);
+
+    const auto alpha_rand = 0.3f;
+
+    if (alpha_rand < alpha) {
+        args->valid[0] = 0;
+    }
+}
+
 class EmbreeDevice {
 public:
-    explicit EmbreeDevice(Scene &scene) : scene(&scene) {
+    explicit
+    EmbreeDevice(Scene &scene)
+        : scene(&scene) {
         device = initialize_device();
         initialize_scene();
     }
 
     Intersection
-    get_triangle_its(u32 mesh_index, u32 triangle_index, const vec2 &bary) {
-        auto &mesh = scene->geometry.meshes.meshes[mesh_index];
-        auto &meshes = scene->geometry.meshes;
+    get_triangle_its(const Mesh *meshes, const u32 mesh_index, const u32 triangle_index,
+                     const vec2 &bary) const {
+        const auto &mesh = meshes[mesh_index];
 
-        auto [i0, i1, i2] = meshes.get_tri_indices(mesh.indices_index, triangle_index);
-        auto [p0, p1, p2] = meshes.get_tri_pos(mesh.pos_index, {i0, i1, i2});
+        const auto bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
 
-        vec3 bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
+        const auto indices = mesh.get_tri_indices(triangle_index);
+        const auto pos_arr = mesh.get_tri_pos(indices);
+        const auto pos = barycentric_interp(bar, pos_arr[0], pos_arr[1], pos_arr[2]);
 
-        point3 pos = barycentric_interp(bar, p0, p1, p2);
-
-        norm_vec3 normal = meshes.calc_normal(mesh.has_normals, i0, i1, i2,
-                                              mesh.normals_index, bar, p0, p1, p2);
-        norm_vec3 geometric_normal = meshes.calc_normal(
-            mesh.has_normals, i0, i1, i2, mesh.normals_index, bar, p0, p1, p2, true);
-        vec2 uv = meshes.calc_uvs(mesh.has_uvs, i0, i1, i2, mesh.uvs_index, bar);
+        const auto normal = mesh.calc_normal(triangle_index, bar, false);
+        const auto geometric_normal = mesh.calc_normal(triangle_index, bar, true);
+        const auto uv = mesh.calc_uvs(triangle_index, bar);
 
         return Intersection{
             .material_id = mesh.material_id,
@@ -51,11 +105,9 @@ public:
     }
 
     Intersection
-    get_sphere_its(u32 sphere_id, const point3 &pos) {
-        auto &spheres = scene->geometry.spheres;
-
-        auto &center = spheres.vertices[sphere_id].pos;
-        auto normal = Spheres::calc_normal(pos, center);
+    get_sphere_its(const Spheres &spheres, const u32 sphere_id, const point3 &pos) const {
+        const auto &center = spheres.vertices[sphere_id].pos;
+        const auto normal = Spheres::calc_normal(pos, center);
 
         return Intersection{
             .material_id = spheres.material_ids[sphere_id],
@@ -70,7 +122,7 @@ public:
 
     Option<Intersection>
     cast_ray(point3 orig, vec3 dir) {
-        RTCRayHit rayhit {};
+        RTCRayHit rayhit{};
         rayhit.ray.org_x = orig.x;
         rayhit.ray.org_y = orig.y;
         rayhit.ray.org_z = orig.z;
@@ -84,17 +136,49 @@ public:
         rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
         rayhit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
 
-        rtcIntersect1(rtc_scene, &rayhit);
+        rtcIntersect1(main_scene, &rayhit);
+
+        // TODO: refactor later
+        if (rayhit.hit.instID[0] != RTC_INVALID_GEOMETRY_ID) {
+            const auto instance_indice =
+                scene->geometry.instances.indices[rayhit.hit.instPrimID[0]];
+
+            const auto &instanced_obj =
+                scene->geometry.instances.instanced_objs[instance_indice];
+
+            auto its = Intersection::make_empty();
+
+            if (rayhit.hit.geomID < mesh_geom_counts[instance_indice]) {
+                its = get_triangle_its(instanced_obj.meshes.meshes.data(),
+                                       rayhit.hit.geomID, rayhit.hit.primID,
+                                       vec2(rayhit.hit.u, rayhit.hit.v));
+            } else {
+                point3 pos = orig + rayhit.ray.tfar * dir;
+                its = get_sphere_its(instanced_obj.spheres, rayhit.hit.primID, pos);
+            }
+
+            const auto &transform =
+                scene->geometry.instances.world_from_instances[rayhit.hit.instPrimID[0]];
+            const auto &transform_inv_trans =
+                scene->geometry.instances.wfi_inv_trans[rayhit.hit.instPrimID[0]];
+
+            its.pos = transform.transform_point(its.pos);
+            its.normal = transform_inv_trans.transform_vec(its.normal).normalized();
+            its.geometric_normal =
+                transform_inv_trans.transform_vec(its.geometric_normal).normalized();
+
+            return its;
+        }
 
         if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
-            if (rayhit.hit.geomID < mesh_count) {
-                return get_triangle_its(rayhit.hit.geomID, rayhit.hit.primID,
+            if (rayhit.hit.geomID < mesh_geom_count) {
+                return get_triangle_its(scene->geometry.meshes.meshes.data(),
+                                        rayhit.hit.geomID, rayhit.hit.primID,
                                         vec2(rayhit.hit.u, rayhit.hit.v));
             } else {
                 point3 pos = orig + rayhit.ray.tfar * dir;
-                return get_sphere_its(rayhit.hit.primID, pos);
+                return get_sphere_its(scene->geometry.spheres, rayhit.hit.primID, pos);
             }
-
         } else {
             return {};
         }
@@ -106,14 +190,14 @@ public:
     }
 
     bool
-    is_visible(point3 a, point3 b) {
-        vec3 dir = b - a;
-        point3 orig = a;
+    is_visible(const point3 a, const point3 b) const {
+        const vec3 dir = b - a;
+        const point3 orig = a;
 
         // tfar is relative to the ray length
-        f32 tfar = 0.999f;
+        const f32 tfar = 0.999f;
 
-        RTCRay rtc_ray {};
+        RTCRay rtc_ray{};
         rtc_ray.org_x = orig.x;
         rtc_ray.org_y = orig.y;
         rtc_ray.org_z = orig.z;
@@ -126,7 +210,7 @@ public:
         rtc_ray.flags = 0;
         rtc_ray.time = 0;
 
-        rtcOccluded1(rtc_scene, &rtc_ray);
+        rtcOccluded1(main_scene, &rtc_ray);
 
         if (rtc_ray.tfar == -INFINITY) {
             return false;
@@ -141,7 +225,7 @@ public:
 
         if (!device) {
             spdlog::error(fmt::format("Cannot create Embree device, error: {}\n",
-                                      (i32)rtcGetDeviceError(nullptr)));
+                                      static_cast<i32>(rtcGetDeviceError(nullptr))));
         }
 
         rtcSetDeviceErrorFunction(device, errorFunction, nullptr);
@@ -150,70 +234,174 @@ public:
 
     RTCScene
     initialize_scene() {
-        rtc_scene = rtcNewScene(device);
+        main_scene = rtcNewScene(device);
 
         initialize_meshes();
         initialize_spheres();
+        initialize_instances();
 
-        rtcCommitScene(rtc_scene);
+        rtcCommitScene(main_scene);
 
-        return rtc_scene;
+        return main_scene;
     }
 
     void
     initialize_meshes() {
-        auto &pos = scene->geometry.meshes.pos;
-        auto &indices = scene->geometry.meshes.indices;
-
         auto &meshes = scene->geometry.meshes.meshes;
-        mesh_count = meshes.size();
-        for (auto &mesh : meshes) {
-            RTCGeometry geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
-
-            size_t pos_byte_offset = mesh.pos_index * sizeof(point3);
-            size_t indices_byte_offset = mesh.indices_index * sizeof(u32);
+        mesh_geom_count = meshes.size();
+        for (const auto &mesh : meshes) {
+            const auto geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3,
-                                       pos.data(), pos_byte_offset, sizeof(point3),
-                                       mesh.num_vertices);
+                                       mesh.pos, 0, sizeof(point3), mesh.num_verts);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
-                                       indices.data(), indices_byte_offset,
-                                       3 * sizeof(u32), mesh.num_indices / 3);
+                                       mesh.indices, 0, 3 * sizeof(u32),
+                                       mesh.num_indices / 3);
+
+            if (mesh.alpha) {
+                rtcSetGeometryIntersectFilterFunction(geom, filter_intersect_mesh);
+                rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_mesh);
+                rtcSetGeometryUserData(geom, (void *)(&mesh));
+            }
 
             rtcCommitGeometry(geom);
 
             /* From Embree 4 docs:
              * The geometry IDs are assigned sequentially, starting from 0, as long as no
-             * ge- ometry got detached.
+             * geometry got detached.
              * */
-            rtcAttachGeometry(rtc_scene, geom);
+            rtcAttachGeometry(main_scene, geom);
             rtcReleaseGeometry(geom);
         }
     }
 
     void
-    initialize_spheres() {
-        auto &spheres = scene->geometry.spheres;
-        auto &vertices = spheres.vertices;
+    initialize_instances() {
+        const auto &instances = scene->geometry.instances;
 
-        sphere_count = spheres.num_spheres;
+        if (instances.indices.empty()) {
+            return;
+        }
 
-        RTCGeometry geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
+        instance_count = instances.instanced_objs.size();
 
-        rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT4,
-                                   vertices.data(), 0, sizeof(SphereVertex),
-                                   sphere_count);
+        instance_scenes.reserve(instance_count);
+        for (const auto &instance : instances.instanced_objs) {
+            auto instance_scene = rtcNewScene(device);
 
-        rtcCommitGeometry(geom);
+            {
+                mesh_geom_counts.push_back(instance.meshes.meshes.size());
 
-        rtcAttachGeometry(rtc_scene, geom);
-        rtcReleaseGeometry(geom);
+                for (const auto &mesh : instance.meshes.meshes) {
+                    const auto geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
+
+                    rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0,
+                                               RTC_FORMAT_FLOAT3, mesh.pos, 0,
+                                               sizeof(point3), mesh.num_verts);
+
+                    rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0,
+                                               RTC_FORMAT_UINT3, mesh.indices, 0,
+                                               3 * sizeof(u32), mesh.num_indices / 3);
+
+                    if (mesh.alpha) {
+                        rtcSetGeometryIntersectFilterFunction(geom,
+                                                              filter_intersect_mesh);
+                        rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_mesh);
+                        rtcSetGeometryUserData(geom, (void *)(&mesh));
+                    }
+
+                    rtcCommitGeometry(geom);
+
+                    /* From Embree 4 docs:
+                     * The geometry IDs are assigned sequentially, starting from 0, as
+                     * long as no geometry got detached.
+                     * */
+                    rtcAttachGeometry(instance_scene, geom);
+                    rtcReleaseGeometry(geom);
+                }
+
+                const auto &spheres = instance.spheres;
+                const auto &vertices = spheres.vertices;
+
+                for (int i = 0; i < spheres.num_spheres; ++i) {
+                    const auto geom =
+                        rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
+
+                    rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0,
+                                               RTC_FORMAT_FLOAT4, &vertices[i], 0,
+                                               sizeof(SphereVertex), 1);
+
+                    if (spheres.alphas[i]) {
+                        rtcSetGeometryIntersectFilterFunction(geom,
+                                                              filter_intersect_sphere);
+                        rtcSetGeometryOccludedFilterFunction(geom,
+                                                             filter_intersect_sphere);
+                        rtcSetGeometryUserData(geom, (void *)(&spheres));
+                    }
+
+                    rtcCommitGeometry(geom);
+
+                    rtcAttachGeometry(instance_scene, geom);
+                    rtcReleaseGeometry(geom);
+                }
+            }
+
+            rtcCommitScene(instance_scene);
+
+            instance_scenes.push_back(instance_scene);
+        }
+
+        const auto instance_array =
+            rtcNewGeometry(device, RTC_GEOMETRY_TYPE_INSTANCE_ARRAY);
+
+        rtcSetGeometryInstancedScenes(instance_array, instance_scenes.data(),
+                                      instance_scenes.size());
+
+        rtcSetSharedGeometryBuffer(instance_array, RTC_BUFFER_TYPE_INDEX, 0,
+                                   RTC_FORMAT_UINT, instances.indices.data(), 0,
+                                   sizeof(u32), instances.indices.size());
+
+        rtcSetSharedGeometryBuffer(
+            instance_array, RTC_BUFFER_TYPE_TRANSFORM, 0,
+            RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR, instances.world_from_instances.data(), 0,
+            sizeof(SquareMatrix4), instances.world_from_instances.size());
+
+        rtcCommitGeometry(instance_array);
+        rtcAttachGeometry(main_scene, instance_array);
+        rtcReleaseGeometry(instance_array);
     }
 
-    ~EmbreeDevice() {
+    void
+    initialize_spheres() {
+        const auto &spheres = scene->geometry.spheres;
+        const auto &vertices = spheres.vertices;
+
+        sphere_geom_count = spheres.num_spheres;
+
+        for (int i = 0; i < sphere_geom_count; ++i) {
+            RTCGeometry geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
+
+            rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT4,
+                                       &vertices[i], 0, sizeof(SphereVertex), 1);
+
+            if (spheres.alphas[i]) {
+                rtcSetGeometryIntersectFilterFunction(geom, filter_intersect_sphere);
+                rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_sphere);
+                rtcSetGeometryUserData(geom, (void *)(&spheres));
+            }
+
+            rtcCommitGeometry(geom);
+
+            rtcAttachGeometry(main_scene, geom);
+            rtcReleaseGeometry(geom);
+        }
+    }
+
+    ~
+    EmbreeDevice() {
         rtcReleaseDevice(device);
-        rtcReleaseScene(rtc_scene);
+        rtcReleaseScene(main_scene);
     }
 
 private:
@@ -222,11 +410,17 @@ private:
     /// goem_ids are assigned sequentially by Embree
     /// we can know which type of object was intersected by looking at the counts for
     /// the different geometries if they were created sequentially
-    u32 mesh_count{0};
-    u32 sphere_count{0};
+    u32 mesh_geom_count{0};
+    u32 sphere_geom_count{0};
+    u32 instance_count{0};
 
     RTCDevice device;
-    RTCScene rtc_scene;
+    RTCScene main_scene;
+
+    std::vector<RTCScene> instance_scenes{};
+
+    // TODO: refactor later...
+    std::vector<u32> mesh_geom_counts{};
 };
 
 #endif // PT_EMBREE_DEVICE_H

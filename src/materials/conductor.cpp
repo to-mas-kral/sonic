@@ -11,13 +11,13 @@ ConductorMaterial::pdf() {
 
 spectral
 ConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
-                        const Texture *textures, const vec2 &uv) const {
+                        const vec2 &uv) const {
     if (m_perfect) {
         return spectral::ONE() / sgeom.cos_theta;
     } else {
         // TODO: have to store the current IOR... when it isn't 1...
-        auto eta = textures[m_eta.inner].fetch_spectrum(uv);
-        auto k_spectrum = textures[m_k.inner].fetch_spectrum(uv);
+        const auto eta = m_eta->fetch(uv);
+        const auto k_spectrum = m_k->fetch(uv);
 
         spectral rel_ior = eta.eval(lambdas);
         spectral k = k_spectrum.eval(lambdas);
@@ -33,12 +33,11 @@ ConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lamb
 
 BSDFSample
 ConductorMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
-                          const SampledLambdas &lambdas, const Texture *textures,
-                          const vec2 &uv) const {
+                          const SampledLambdas &lambdas, const vec2 &uv) const {
     norm_vec3 wi = vec3::reflect(wo, normal).normalized();
     auto sgeom = ShadingGeometry::make(normal, wi, wo);
     return BSDFSample{
-        .bsdf = eval(sgeom, lambdas, textures, uv),
+        .bsdf = eval(sgeom, lambdas, uv),
         .wi = wi,
         .pdf = 1.f,
         .did_refract = false,

@@ -6,7 +6,7 @@
 
 f32
 RoughPlasticMaterial::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ,
-                          const Texture *textures, const vec2 &uv) const {
+                          const vec2 &uv) const {
     f32 int_η = int_ior.eval_single(λ[0]);
     f32 ext_η = ext_ior.eval_single(λ[0]);
     f32 rel_η = int_η / ext_η;
@@ -14,7 +14,7 @@ RoughPlasticMaterial::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ
     f32 fresnel_i = fresnel_dielectric(rel_η, sgeom.nowo);
 
     f32 diffuse_pdf = (1.f - fresnel_i) * sgeom.cos_theta / M_PIf;
-    f32 alpha = fetch_alpha(textures, m_alpha, uv);
+    f32 alpha = fetch_alpha(m_alpha, uv);
     f32 microfacet_pdf = fresnel_i * TrowbridgeReitzGGX::pdf(sgeom, alpha);
 
     return diffuse_pdf + microfacet_pdf;
@@ -22,7 +22,7 @@ RoughPlasticMaterial::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ
 
 spectral
 RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
-                           const Texture *textures, const vec2 &uv) const {
+                           const vec2 &uv) const {
     f32 int_ior_s = int_ior.eval_single(lambdas[0]);
     f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
     /// This is external / internal !
@@ -31,7 +31,7 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
     f32 fresnel_i = fresnel_dielectric(1.f / rel_ior, sgeom.nowi);
 
     // Specular case
-    f32 alpha = fetch_alpha(textures, m_alpha, uv);
+    f32 alpha = fetch_alpha(m_alpha, uv);
     f32 D = TrowbridgeReitzGGX::D(sgeom.noh, alpha);
 
     float G = TrowbridgeReitzGGX::G1(sgeom.nowi, sgeom.howo, alpha) *
@@ -50,8 +50,7 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
     f32 cos_theta_in = safe_sqrt(1.f - sqr(sin_theta_in));
     f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-    const Texture *texture = &textures[diffuse_reflectance_id.inner];
-    auto α = texture->fetch_spectrum(uv).eval(lambdas);
+    auto α = diffuse_reflectance->fetch(uv).eval(lambdas);
 
     f32 re = 0.919317f;
     f32 ior_pow = int_ior_s;
@@ -77,8 +76,7 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
 
 Option<BSDFSample>
 RoughPlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
-                             const SampledLambdas &λ, const Texture *textures,
-                             const vec2 &uv) const {
+                             const SampledLambdas &λ, const vec2 &uv) const {
     f32 int_η = int_ior.eval_single(λ[0]);
     f32 ext_η = ext_ior.eval_single(λ[0]);
     f32 rel_η = int_η / ext_η;
@@ -88,7 +86,7 @@ RoughPlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, cons
 
     if (ξ.z < potential_fresnel) {
         // sample specular
-        f32 alpha = fetch_alpha(textures, m_alpha, uv);
+        f32 alpha = fetch_alpha(m_alpha, uv);
         norm_vec3 wi = TrowbridgeReitzGGX::sample(normal, ωo, vec2(ξ.x, ξ.y), alpha);
         auto sgeom = ShadingGeometry::make(normal, wi, ωo);
 
@@ -97,9 +95,9 @@ RoughPlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, cons
         }
 
         return BSDFSample{
-            .bsdf = eval(sgeom, λ, textures, uv),
+            .bsdf = eval(sgeom, λ, uv),
             .wi = wi,
-            .pdf = pdf(sgeom, λ, textures, uv),
+            .pdf = pdf(sgeom, λ, uv),
         };
     } else {
         // sample diffuse
@@ -111,9 +109,9 @@ RoughPlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, cons
         }
 
         return BSDFSample{
-            .bsdf = eval(sgeom, λ, textures, uv),
+            .bsdf = eval(sgeom, λ, uv),
             .wi = ωi,
-            .pdf = pdf(sgeom, λ, textures, uv),
+            .pdf = pdf(sgeom, λ, uv),
         };
     }
 }

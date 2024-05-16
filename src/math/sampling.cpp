@@ -1,5 +1,9 @@
 #include "sampling.h"
 
+#include "../utils/algs.h"
+
+#include <spdlog/spdlog.h>
+
 vec2
 sample_uniform_disk_concentric(const vec2 &u) {
     vec2 u_offset = (2.f * u) - vec2(1.f, 1.f);
@@ -57,26 +61,17 @@ sample_uniform_triangle(const vec2 &sample) {
 }
 
 u32
-sample_discrete_cmf(Span<f32> cmf, f32 sample) {
-    // TODO: binary search
-    for (u32 i = 0; i < cmf.size(); i++) {
-        if (sample < cmf[i]) {
-            return i;
-        }
-    }
-
-    assert(false);
+sample_discrete_cmf(Span<f32> cmf, const f32 sample) {
+    const auto i = std::upper_bound(cmf.begin(), cmf.end(), sample);
+    assert(i != cmf.end());
+    return std::distance(cmf.begin(), i);
 }
+
 Tuple<f32, u32>
 sample_continuous_cmf(Span<f32> cdf, f32 sample) {
-    // TODO: binary search
-    u32 offset = 0;
-    for (u32 i = 0; i < cdf.size(); i++) {
-        if (sample < cdf[i]) {
-            offset = i;
-            break;
-        }
-    }
+    const auto i = std::upper_bound(cdf.begin(), cdf.end(), sample);
+    assert(i != cdf.end());
+    auto offset = std::distance(cdf.begin(), i);
 
     f32 du = sample - cdf[offset];
     if ((cdf[offset + 1] - cdf[offset]) > 0) {

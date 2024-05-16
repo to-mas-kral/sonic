@@ -21,7 +21,7 @@ PlasticMaterial::is_dirac_delta() {
 
 spectral
 PlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
-                      const Texture *textures, const vec2 &uv) const {
+                      const vec2 &uv) const {
     f32 int_ior_s = int_ior.eval_single(lambdas[0]);
     f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
     /// This is external / internal !
@@ -40,8 +40,7 @@ PlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambda
         f32 cos_theta_in = std::sqrt(1.f - sqr(sin_theta_in));
         f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-        const Texture *texture = &textures[diffuse_reflectance_id.inner];
-        auto α = texture->fetch_spectrum(uv).eval(lambdas);
+        auto α = diffuse_reflectance->fetch(uv).eval(lambdas);
 
         f32 re = 0.919317f;
         f32 ior_pow = int_ior_s;
@@ -68,8 +67,7 @@ PlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambda
 
 BSDFSample
 PlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
-                        const SampledLambdas &λ, const Texture *textures,
-                        const vec2 &uv) const {
+                        const SampledLambdas &λ, const vec2 &uv) const {
     f32 int_η = int_ior.eval_single(λ[0]);
     f32 ext_η = ext_ior.eval_single(λ[0]);
     f32 rel_η = int_η / ext_η;
@@ -97,7 +95,7 @@ PlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec
         auto sgeom = ShadingGeometry::make(normal, ωi, ωo);
 
         return BSDFSample{
-            .bsdf = eval(sgeom, λ, textures, uv),
+            .bsdf = eval(sgeom, λ, uv),
             .wi = ωi,
             .pdf = pdf(sgeom, λ),
             .did_refract = false,

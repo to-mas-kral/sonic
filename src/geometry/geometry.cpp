@@ -4,49 +4,13 @@
 #include "../math/sampling.h"
 
 void
-Geometry::add_mesh(const MeshParams &mp, Option<u32> lights_start_id) {
-    u32 num_indices = mp.indices->size();
-    u32 num_vertices = mp.pos->size();
-
-    // TODO: accidentally quadratic resizing...
-
-    u32 indices_index = meshes.indices.size();
-    for (u32 &index : *mp.indices) {
-        meshes.indices.push_back(index);
-    }
-
-    u32 pos_index = meshes.pos.size();
-    for (auto &pos : *mp.pos) {
-        meshes.pos.push_back(pos);
-    }
-
-    Option<u32> normals_index = {};
-    if (mp.normals != nullptr) {
-        normals_index = {meshes.normals.size()};
-        assert(mp.normals->size() == mp.pos->size());
-
-        for (auto normal : *mp.normals) {
-            meshes.normals.push_back(normal);
-        }
-    }
-
-    Option<u32> uvs_index = {};
-    if (mp.uvs != nullptr) {
-        uvs_index = {meshes.uvs.size()};
-        assert(mp.uvs->size() == mp.pos->size());
-
-        for (auto uv : *mp.uvs) {
-            meshes.uvs.push_back(uv);
-        }
-    }
-
-    auto mesh = Mesh(indices_index, pos_index, mp.material_id, lights_start_id,
-                     num_indices, num_vertices, normals_index, uvs_index);
-    meshes.meshes.push_back(mesh);
+Geometry::add_mesh(const MeshParams &mp, const Option<u32> lights_start_id) {
+    auto mesh = Mesh(mp, lights_start_id);
+    meshes.meshes.push_back(std::move(mesh));
 }
 
 void
-Geometry::add_sphere(SphereParams sp, Option<u32> light_id) {
+Geometry::add_sphere(SphereParams sp, const Option<u32> light_id) {
     spheres.vertices.push_back(SphereVertex{
         .pos = sp.center,
         .radius = sp.radius,
@@ -63,7 +27,7 @@ Geometry::add_sphere(SphereParams sp, Option<u32> light_id) {
 }
 
 u32
-Geometry::get_next_shape_index(ShapeType type) const {
+Geometry::get_next_shape_index(const ShapeType type) const {
     switch (type) {
     case ShapeType::Mesh:
         return meshes.meshes.size();
@@ -75,7 +39,7 @@ Geometry::get_next_shape_index(ShapeType type) const {
 }
 
 ShapeSample
-Geometry::sample_shape(ShapeIndex si, const point3 &pos, const vec3 &sample) const {
+Geometry::sample_shape(const ShapeIndex si, const point3 &pos, const vec3 &sample) const {
     switch (si.type) {
     case ShapeType::Mesh:
         return meshes.sample(si, sample);
@@ -87,12 +51,11 @@ Geometry::sample_shape(ShapeIndex si, const point3 &pos, const vec3 &sample) con
 }
 
 f32
-Geometry::shape_area(ShapeIndex si) const {
+Geometry::shape_area(const ShapeIndex si) const {
     switch (si.type) {
     case ShapeType::Mesh: {
-        auto &mesh = meshes.meshes[si.index];
-        return meshes.calc_tri_area(mesh.indices_index, mesh.pos_index,
-                                    si.triangle_index);
+        const auto &mesh = meshes.meshes[si.index];
+        return mesh.tri_area(si.triangle_index);
     }
     case ShapeType::Sphere:
         return spheres.calc_sphere_area(si.index);
@@ -101,67 +64,64 @@ Geometry::shape_area(ShapeIndex si) const {
     }
 }
 
-Mesh::Mesh(u32 indices_index, u32 pos_index, MaterialId material_id,
-           Option<u32> p_lights_start_id, u32 num_indices, u32 num_vertices,
-           Option<u32> p_normals_index, Option<u32> p_uvs_index)
-    : pos_index(pos_index), indices_index(indices_index), num_vertices(num_vertices),
-      num_indices(num_indices), material_id(material_id) {
-
+Mesh::
+Mesh(const MeshParams &mp, const Option<u32> p_lights_start_id)
+    : num_verts{mp.num_verts}, num_indices{mp.num_indices}, pos{mp.pos},
+      normals{mp.normals}, uvs{mp.uvs}, indices{mp.indices}, alpha{mp.alpha},
+      material_id{mp.material_id} {
     if (p_lights_start_id.has_value()) {
         lights_start_id = p_lights_start_id.value();
         has_light = true;
     }
-
-    if (p_normals_index.has_value()) {
-        normals_index = p_normals_index.value();
-        has_normals = true;
-    }
-
-    if (p_uvs_index.has_value()) {
-        uvs_index = p_uvs_index.value();
-        has_uvs = true;
-    }
 }
 
-Array<u32, 3>
-Meshes::get_tri_indices(u32 mesh_indices_index, u32 triangle) const {
-    u32 index = triangle * 3;
-    u32 i0 = indices[mesh_indices_index + index];
-    u32 i1 = indices[mesh_indices_index + index + 1];
-    u32 i2 = indices[mesh_indices_index + index + 2];
+u32
+Mesh::num_triangles() const {
+    return num_indices / 3;
+}
+
+uvec3
+Mesh::get_tri_indices(const u32 triangle) const {
+    const auto index = triangle * 3;
+    const auto i0 = indices[index];
+    const auto i1 = indices[index + 1];
+    const auto i2 = indices[index + 2];
     return {i0, i1, i2};
 }
 
-Array<point3, 3>
-Meshes::get_tri_pos(u32 mesh_pos_index, const Array<u32, 3> &tri_indices) const {
-    point3 p0 = pos[mesh_pos_index + tri_indices[0]];
-    point3 p1 = pos[mesh_pos_index + tri_indices[1]];
-    point3 p2 = pos[mesh_pos_index + tri_indices[2]];
+std::array<point3, 3>
+Mesh::get_tri_pos(const uvec3 &tri_indices) const {
+    const auto p0 = pos[tri_indices[0]];
+    const auto p1 = pos[tri_indices[1]];
+    const auto p2 = pos[tri_indices[2]];
     return {p0, p1, p2};
 }
 
 f32
-Meshes::calc_tri_area(u32 mesh_indices_index, u32 mesh_pos_index, u32 triangle) const {
-    auto tri_indices = get_tri_indices(mesh_indices_index, triangle);
-    const auto [p0, p1, p2] = get_tri_pos(mesh_pos_index, tri_indices);
-    vec3 v1 = p1 - p0;
-    vec3 v2 = p2 - p0;
-    vec3 cross = vec3::cross(v1, v2);
+Mesh::tri_area(const u32 triangle) const {
+    const auto tri_indices = get_tri_indices(triangle);
+    const auto [p0, p1, p2] = get_tri_pos(tri_indices);
+    const auto v1 = p1 - p0;
+    const auto v2 = p2 - p0;
+    const auto cross = vec3::cross(v1, v2);
     return cross.length() / 2.f;
 }
 
 norm_vec3
-Meshes::calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, u32 normals_index,
-                    const vec3 &bar, const point3 &p0, const point3 &p1, const point3 &p2,
-                    bool want_geometric_normal) const {
-    if (has_normals && !want_geometric_normal) {
-        vec3 n0 = normals[normals_index + i0];
-        vec3 n1 = normals[normals_index + i1];
-        vec3 n2 = normals[normals_index + i2];
+Mesh::calc_normal(const u32 triangle, const vec3 bar,
+                  const bool want_geometric_normal) const {
+    const auto tri_indices = get_tri_indices(triangle);
+
+    if (normals && !want_geometric_normal) {
+        const auto n0 = normals[tri_indices[0]];
+        const auto n1 = normals[tri_indices[1]];
+        const auto n2 = normals[tri_indices[2]];
         return barycentric_interp(bar, n0, n1, n2).normalized();
     } else {
-        vec3 v0 = p1 - p0;
-        vec3 v1 = p2 - p0;
+        const auto [p0, p1, p2] = get_tri_pos(tri_indices);
+
+        const auto v0 = p1 - p0;
+        const auto v1 = p2 - p0;
         norm_vec3 normal = vec3::cross(v0, v1).normalized();
         if (normal.any_nan()) {
             // TODO: Degenerate triangle hack...
@@ -173,14 +133,14 @@ Meshes::calc_normal(bool has_normals, u32 i0, u32 i1, u32 i2, u32 normals_index,
 }
 
 vec2
-Meshes::calc_uvs(bool has_uvs, u32 i0, u32 i1, u32 i2, u32 uvs_index,
-                 const vec3 &bar) const {
+Mesh::calc_uvs(const u32 triangle_index, const vec3 &bar) const {
     // Idk what's suppossed to happen here without explicit UVs..
-    vec2 uv = vec2(0.);
-    if (has_uvs) {
-        vec2 uv0 = uvs[uvs_index + i0];
-        vec2 uv1 = uvs[uvs_index + i1];
-        vec2 uv2 = uvs[uvs_index + i2];
+    const auto tri_indices = get_tri_indices(triangle_index);
+    auto uv = vec2(0.);
+    if (uvs) {
+        const auto uv0 = uvs[tri_indices[0]];
+        const auto uv1 = uvs[tri_indices[1]];
+        const auto uv2 = uvs[tri_indices[2]];
         uv = barycentric_interp(bar, uv0, uv1, uv2);
     }
 
@@ -189,18 +149,15 @@ Meshes::calc_uvs(bool has_uvs, u32 i0, u32 i1, u32 i2, u32 uvs_index,
 
 ShapeSample
 Meshes::sample(ShapeIndex si, const vec3 &sample) const {
-    auto &mesh = meshes[si.index];
+    const auto &mesh = meshes[si.index];
 
-    const vec3 bar = sample_uniform_triangle(vec2(sample.y, sample.z));
-    auto tri_indices = get_tri_indices(mesh.indices_index, si.triangle_index);
-    const auto tri_pos = get_tri_pos(mesh.pos_index, tri_indices);
-    point3 sampled_pos = barycentric_interp(bar, tri_pos[0], tri_pos[1], tri_pos[2]);
+    const auto bar = sample_uniform_triangle(vec2(sample.y, sample.z));
+    const auto tri_indices = mesh.get_tri_indices(si.triangle_index);
+    const auto tri_pos = mesh.get_tri_pos(tri_indices);
+    const auto sampled_pos = barycentric_interp(bar, tri_pos[0], tri_pos[1], tri_pos[2]);
 
-    norm_vec3 normal =
-        calc_normal(mesh.has_normals, tri_indices[0], tri_indices[1], tri_indices[2],
-                    mesh.normals_index, bar, tri_pos[0], tri_pos[1], tri_pos[2]);
-
-    f32 area = calc_tri_area(mesh.indices_index, mesh.pos_index, si.triangle_index);
+    const auto normal = mesh.calc_normal(si.triangle_index, bar, false);
+    const auto area = mesh.tri_area(si.triangle_index);
 
     return ShapeSample{
         .pos = sampled_pos,

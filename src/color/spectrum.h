@@ -45,7 +45,7 @@ public:
 
 private:
     const f32 *vals;
-    u32 size_half;
+    u32 size{0};
 };
 
 class ConstantSpectrum {
@@ -110,8 +110,20 @@ struct RgbSpectrumIlluminant : RgbSpectrumUnbounded {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
-    // TODO: best to store this out-of-band in the case if illuminant textures...
     ColorSpace color_space = ColorSpace::sRGB;
+};
+
+struct BlackbodySpectrum {
+    static BlackbodySpectrum
+    make(i32 temp);
+
+    f32
+    eval_single(f32 lambda) const;
+
+    spectral
+    eval(const SampledLambdas &lambdas) const;
+
+    i32 temp{0};
 };
 
 enum class SpectrumType {
@@ -121,6 +133,7 @@ enum class SpectrumType {
     Rgb,
     RgbUnbounded,
     RgbIlluminant,
+    Blackbody,
 };
 
 struct Spectrum {
@@ -129,10 +142,9 @@ struct Spectrum {
         : type{SpectrumType::Dense}, dense_spectrum{ds} {}
 
     explicit
-    Spectrum(PiecewiseSpectrum ps, ChunkAllocator<> *spectrum_allocator)
+    Spectrum(PiecewiseSpectrum ps)
         : type{SpectrumType::PiecewiseLinear} {
-        piecewise_spectrum = spectrum_allocator->allocate<PiecewiseSpectrum>();
-        *piecewise_spectrum = ps;
+        piecewise_spectrum = ps;
     }
 
     explicit
@@ -152,10 +164,15 @@ struct Spectrum {
     }
 
     explicit
-    Spectrum(RgbSpectrumIlluminant rs, ChunkAllocator<> *spectrum_allocator)
+    Spectrum(RgbSpectrumIlluminant rs)
         : type{SpectrumType::RgbIlluminant} {
-        rgb_spectrum_illuminant = spectrum_allocator->allocate<RgbSpectrumIlluminant>();
-        *rgb_spectrum_illuminant = rs;
+        rgb_spectrum_illuminant = rs;
+    }
+
+    explicit
+    Spectrum(BlackbodySpectrum bs)
+        : type{SpectrumType::Blackbody} {
+        blackbody_spectrum = bs;
     }
 
     SampledSpectrum
@@ -167,11 +184,12 @@ struct Spectrum {
     SpectrumType type;
     union {
         DenseSpectrum dense_spectrum;
-        PiecewiseSpectrum *piecewise_spectrum;
+        PiecewiseSpectrum piecewise_spectrum;
         ConstantSpectrum constant_spectrum{};
         RgbSpectrum rgb_spectrum;
         RgbSpectrumUnbounded rgb_spectrum_unbounded;
-        RgbSpectrumIlluminant *rgb_spectrum_illuminant;
+        RgbSpectrumIlluminant rgb_spectrum_illuminant;
+        BlackbodySpectrum blackbody_spectrum;
     };
 };
 

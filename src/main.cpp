@@ -3,7 +3,6 @@
 #include "integrator/integrator_type.h"
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
-#include "mitsuba_loader/mitsuba_loader.h"
 #include "pbrt_loader/pbrt_loader.h"
 #include "render_context.h"
 #include "settings.h"
@@ -66,11 +65,8 @@ main(int argc, char **argv) {
 
     spdlog::info("Loading the scene");
     try {
-        if (scene_path.ends_with(".xml")) {
-            auto scene_loader = MitsubaLoader(scene_path);
-            scene_loader.load_scene(scene);
-        } else if (scene_path.ends_with(".pbrt")) {
-            auto scene_loader = PbrtLoader(scene_path);
+        if (scene_path.ends_with(".pbrt")) {
+            auto scene_loader = PbrtLoader(std::filesystem::path(scene_path));
             scene_loader.load_scene(scene);
         } else {
             spdlog::error("Unknown scene file format");

@@ -7,24 +7,26 @@
 #include "../math/vecmath.h"
 #include "texture.h"
 
-class Envmap : ImageTexture {
+class Envmap {
 public:
     explicit
-    Envmap(const std::string &texture_path, const mat4 &to_world_transform);
+    Envmap(SpectrumTexture *tex, f32 scale);
 
     spectral
     get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const;
 
     /// Returns radiance, direction and pdf
-    Tuple<Spectrum, norm_vec3, f32>
-    sample(const vec2 &sample);
+    /*Tuple<Spectrum, norm_vec3, f32>
+    sample(const vec2 &sample);*/
 
-    f32
-    pdf(const vec3 &dir);
+    /*f32
+    pdf(const vec3 &dir);*/
 
 private:
-    mat4 to_world_transform = mat4::identity();
-    PiecewiseDist2D sampling_dist{};
+    SpectrumTexture *tex;
+    f32 scale{1.};
+    /*mat4 to_world_transform = mat4::identity();
+    PiecewiseDist2D sampling_dist{};*/
 };
 
 #endif // PT_ENVMAP_H

@@ -2,9 +2,8 @@
 #define PT_COMMON_H
 
 #include "../color/spectrum.h"
-#include "../utils/basic_types.h"
 #include "../scene/texture.h"
-#include "../scene/texture_id.h"
+#include "../utils/basic_types.h"
 
 #include <complex>
 
@@ -21,8 +20,8 @@ Option<vec3>
 refract(const norm_vec3 &wo, const norm_vec3 &normal, f32 rel_ior);
 
 inline f32
-fetch_alpha(const Texture *textures, TextureId tex_id, const vec2 &uv) {
-    return std::max(textures[tex_id.inner].fetch_float(uv), 0.01f);
+fetch_alpha(const FloatTexture *texture, const vec2 &uv) {
+    return std::max(texture->fetch(uv), 0.01f);
 }
 
 #endif // PT_COMMON_H

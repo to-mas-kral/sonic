@@ -37,6 +37,39 @@ SampledSpectrum::max_component() const {
     return max;
 }
 
+bool
+SampledSpectrum::isnan() const {
+    for (const auto &v : vals) {
+        if (std::isnan(v)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool
+SampledSpectrum::isinf() const {
+    for (const auto &v : vals) {
+        if (std::isinf(v)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool
+SampledSpectrum::is_negative() const {
+    for (const auto &v : vals) {
+        if (v < 0.f) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void
 SampledSpectrum::div_pdf(f32 pdf) {
     for (f32 &v : vals) {

@@ -118,6 +118,44 @@ RgbSpectrumIlluminant::eval(const SampledLambdas &lambdas) const {
     return sq;
 }
 
+BlackbodySpectrum
+BlackbodySpectrum::make(const i32 temp) {
+    return BlackbodySpectrum{.temp = temp};
+}
+
+f32
+BlackbodySpectrum::eval_single(const f32 lambda) const {
+    // taken from PBRT-v4
+    const auto blackbody = [this](const f32 lambda) {
+        constexpr auto kb = 1.3806488e-23f;
+
+        constexpr auto h = 6.62606957e-34f;
+        constexpr auto c = 299792458.f;
+
+        const auto l = lambda * 1e-9f;
+        const auto lambda5 = sqr(l) * sqr(l) * l;
+
+        return 2.f * h * sqr(c) / (lambda5 * std::expm1(h * c / (l * kb * temp)));
+    };
+
+    const auto le = blackbody(lambda);
+
+    const auto lambda_max = 2.8977721e-3f / temp * 1e9f;
+    const auto max_l = blackbody(lambda_max);
+
+    return le / max_l;
+}
+
+spectral
+BlackbodySpectrum::eval(const SampledLambdas &lambdas) const {
+    SampledSpectrum sq{};
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+        sq[i] = eval_single(lambdas.lambdas[i]);
+    }
+
+    return sq;
+}
+
 f32
 DenseSpectrum::eval_single(f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
@@ -144,17 +182,17 @@ PiecewiseSpectrum::make(const Span<f32> &data) {
     }
 
     ds.vals = data.data();
-    ds.size_half = data.size() / 2;
+    ds.size = data.size();
 
     return ds;
 }
 
 f32
-PiecewiseSpectrum::eval_single(f32 lambda) const {
+PiecewiseSpectrum::eval_single(const f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
-    u32 index =
-        binary_search_interval(size_half, [&](size_t i) { return vals[i]; }, lambda);
-    return vals[(size_half) + index];
+    const auto index =
+        binary_search_interval(size, [&](const size_t i) { return vals[2 * i]; }, lambda);
+    return vals[2 * index + 1];
 }
 
 SampledSpectrum
@@ -185,13 +223,15 @@ Spectrum::eval(const SampledLambdas &lambdas) const {
     case SpectrumType::Dense:
         return dense_spectrum.eval(lambdas);
     case SpectrumType::PiecewiseLinear:
-        return piecewise_spectrum->eval(lambdas);
+        return piecewise_spectrum.eval(lambdas);
     case SpectrumType::Rgb:
         return rgb_spectrum.eval(lambdas);
     case SpectrumType::RgbUnbounded:
         return rgb_spectrum_unbounded.eval(lambdas);
     case SpectrumType::RgbIlluminant:
-        return rgb_spectrum_illuminant->eval(lambdas);
+        return rgb_spectrum_illuminant.eval(lambdas);
+    case SpectrumType::Blackbody:
+        return blackbody_spectrum.eval(lambdas);
     default:
         assert(false);
     }
@@ -205,13 +245,15 @@ Spectrum::eval_single(f32 lambda) const {
     case SpectrumType::Dense:
         return dense_spectrum.eval_single(lambda);
     case SpectrumType::PiecewiseLinear:
-        return piecewise_spectrum->eval_single(lambda);
+        return piecewise_spectrum.eval_single(lambda);
     case SpectrumType::Rgb:
         return rgb_spectrum.eval_single(lambda);
     case SpectrumType::RgbUnbounded:
         return rgb_spectrum_unbounded.eval_single(lambda);
     case SpectrumType::RgbIlluminant:
-        return rgb_spectrum_illuminant->eval_single(lambda);
+        return rgb_spectrum_illuminant.eval_single(lambda);
+    case SpectrumType::Blackbody:
+        return blackbody_spectrum.eval_single(lambda);
     default:
         assert(false);
     }

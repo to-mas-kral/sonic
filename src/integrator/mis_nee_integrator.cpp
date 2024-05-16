@@ -30,9 +30,8 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
             // https://www.pbr-book.org/4ed/Radiometry,_Spectra,_and_Color/Working_with_Radiometric_Integrals#IntegralsoverArea
             f32 pdf_light = shape_sample.pdf * light_sample.pdf * (pl_mag_sq / cos_light);
 
-            spectral bxdf_light =
-                material->eval(sgeom_light, lambdas, sc.textures.data(), its.uv);
-            f32 mat_pdf = material->pdf(sgeom_light, lambdas, sc.textures.data(), its.uv);
+            spectral bxdf_light = material->eval(sgeom_light, lambdas, its.uv);
+            f32 mat_pdf = material->pdf(sgeom_light, lambdas, its.uv);
 
             f32 weight_light = mis_power_heuristic(pdf_light, mat_pdf);
 
@@ -76,7 +75,6 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;
-    auto &textures = rc->scene.textures;
     auto max_depth = rc->attribs.max_depth;
 
     spectral radiance = spectral::ZERO();
@@ -92,10 +90,10 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
             if (!sc.envmap.has_value()) {
                 break;
             } else {
+                // TODO: do envmap sampling...
                 spectral envrad = sc.envmap.value().get_ray_radiance(ray, lambdas);
 
-                // TODO: do envmap sampling...
-                radiance += envrad;
+                radiance += throughput * envrad;
                 break;
             }
         }
@@ -129,7 +127,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
                     bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its, emission);
 
                 radiance += bxdf_mis_contrib;
-                assert(!std::isnan(radiance[0]));
+                assert(!radiance.isnan());
             }
         }
 
@@ -152,13 +150,12 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
                               shape_sample, material, throughput, lambdas);
 
                 radiance += light_mis_contrib;
-                assert(!std::isnan(radiance[0]));
+                assert(!radiance.isnan());
             }
         }
 
-        auto bsdf_sample_opt =
-            material->sample(its.normal, -ray.dir, bsdf_sample_rand, lambdas,
-                             textures.data(), its.uv, is_frontfacing);
+        auto bsdf_sample_opt = material->sample(its.normal, -ray.dir, bsdf_sample_rand,
+                                                lambdas, its.uv, is_frontfacing);
 
         if (!bsdf_sample_opt.has_value()) {
             break;
@@ -194,7 +191,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
         }
     }
 
-    if (std::isnan(radiance[0]) || std::isinf(radiance[0])) {
+    if (radiance.isnan() || radiance.isinf() || radiance.is_negative()) {
         spdlog::error("Invalid radiance at sample {}", frame);
     }
 

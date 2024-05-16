@@ -20,6 +20,15 @@ struct SampledSpectrum {
     f32
     max_component() const;
 
+    bool
+    isnan() const;
+
+    bool
+    isinf() const;
+
+    bool
+    is_negative() const;
+
     void
     div_pdf(f32 pdf);
 

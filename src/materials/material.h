@@ -5,18 +5,19 @@
 #include "../color/spectrum.h"
 #include "../integrator/utils.h"
 #include "../scene/texture.h"
-#include "../scene/texture_id.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
 #include "conductor.h"
 #include "dielectric.h"
 #include "diffuse.h"
+#include "diffuse_transmission.h"
 #include "plastic.h"
 #include "rough_conductor.h"
 #include "rough_plastic.h"
 
 enum class MaterialType : u8 {
     Diffuse,
+    DiffuseTransmission,
     Plastic,
     RoughPlastic,
     Conductor,
@@ -26,45 +27,49 @@ enum class MaterialType : u8 {
 
 struct Material {
     static Material
-    make_diffuse(TextureId reflectance_tex_id);
+    make_diffuse(SpectrumTexture *reflectance);
 
     static Material
-    make_dielectric(Spectrum ext_ior, TextureId int_ior, Spectrum transmittance,
+    make_diffuse_transmission(SpectrumTexture *reflectance,
+                              SpectrumTexture *transmittance, f32 scale,
+                              ChunkAllocator<> &material_allocator);
+
+    static Material
+    make_dielectric(Spectrum ext_ior, SpectrumTexture *int_ior, Spectrum transmittance,
                     ChunkAllocator<> &material_allocator);
 
     static Material
-    make_conductor(TextureId eta, TextureId k, ChunkAllocator<> &material_allocator);
+    make_conductor(SpectrumTexture *eta, SpectrumTexture *k,
+                   ChunkAllocator<> &material_allocator);
 
     static Material
     make_conductor_perfect(ChunkAllocator<> &material_allocator);
 
     static Material
-    make_rough_conductor(TextureId alpha, TextureId eta, TextureId k,
+    make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta, SpectrumTexture *k,
                          ChunkAllocator<> &material_allocator);
 
     static Material
-    make_plastic(Spectrum ext_ior, Spectrum int_ior, TextureId diffuse_reflectance_id,
+    make_plastic(Spectrum ext_ior, Spectrum int_ior, SpectrumTexture *diffuse_reflectance,
                  ChunkAllocator<> &material_allocator);
 
     static Material
-    make_rough_plastic(TextureId alpha, Spectrum ext_ior, Spectrum int_ior,
-                       TextureId diffuse_reflectance_id,
+    make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int_ior,
+                       SpectrumTexture *diffuse_reflectance,
                        ChunkAllocator<> &material_allocator);
 
     // TODO: change Texture* to std::span<>
     Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
-           const SampledLambdas &lambdas, const Texture *textures, const vec2 &uv,
-           bool is_frontfacing) const;
+           const SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
 
     // Probability density function of sampling the BRDF
     f32
-    pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ, const Texture *textures,
-        const vec2 &uv) const;
+    pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ, const vec2 &uv) const;
 
     spectral
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
-         const Texture *textures, const vec2 &uv) const;
+         const vec2 &uv) const;
 
     bool
     is_dirac_delta() const;
@@ -74,6 +79,7 @@ struct Material {
 
     union {
         DiffuseMaterial diffuse;
+        DiffuseTransmissionMaterial *diffusetransmission;
         PlasticMaterial *plastic;
         RoughPlasticMaterial *rough_plastic;
         DielectricMaterial *dielectric;

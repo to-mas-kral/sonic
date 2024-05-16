@@ -17,9 +17,8 @@ DielectricMaterial::eval() {
 BSDFSample
 DielectricMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
                            const vec2 &sample, const SampledLambdas &lambdas,
-                           const Texture *textures, const vec2 &uv,
-                           bool is_frontfacing) const {
-    f32 int_ior = textures[m_int_ior.inner].fetch_spectrum(uv).eval_single(lambdas[0]);
+                           const vec2 &uv, const bool is_frontfacing) const {
+    f32 int_ior = m_int_ior->fetch(uv).eval_single(lambdas[0]);
     f32 ext_ior = m_ext_ior.eval_single(lambdas[0]);
     f32 rel_ior = int_ior / ext_ior;
     if (!is_frontfacing) {

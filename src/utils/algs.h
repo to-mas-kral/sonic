@@ -5,11 +5,11 @@
 
 #include <cassert>
 
-// TODO: teplace with std::<something>
+// TODO: replace with std::<something>
 
 template <typename Accessor, typename T>
 u32
-binary_search_interval(size_t size, const Accessor &accessor, T val) {
+binary_search_interval(const size_t size, const Accessor &accessor, T val) {
     assert(size >= 2);
 
     size_t left = 0;

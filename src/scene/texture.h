@@ -1,166 +1,217 @@
 #ifndef PT_TEXTURE_H
 #define PT_TEXTURE_H
 
-#include <string>
-
-#include <spdlog/spdlog.h>
+#include "image.h"
 
 #include "../color/spectrum.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
-enum class TextureDataType : u8 {
-    U8,
-    F32,
-};
-
-// TODO: Texture code is all over the place, currently assuming 3 and 4-channel
-// textures... are 2 and 4-channel textures even needed ??
 class ImageTexture {
 public:
-    ImageTexture(i32 width, i32 height, void *pixels, u32 num_channels,
-                 TextureDataType data_type)
-        : width{width}, height{height}, pixels{pixels}, num_channels{num_channels},
-          data_type{data_type} {}
+    explicit
+    ImageTexture(Image *image)
+        : image{image} {}
 
-    static ImageTexture
-    make(const std::string &texture_path, bool is_rgb);
-
-    u64
-    calc_index(const vec2 &uv) const;
-
-    Spectrum
-    fetch_spectrum(const vec2 &uv) const;
-
-    f32
-    fetch_float(const vec2 &uv) const;
-
-    void
-    free() const {
-        std::free(pixels);
-    }
-
-protected:
-    i32 width = 0;
-    i32 height = 0;
-    void *pixels;
-    u32 num_channels;
-    TextureDataType data_type;
-};
-
-enum class TextureType : u8 {
-    ConstantF32,
-    ConstantRgb,
-    ConstantRgbUnbounded,
-    ConstantSpectrum,
-    Image,
-};
-
-class Texture {
-public:
-    Texture() = default;
-
-    static Texture
-    make_image_texture(const std::string &texture_path, bool is_rgb) {
-        Texture tex{};
-        tex.texture_type = TextureType::Image;
-        tex.inner.image_texture = ImageTexture::make(texture_path, is_rgb);
-
-        return tex;
-    }
-
-    static Texture
-    make_constant_texture(f32 value) {
-        Texture tex{};
-        tex.texture_type = TextureType::ConstantF32;
-        tex.inner.constant_texture_f32 = value;
-
-        return tex;
-    }
-
-    static Texture
-    make_constant_texture(RgbSpectrum value) {
-        Texture tex{};
-        tex.texture_type = TextureType::ConstantRgb;
-        tex.inner.constant_texture_rgb = value;
-
-        return tex;
-    }
-
-    static Texture
-    make_constant_texture(RgbSpectrumUnbounded value) {
-        Texture tex{};
-        tex.texture_type = TextureType::ConstantRgb;
-        tex.inner.constant_texture_rgb_unbounded = value;
-
-        return tex;
-    }
-
-    static Texture
-    make_constant_texture(Spectrum value) {
-        Texture tex{};
-        tex.texture_type = TextureType::ConstantSpectrum;
-        tex.inner.constant_texture_spectrum = value;
-
-        return tex;
-    }
-
-    // Some of these fetches might not be necessarily correct, but that's not worth
-    // checking on every texture access in release...
-
-    Spectrum
-    fetch_spectrum(const vec2 &uv) const {
-        switch (texture_type) {
-        case TextureType::ConstantF32:
-            return Spectrum(ConstantSpectrum::make(inner.constant_texture_f32));
-        case TextureType::ConstantRgb:
-            return Spectrum(inner.constant_texture_rgb);
-        case TextureType::Image:
-            return inner.image_texture.fetch_spectrum(uv);
-        case TextureType::ConstantRgbUnbounded:
-            return Spectrum(inner.constant_texture_rgb_unbounded);
-        case TextureType::ConstantSpectrum:
-            return inner.constant_texture_spectrum;
-        default:
-            assert(false);
-        }
+    tuple3
+    fetch_rgb(const vec2 &uv) const {
+        return image->fetch_rgb(uv);
     }
 
     f32
     fetch_float(const vec2 &uv) const {
-        switch (texture_type) {
-        case TextureType::ConstantF32:
-            return inner.constant_texture_f32;
-        case TextureType::ConstantRgb:
-            assert(false);
-            return inner.constant_texture_rgb.sigmoid_coeff.x;
-        case TextureType::Image:
-            return inner.image_texture.fetch_float(uv);
-        case TextureType::ConstantRgbUnbounded:
-            assert(false);
-            return inner.constant_texture_rgb_unbounded.sigmoid_coeff.x;
-        case TextureType::ConstantSpectrum:
-            assert(false);
-            return inner.constant_texture_spectrum.eval_single(400.f);
-        default:
-            assert(false);
-        }
+        return image->fetch_float(uv);
     }
 
-    void
-    free() const {
-        if (texture_type == TextureType::Image) {
-            inner.image_texture.free();
+    const ColorSpace &
+    color_space() const {
+        return image->get_scolor_space();
+    }
+
+private:
+    Image *image;
+};
+
+enum class TextureType : u8 {
+    Constant,
+    Image,
+    Scale,
+};
+
+class FloatTexture;
+
+class FloatScaleTexture {
+public:
+    FloatScaleTexture(FloatTexture *texture, const f32 scale)
+        : texture{texture}, scale{scale} {}
+
+    f32
+    fetch(const vec2 &uv) const;
+
+private:
+    FloatTexture *texture{nullptr};
+    f32 scale{1.f};
+};
+
+class FloatTexture {
+public:
+    FloatTexture() = default;
+
+    static FloatTexture
+    make(const ImageTexture image_texture) {
+        FloatTexture tex{};
+        tex.texture_type = TextureType::Image;
+        tex.inner.image = image_texture;
+
+        return tex;
+    }
+
+    static FloatTexture
+    make(FloatTexture *texture, const f32 scale) {
+        FloatTexture tex{};
+        tex.texture_type = TextureType::Scale;
+        tex.inner.scale_texture = FloatScaleTexture{texture, scale};
+
+        return tex;
+    }
+
+    static FloatTexture
+    make(const f32 value) {
+        FloatTexture tex{};
+        tex.texture_type = TextureType::Constant;
+        tex.inner.constant_f32 = value;
+
+        return tex;
+    }
+
+    f32
+    fetch(const vec2 &uv) const {
+        switch (texture_type) {
+        case TextureType::Constant:
+            return inner.constant_f32;
+        case TextureType::Image:
+            return inner.image.fetch_float(uv);
+        case TextureType::Scale:
+            return inner.scale_texture.fetch(uv);
+        default:
+            assert(false);
         }
     }
 
     TextureType texture_type{};
     union {
-        f32 constant_texture_f32;
-        RgbSpectrum constant_texture_rgb;
-        RgbSpectrumUnbounded constant_texture_rgb_unbounded;
-        Spectrum constant_texture_spectrum;
-        ImageTexture image_texture;
+        f32 constant_f32;
+        ImageTexture image;
+        FloatScaleTexture scale_texture;
+    } inner{};
+};
+
+enum class TextureSpectrumType : u8 {
+    Rgb,
+    Unbounded,
+    Illuminant,
+};
+
+class SpectrumTexture;
+
+class SpectrumScaleTexture {
+public:
+    SpectrumScaleTexture(SpectrumTexture *texture, const f32 scale)
+        : texture{texture}, scale{scale} {}
+
+    Spectrum
+    fetch(const vec2 &uv) const;
+
+private:
+    SpectrumTexture *texture{nullptr};
+    f32 scale{1.f};
+};
+
+class SpectrumTexture {
+public:
+    SpectrumTexture() = default;
+
+    static SpectrumTexture
+    make(const ImageTexture image_texture, const TextureSpectrumType spectrum_type) {
+        SpectrumTexture tex{};
+        tex.spectrum_type = spectrum_type;
+        tex.texture_type = TextureType::Image;
+        tex.inner.image = image_texture;
+
+        return tex;
+    }
+
+    static SpectrumTexture
+    make(SpectrumTexture *texture, const f32 scale) {
+        SpectrumTexture tex{};
+        tex.spectrum_type = texture->spectrum_type;
+        tex.texture_type = TextureType::Scale;
+        tex.inner.scale_texture = SpectrumScaleTexture{texture, scale};
+
+        return tex;
+    }
+
+    static SpectrumTexture
+    make(const RgbSpectrum value) {
+        SpectrumTexture tex{};
+        tex.texture_type = TextureType::Constant;
+        tex.inner.constant_spectrum = Spectrum(value);
+
+        return tex;
+    }
+
+    static SpectrumTexture
+    make(const RgbSpectrumUnbounded value) {
+        SpectrumTexture tex{};
+        tex.texture_type = TextureType::Constant;
+        tex.inner.constant_spectrum = Spectrum(value);
+
+        return tex;
+    }
+
+    static SpectrumTexture
+    make(const Spectrum &value) {
+        SpectrumTexture tex{};
+        tex.texture_type = TextureType::Constant;
+        tex.inner.constant_spectrum = value;
+
+        return tex;
+    }
+
+    Spectrum
+    fetch(const vec2 &uv, const f32 scale = 1.f) const {
+        switch (texture_type) {
+        case TextureType::Constant:
+            return inner.constant_spectrum;
+        case TextureType::Image: {
+            const auto rgb = inner.image.fetch_rgb(uv);
+
+            switch (spectrum_type) {
+            case TextureSpectrumType::Rgb:
+                return Spectrum(RgbSpectrum::make(rgb));
+            case TextureSpectrumType::Unbounded:
+                return Spectrum(RgbSpectrumUnbounded::make(rgb));
+            case TextureSpectrumType::Illuminant:
+                return Spectrum(
+                    RgbSpectrumIlluminant::make(rgb, inner.image.color_space()));
+            default:
+                assert(false);
+            }
+        }
+        case TextureType::Scale: {
+            return inner.scale_texture.fetch(uv);
+        }
+        default:
+            assert(false);
+        }
+    }
+
+    TextureSpectrumType spectrum_type{};
+    TextureType texture_type{};
+    union {
+        Spectrum constant_spectrum{ConstantSpectrum::make(0.f)};
+        ImageTexture image;
+        SpectrumScaleTexture scale_texture;
     } inner{};
 };
 

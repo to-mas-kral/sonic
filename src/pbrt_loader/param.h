@@ -15,6 +15,10 @@ struct SpectrumValue {
     std::string str;
 };
 
+struct BlackbodyValue {
+    i32 kelvin;
+};
+
 enum class ValueType {
     Int,
     Float,
@@ -25,7 +29,7 @@ enum class ValueType {
     Normal,
     Spectrum,
     Rgb,
-    // Blackbody,
+    Blackbody,
     Bool,
     String,
     Texture,
@@ -117,6 +121,10 @@ struct Param {
     Param(std::string &&name, SpectrumValue &&value)
         : type{ParamType::Single}, value_type{ValueType::Spectrum}, name{name},
           inner{value.str} {}
+
+    Param(std::string &&name, BlackbodyValue value)
+        : type{ParamType::Single}, value_type{ValueType::Blackbody}, name{name},
+          inner{value.kelvin} {}
 
     Param(std::string &&name, std::vector<i32> &&value)
         : type{ParamType::List}, value_type{ValueType::Int}, name{name}, inner{value} {}

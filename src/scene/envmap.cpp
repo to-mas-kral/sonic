@@ -24,32 +24,88 @@ img[u + v * width] *= sin_theta;
 }*/
 
 Envmap::
-Envmap(const std::string &texture_path, const mat4 &to_world_transform)
-    : ImageTexture(ImageTexture::make(texture_path, true)),
-      to_world_transform(to_world_transform.inverse()) {
-    std::vector<f32> img(width * height, 0.f);
+Envmap(SpectrumTexture *tex, const f32 scale)
+    : tex{tex}, scale{scale} {
+    /*std::vector<f32> img(width * height, 0.f);
 
-    sampling_dist = PiecewiseDist2D(img, width, height);
+    sampling_dist = PiecewiseDist2D(img, width, height);*/
+}
+
+/// Code taken from PBRTv4.
+/// Via source code from Clarberg: Fast Equal-Area Mapping of the (Hemi)Sphere using SIMD.
+vec2
+sphere_to_square(const vec3 &arg_dir) {
+    // Change coordinates from world-space to paper-space
+    const auto dir = vec3(arg_dir.x, arg_dir.z, arg_dir.y);
+    // assert(dir.is_normalized());
+    assert(sqr(dir.length()) > 0.999 && sqr(dir.length()) < 1.001);
+    const auto x = std::abs(dir.x);
+    const auto y = std::abs(dir.y);
+    const auto z = std::abs(dir.z);
+
+    // Compute the radius r
+    const auto r = safe_sqrt(1.f - z);
+    // Compute the argument to atan (detect a=0 to avoid div-by-zero)
+    const auto a = std::max(x, y);
+    f32 b = std::min(x, y);
+    if (a == 0.f) {
+        b = 0.f;
+    } else {
+        b /= a;
+    }
+
+    // Polynomial approximation of atan(x)*2/pi, x=b
+    // Coefficients for 6th degree minimax approximation of atan(x)*2/pi,
+    // x=[0,1].
+    constexpr auto T1 = 0.406758566246788489601959989e-5f;
+    constexpr auto T2 = 0.636226545274016134946890922156f;
+    constexpr auto T3 = 0.61572017898280213493197203466e-2f;
+    constexpr auto T4 = -0.247333733281268944196501420480f;
+    constexpr auto T5 = 0.881770664775316294736387951347e-1f;
+    constexpr auto T6 = 0.419038818029165735901852432784e-1f;
+    constexpr auto T7 = -0.251390972343483509333252996350e-1f;
+
+    auto phi = T6 + T7 * b;
+    phi = T5 + phi * b;
+    phi = T4 + phi * b;
+    phi = T3 + phi * b;
+    phi = T2 + phi * b;
+    phi = T1 + phi * b;
+
+    // Extend phi if the input is in the range 45-90 degrees (u<v)
+    if (x < y) {
+        phi = 1.f - phi;
+    }
+
+    // Find (u,v) based on (r,phi)
+    auto v = phi * r;
+    auto u = r - v;
+
+    if (dir.z < 0.f) {
+        // southern hemisphere -> mirror u,v
+        auto tmp = u;
+        u = v;
+        v = tmp;
+
+        u = 1.f - u;
+        v = 1.f - v;
+    }
+
+    // Move (u,v) to the correct quadrant based on the signs of (x,y)
+    u = std::copysign(u, dir.x);
+    v = std::copysign(v, dir.y);
+
+    // Transform (u,v) from [-1,1] to [0,1]
+    return vec2(0.5f * (u + 1.f), 0.5f * (v + 1.f));
 }
 
 spectral
 Envmap::get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
-    // TODO: correct coordinates for environment mapping...
-    /*Ray tray = Ray(ray);
-    tray.dir = tray.dir.normalize();
-    tray.transform(to_world_transform);*/
-
-    // Mapping from ray direction to UV on equirectangular texture
-    // (1 / 2pi, 1 / pi)
-    const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
-    vec2 uv = vec2(std::atan2(-ray.dir.z, -ray.dir.x), std::asin(ray.dir.y));
-    uv *= pi_reciprocals;
-    uv += 0.5;
-
-    return fetch_spectrum(uv).eval(lambdas);
+    const auto uv = sphere_to_square(ray.dir);
+    return tex->fetch(uv).eval(lambdas) * scale;
 }
 
-Tuple<Spectrum, norm_vec3, f32>
+/*Tuple<Spectrum, norm_vec3, f32>
 Envmap::sample(const vec2 &sample) {
     auto [uv, pdf] = sampling_dist.sample(sample);
     if (pdf == 0.f) {
@@ -71,9 +127,9 @@ Envmap::sample(const vec2 &sample) {
     }
 
     return {fetch_spectrum(uv), dir, pdf};
-}
+}*/
 
-f32
+/*f32
 Envmap::pdf(const vec3 &dir) {
     const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
     vec2 uv = vec2(std::atan2(-dir.z, -dir.x), std::asin(dir.y));
@@ -85,4 +141,4 @@ Envmap::pdf(const vec3 &dir) {
     f32 sin_theta = std::sin(theta);
 
     return sampling_dist.pdf(uv) / (2.f * sqr(M_PIf) * sin_theta);
-}
+}*/

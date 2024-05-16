@@ -1,12 +1,11 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include <istream>
+#include "stack_file_stream.h"
+
 #include <optional>
 #include <stdexcept>
 #include <utility>
-
-#include "../utils/basic_types.h"
 
 enum class LexemeType {
     String,
@@ -36,16 +35,14 @@ struct Lexeme {
 class Lexer {
 public:
     explicit
-    Lexer(std::istream *src)
+    Lexer(StackFileStream *src)
         : src{src} {}
 
     Lexeme
-    peek();
+    peek(bool accept_any_string = false);
 
     Lexeme
-    next();
-
-    u32 newline_counter = 1;
+    next(bool accept_any_string = false);
 
 private:
     template <typename F>
@@ -81,19 +78,21 @@ private:
     lex_string();
 
     Lexeme
+    lex_string_any();
+
+    Lexeme
     lex_num();
 
     void
     skip_whitespace_and_comments();
 
     std::optional<char>
-    peek_char() const;
+    peek_char();
 
     void
     advance();
 
-    // TODO: there might be some overhead to using istreams... could roll my own
-    std::istream *src;
+    StackFileStream *src;
     std::optional<Lexeme> lexeme_buf{};
 };
 

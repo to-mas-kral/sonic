@@ -2,11 +2,12 @@
 #define PBRT_LOADER_H
 #include "lexer.h"
 #include "param.h"
+#include "stack_file_stream.h"
 
 #include <filesystem>
-#include <fstream>
 #include <vector>
 
+#include "../geometry/instance_id.h"
 #include "../math/transform.h"
 #include "../scene/scene.h"
 #include "../utils/basic_types.h"
@@ -17,6 +18,7 @@ struct AttributeState {
     std::optional<Emitter> emitter{};
     MaterialId material{0};
     ColorSpace color_space{ColorSpace::sRGB};
+    std::optional<InstanceId> instance{};
 };
 
 // Only used in a private function... not sure if it could be moved somewhere else ?
@@ -26,9 +28,9 @@ struct RoughnessDescription {
         Anisotropic,
     } type;
 
-    TextureId roughness;
-    TextureId uroughness;
-    TextureId vroughness;
+    FloatTexture *roughness;
+    FloatTexture *uroughness;
+    FloatTexture *vroughness;
 };
 
 // TODO: consider a custom allocator in the future
@@ -38,7 +40,7 @@ public:
     PbrtLoader(const std::filesystem::path &file_path);
 
     explicit
-    PbrtLoader(std::istream &istream);
+    PbrtLoader(const std::string &input);
 
     void
     load_scene(Scene &sc);
@@ -90,13 +92,29 @@ private:
     load_shape(Scene &sc);
 
     void
-    load_trianglemesh(Scene &sc, ParamsList &params) const;
+    object_begin(Scene &sc);
 
     void
-    load_plymesh(Scene &sc, ParamsList &params) const;
+    object_end();
 
     void
-    load_sphere(Scene &sc, ParamsList &params) const;
+    object_instance(Scene &sc);
+
+    void
+    load_light_source(Scene &sc);
+    void
+    normals_reverse_orientation(u32 num_verts, vec3 *normals) const;
+    void
+    transform_mesh(point3 *pos, u32 num_verts, vec3 *normals) const;
+
+    void
+    load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha) const;
+
+    void
+    load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) const;
+
+    void
+    load_sphere(Scene &sc, ParamsList &params, FloatTexture *alpha) const;
 
     void
     area_light_source(Scene &sc);
@@ -120,20 +138,80 @@ private:
     parse_diffuse_material(Scene &sc, ParamsList &params);
 
     Material
+    parse_diffusetransmission_material(Scene &sc, ParamsList &params);
+
+    Material
     parse_dielectric_material(Scene &sc, ParamsList &params);
 
     Material
     parse_conductor_material(Scene &sc, ParamsList &params);
 
-    TextureId
-    get_texture_id_or_default(Scene &sc, ParamsList &params, const std::string &name,
-                              const std::string &default_tex);
+    template <typename T>
+    T *
+    get_texture_or_default(Scene &sc, ParamsList &params, const std::string &name,
+                           const std::string &default_tex) {
+        const auto opt_p = params.get_optional(name);
 
-    TextureId
+        if (!opt_p.has_value()) {
+            return sc.get_builtin_texture<T>(default_tex);
+        }
+
+        const auto p = opt_p.value();
+        if (p->value_type == ValueType::Texture) {
+            const auto &tex_name = std::get<std::string>(p->inner);
+            if constexpr (std::is_same<T, FloatTexture>()) {
+                return float_textures.at(tex_name);
+            } else if constexpr (std::is_same<T, SpectrumTexture>()) {
+                return spectrum_textures.at(tex_name);
+            } else {
+                static_assert(false);
+            }
+        }
+
+        if constexpr (std::is_same<T, SpectrumTexture>()) {
+            return parse_inline_spectrum_texture(*p, sc);
+        } else if constexpr (std::is_same<T, FloatTexture>()) {
+            return parse_inline_float_texture(*p, sc);
+        } else {
+            static_assert(false);
+        }
+    }
+
+    template <typename T>
+    std::optional<T *>
+    get_texture(Scene &sc, ParamsList &params, const std::string &name) {
+        const auto opt_p = params.get_optional(name);
+
+        if (!opt_p.has_value()) {
+            return {};
+        }
+
+        const auto p = opt_p.value();
+        if (p->value_type == ValueType::Texture) {
+            const auto &tex_name = std::get<std::string>(p->inner);
+            if constexpr (std::is_same<T, FloatTexture>()) {
+                return float_textures.at(tex_name);
+            } else if constexpr (std::is_same<T, SpectrumTexture>()) {
+                return spectrum_textures.at(tex_name);
+            } else {
+                static_assert(false);
+            }
+        }
+
+        if constexpr (std::is_same<T, SpectrumTexture>()) {
+            return parse_inline_spectrum_texture(*p, sc);
+        } else if constexpr (std::is_same<T, FloatTexture>()) {
+            return parse_inline_float_texture(*p, sc);
+        } else {
+            static_assert(false);
+        }
+    }
+
+    SpectrumTexture *
     parse_inline_spectrum_texture(const Param &param, Scene &sc);
 
-    TextureId
-    parse_inline_float_texture(const Param &param, Scene &sc);
+    FloatTexture *
+    parse_inline_float_texture(const Param &param, Scene &sc) const;
 
     void
     load_named_material();
@@ -141,8 +219,11 @@ private:
     void
     load_texture(Scene &sc);
 
+    void
+    include();
+
     Lexeme
-    expect(LexemeType lt);
+    expect(LexemeType lt, bool accept_any_string = false);
 
     // I want to test the param list parsing logic, but pulling it out into
     // it's own class seems to be more trouble than it's worth
@@ -216,16 +297,15 @@ private:
     std::string
     parse_quoted_string();
 
-    // TODO: gonna require a lexer stack at some point to support includes
-    std::vector<char> buf = std::vector<char>(8192 * 1000);
-    std::ifstream file_stream{};
     std::filesystem::path file_path{};
-    std::filesystem::path file_directory{};
+    std::filesystem::path base_directory{};
+    StackFileStream stack_file_stream;
     Lexer lexer;
 
-    // TODO: could choose more efficient map
     std::unordered_map<std::string, MaterialId> materials{};
-    std::unordered_map<std::string, TextureId> textures{};
+    std::unordered_map<std::string, FloatTexture *> float_textures{};
+    std::unordered_map<std::string, SpectrumTexture *> spectrum_textures{};
+    std::unordered_map<std::string, InstanceId> instances{};
     std::vector<AttributeState> astates{};
     AttributeState current_astate{};
 };

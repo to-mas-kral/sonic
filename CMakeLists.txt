@@ -15,7 +15,6 @@ add_library(pt_lib
         src/scene/emitter.h
         src/scene/envmap.h
         src/scene/texture.h
-        src/scene/texture.cpp
         src/scene/scene.cpp
         src/scene/scene.h
         src/scene/light.h
@@ -29,8 +28,6 @@ add_library(pt_lib
         src/utils/render_threads.h
         src/utils/render_threads.cpp
 
-        src/mitsuba_loader/mitsuba_loader.cpp
-        src/mitsuba_loader/mitsuba_loader.h
         src/io/image_writer.h
         src/io/progress_bar.h
 
@@ -88,11 +85,17 @@ add_library(pt_lib
         src/pbrt_loader/pbrt_loader.h
         src/pbrt_loader/lexer.cpp
         src/pbrt_loader/lexer.h
+        src/pbrt_loader/stack_file_stream.h
         src/scene/scene_attribs.h
         src/pbrt_loader/param.h
         src/materials/material_id.h
-        src/materials/material_id.h
-        src/scene/texture_id.h
+        src/geometry/instance_id.h
+        src/scene/image.h
+        src/scene/image.cpp
+        src/scene/texture_types.h
+        src/scene/texture.cpp
+        src/materials/diffuse_transmission.cpp
+        src/materials/diffuse_transmission.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -115,9 +118,6 @@ target_include_directories(pt_lib PUBLIC ${Stb_INCLUDE_DIR})
 find_package(CLI11 CONFIG REQUIRED)
 target_link_libraries(pt_lib PUBLIC CLI11::CLI11)
 
-find_package(pugixml CONFIG REQUIRED)
-target_link_libraries(pt_lib PUBLIC pugixml::pugixml)
-
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(pt_lib PUBLIC spdlog::spdlog)
 
@@ -125,7 +125,7 @@ find_package(embree 4 REQUIRED)
 target_link_libraries(pt_lib PUBLIC embree)
 
 find_package(unofficial-miniply CONFIG REQUIRED)
-target_link_libraries(pt_lib PRIVATE unofficial::miniply::miniply)
+target_link_libraries(pt_lib PUBLIC unofficial::miniply::miniply)
 
 add_executable(pt
         src/main.cpp
@@ -163,8 +163,6 @@ target_link_libraries(tests PRIVATE pt_lib)
 
 find_package(Catch2 3 REQUIRED)
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
-
-target_link_libraries(tests PRIVATE pugixml::pugixml)
 
 target_link_libraries(tests PRIVATE fmt::fmt)
 
