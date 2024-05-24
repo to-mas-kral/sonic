@@ -196,7 +196,10 @@ struct ParamsList {
         }
 
         auto p_index = params.size();
-        params_by_name.insert({param.name, p_index});
+
+        if (param.type != ParamType::Simple) {
+            params_by_name.insert({param.name, p_index});
+        }
         params.push_back(std::move(param));
     }
 
@@ -250,6 +253,19 @@ struct ParamsList {
     }
 
     Param &
+    get_required(const std::string &name) {
+        if (!params_by_name.contains(name)) {
+            throw std::runtime_error(fmt::format("Param '{}' is not present", name));
+        }
+
+        const auto p_index = params_by_name.at(name);
+        auto &p = params[p_index];
+
+        p.was_accessed = true;
+        return p;
+    }
+
+    Param &
     next_param() {
         if (index < params.size()) {
             auto &p = params.at(index++);
@@ -289,6 +305,8 @@ public:
 #endif
     i32 index = 0;
     std::vector<Param> params{};
+    /// This only ontains params with values, not "simple" params like "imagmap",
+    /// because those can technically be duplicated
     std::unordered_map<std::string, std::size_t> params_by_name{};
 };
 

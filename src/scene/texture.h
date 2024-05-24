@@ -14,6 +14,11 @@ public:
         : image{image} {}
 
     tuple3
+    fetch_rgb_texel(const uvec2 &coords) const {
+        return image->fetch_rgb_texel(coords);
+    }
+
+    tuple3
     fetch_rgb(const vec2 &uv) const {
         return image->fetch_rgb(uv);
     }
@@ -28,6 +33,16 @@ public:
         return image->get_scolor_space();
     }
 
+    i32
+    width() const {
+        return image->get_width();
+    }
+
+    i32
+    height() const {
+        return image->get_height();
+    }
+
 private:
     Image *image;
 };
@@ -36,21 +51,36 @@ enum class TextureType : u8 {
     Constant,
     Image,
     Scale,
+    Mix,
 };
 
 class FloatTexture;
 
 class FloatScaleTexture {
 public:
-    FloatScaleTexture(FloatTexture *texture, const f32 scale)
-        : texture{texture}, scale{scale} {}
+    FloatScaleTexture(FloatTexture *texture, FloatTexture *scale_tex)
+        : texture{texture}, scale_tex{scale_tex} {}
 
     f32
     fetch(const vec2 &uv) const;
 
 private:
     FloatTexture *texture{nullptr};
-    f32 scale{1.f};
+    FloatTexture *scale_tex{nullptr};
+};
+
+class FloatMixTexture {
+public:
+    FloatMixTexture(FloatTexture *tex1, FloatTexture *tex2, const f32 mix)
+        : mix{mix}, tex1{tex1}, tex2{tex2} {}
+
+    f32
+    fetch(const vec2 &uv) const;
+
+private:
+    f32 mix{0.5f};
+    FloatTexture *tex1{nullptr};
+    FloatTexture *tex2{nullptr};
 };
 
 class FloatTexture {
@@ -67,10 +97,19 @@ public:
     }
 
     static FloatTexture
-    make(FloatTexture *texture, const f32 scale) {
+    make(const FloatScaleTexture texture) {
         FloatTexture tex{};
         tex.texture_type = TextureType::Scale;
-        tex.inner.scale_texture = FloatScaleTexture{texture, scale};
+        tex.inner.scale_texture = texture;
+
+        return tex;
+    }
+
+    static FloatTexture
+    make(const FloatMixTexture &p_tex) {
+        FloatTexture tex{};
+        tex.texture_type = TextureType::Mix;
+        tex.inner.mix_texture = p_tex;
 
         return tex;
     }
@@ -93,6 +132,8 @@ public:
             return inner.image.fetch_float(uv);
         case TextureType::Scale:
             return inner.scale_texture.fetch(uv);
+        case TextureType::Mix:
+            return inner.mix_texture.fetch(uv);
         default:
             assert(false);
         }
@@ -103,6 +144,7 @@ public:
         f32 constant_f32;
         ImageTexture image;
         FloatScaleTexture scale_texture;
+        FloatMixTexture mix_texture;
     } inner{};
 };
 
@@ -116,15 +158,29 @@ class SpectrumTexture;
 
 class SpectrumScaleTexture {
 public:
-    SpectrumScaleTexture(SpectrumTexture *texture, const f32 scale)
-        : texture{texture}, scale{scale} {}
+    SpectrumScaleTexture(SpectrumTexture *texture, FloatTexture *scale_tex)
+        : texture{texture}, scale_tex{scale_tex} {}
 
-    Spectrum
-    fetch(const vec2 &uv) const;
+    SampledSpectrum
+    fetch(const vec2 &uv, const SampledLambdas &lambdas) const;
 
 private:
     SpectrumTexture *texture{nullptr};
-    f32 scale{1.f};
+    FloatTexture *scale_tex{nullptr};
+};
+
+class SpectrumMixTexture {
+public:
+    SpectrumMixTexture(SpectrumTexture *tex1, SpectrumTexture *tex2, const f32 mix)
+        : mix{mix}, tex1{tex1}, tex2{tex2} {}
+
+    SampledSpectrum
+    fetch(const vec2 &uv, const SampledLambdas &lambdas) const;
+
+private:
+    f32 mix{0.5f};
+    SpectrumTexture *tex1{nullptr};
+    SpectrumTexture *tex2{nullptr};
 };
 
 class SpectrumTexture {
@@ -142,11 +198,19 @@ public:
     }
 
     static SpectrumTexture
-    make(SpectrumTexture *texture, const f32 scale) {
+    make(const SpectrumScaleTexture texture) {
         SpectrumTexture tex{};
-        tex.spectrum_type = texture->spectrum_type;
         tex.texture_type = TextureType::Scale;
-        tex.inner.scale_texture = SpectrumScaleTexture{texture, scale};
+        tex.inner.scale_texture = texture;
+
+        return tex;
+    }
+
+    static SpectrumTexture
+    make(const SpectrumMixTexture &p_tex) {
+        SpectrumTexture tex{};
+        tex.texture_type = TextureType::Mix;
+        tex.inner.mix_texture = p_tex;
 
         return tex;
     }
@@ -178,40 +242,44 @@ public:
         return tex;
     }
 
-    Spectrum
-    fetch(const vec2 &uv, const f32 scale = 1.f) const {
+    SampledSpectrum
+    fetch(const vec2 &uv, const SampledLambdas &lambdas) const {
         switch (texture_type) {
         case TextureType::Constant:
-            return inner.constant_spectrum;
+            return inner.constant_spectrum.eval(lambdas);
         case TextureType::Image: {
             const auto rgb = inner.image.fetch_rgb(uv);
 
             switch (spectrum_type) {
             case TextureSpectrumType::Rgb:
-                return Spectrum(RgbSpectrum::make(rgb));
+                return RgbSpectrum::make(rgb).eval(lambdas);
             case TextureSpectrumType::Unbounded:
-                return Spectrum(RgbSpectrumUnbounded::make(rgb));
+                return RgbSpectrumUnbounded::make(rgb).eval(lambdas);
             case TextureSpectrumType::Illuminant:
-                return Spectrum(
-                    RgbSpectrumIlluminant::make(rgb, inner.image.color_space()));
+                return RgbSpectrumIlluminant::make(rgb, inner.image.color_space())
+                    .eval(lambdas);
             default:
                 assert(false);
             }
         }
         case TextureType::Scale: {
-            return inner.scale_texture.fetch(uv);
+            return inner.scale_texture.fetch(uv, lambdas);
         }
+        case TextureType::Mix:
+            return inner.mix_texture.fetch(uv, lambdas);
         default:
             assert(false);
         }
     }
 
+    // TODO: this should be handled in the image texture... ?
     TextureSpectrumType spectrum_type{};
     TextureType texture_type{};
     union {
         Spectrum constant_spectrum{ConstantSpectrum::make(0.f)};
         ImageTexture image;
         SpectrumScaleTexture scale_texture;
+        SpectrumMixTexture mix_texture;
     } inner{};
 };
 

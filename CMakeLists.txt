@@ -96,6 +96,10 @@ add_library(pt_lib
         src/scene/texture.cpp
         src/materials/diffuse_transmission.cpp
         src/materials/diffuse_transmission.h
+        src/scene/sphere_square_mapping.cpp
+        src/scene/sphere_square_mapping.h
+        src/math/aabb.h
+        src/math/discrete_dist.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -157,6 +161,8 @@ add_executable(tests
         src/pbrt_loader/test_params_parser.cpp
         src/pbrt_loader/test_pbrt_loader.cpp
         src/math/test_transform.cpp
+        src/scene/test_sphere_square_mapping.cpp
+        src/math/test_sampling_piecewise.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)

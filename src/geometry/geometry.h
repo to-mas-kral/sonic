@@ -21,11 +21,11 @@ struct ShapeIndex {
     u32 triangle_index;
 };
 
-struct ShapeSample {
+struct ShapeLightSample {
     point3 pos;
-    norm_vec3 normal;
+    norm_vec3 normal{1.f, 0.f, 0.f};
     f32 pdf;
-    f32 area;
+    spectral emission;
 };
 
 struct MeshParams;
@@ -143,7 +143,7 @@ struct MeshParams {
 struct Meshes {
     std::vector<Mesh> meshes{};
 
-    ShapeSample
+    ShapeLightSample
     sample(ShapeIndex si, const vec3 &sample) const;
 };
 
@@ -170,7 +170,7 @@ struct Spheres {
     std::vector<FloatTexture *> alphas{};
     u32 num_spheres = 0;
 
-    ShapeSample
+    ShapeLightSample
     sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) const;
 
     static f32
@@ -218,7 +218,7 @@ struct Geometry {
     u32
     get_next_shape_index(ShapeType type) const;
 
-    ShapeSample
+    ShapeLightSample
     sample_shape(ShapeIndex si, const point3 &pos, const vec3 &sample) const;
 
     f32

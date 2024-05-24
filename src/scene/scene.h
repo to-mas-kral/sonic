@@ -3,6 +3,7 @@
 
 #include "../geometry/geometry.h"
 #include "../geometry/instance_id.h"
+#include "../integrator/intersection.h"
 #include "../integrator/light_sampler.h"
 #include "../materials/material.h"
 #include "envmap.h"
@@ -17,9 +18,7 @@ struct Scene {
     Scene();
 
     void
-    set_envmap(const Envmap &a_envmap) {
-        envmap = a_envmap;
-    }
+    set_envmap(Envmap &&a_envmap);
 
     void
     add_mesh(const MeshParams &mp, std::optional<InstanceId> instance = {});
@@ -58,12 +57,14 @@ struct Scene {
     }
 
     void
+    set_scene_bounds(const AABB &bounds) const;
+
+    void
     init_light_sampler();
 
     Option<LightSample>
-    sample_lights(f32 sample) {
-        return light_sampler.sample(lights, sample);
-    }
+    sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
+                  const Intersection &pos);
 
     Geometry geometry{};
     LightSampler light_sampler{};
@@ -82,7 +83,7 @@ struct Scene {
 
     std::unordered_map<std::string, Spectrum> builtin_spectra{};
 
-    std::optional<Envmap> envmap{};
+    std::unique_ptr<Envmap> envmap{nullptr};
 
     SceneAttribs attribs{};
 

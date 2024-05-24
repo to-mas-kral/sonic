@@ -4,13 +4,13 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 TEST_CASE("lexer lookat", "[lexer lookat]") {
-    auto input =
-        std::istringstream(std::string("LookAt 3 4 1.5  # eye\n"
-                                       ".5 .5 0  # look at point\n"
-                                       "0 0 1    # up vector\n"
-                                       "Camera \"perspective\" \"float fov\" 45"));
+    auto input = std::string("LookAt 3 4 1.5  # eye\n"
+                             ".5 .5 0  # look at point\n"
+                             "0 0 1    # up vector\n"
+                             "Camera \"perspective\" \"float fov\" 45");
 
-    auto lexer = Lexer(&input);
+    auto stream = StackFileStream(input);
+    auto lexer = Lexer(&stream);
 
     REQUIRE(lexer.next() == Lexeme(LexemeType::String, std::string("LookAt")));
 
@@ -39,13 +39,14 @@ TEST_CASE("lexer lookat", "[lexer lookat]") {
 }
 
 TEST_CASE("lexer comments newlines", "[lexer comments newlines]") {
-    auto input = std::istringstream(std::string("#\n"
-                                                "Camera\n"
-                                                "# dsds dsdsdsd s ds sdd s Sampler\n"
-                                                "#\n"
-                                                "WorldBegin\n"));
+    auto input = std::string("#\n"
+                             "Camera\n"
+                             "# dsds dsdsdsd s ds sdd s Sampler\n"
+                             "#\n"
+                             "WorldBegin\n");
 
-    auto lexer = Lexer(&input);
+    auto stream = StackFileStream(input);
+    auto lexer = Lexer(&stream);
 
     REQUIRE(lexer.next() == Lexeme(LexemeType::String, std::string("Camera")));
     REQUIRE(lexer.next() == Lexeme(LexemeType::String, std::string("WorldBegin")));
@@ -53,9 +54,10 @@ TEST_CASE("lexer comments newlines", "[lexer comments newlines]") {
 }
 
 TEST_CASE("lexer floats", "[lexer floats]") {
-    auto input = std::istringstream(std::string(".05 -0.5 -0. 1. 5 1.91069e-15\n"));
+    auto input = std::string(".05 -0.5 -0. 1. 5 1.91069e-15\n");
 
-    auto lexer = Lexer(&input);
+    auto stream = StackFileStream(input);
+    auto lexer = Lexer(&stream);
 
     REQUIRE(lexer.next() == Lexeme(LexemeType::Num, std::string(".05")));
     REQUIRE(lexer.next() == Lexeme(LexemeType::Num, std::string("-0.5")));
@@ -67,9 +69,10 @@ TEST_CASE("lexer floats", "[lexer floats]") {
 }
 
 TEST_CASE("lexer peek", "[lexer peek]") {
-    auto input = std::istringstream(std::string("1 2 3 4 5\n"));
+    auto input = std::string("1 2 3 4 5\n");
 
-    auto lexer = Lexer(&input);
+    auto stream = StackFileStream(input);
+    auto lexer = Lexer(&stream);
 
     REQUIRE(lexer.next() == Lexeme(LexemeType::Num, std::string("1")));
     REQUIRE(lexer.peek() == Lexeme(LexemeType::Num, std::string("2")));
@@ -86,9 +89,10 @@ TEST_CASE("lexer peek", "[lexer peek]") {
 }
 
 TEST_CASE("lexer brackets", "[lexer brackets]") {
-    auto input = std::istringstream(std::string("[.1 .1 .1]\n"));
+    auto input = std::string("[.1 .1 .1]\n");
 
-    auto lexer = Lexer(&input);
+    auto stream = StackFileStream(input);
+    auto lexer = Lexer(&stream);
 
     REQUIRE(lexer.next() == Lexeme(LexemeType::OpenBracket));
     REQUIRE(lexer.next() == Lexeme(LexemeType::Num, std::string(".1")));

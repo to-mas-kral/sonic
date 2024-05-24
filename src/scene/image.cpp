@@ -37,8 +37,6 @@ load_exr_texture(const std::string &texture_path) {
 
     check_texture_dimensions(width, height);
 
-    // TODO: check if the alpha channel is all ones...
-
     return Image(width, height, pixels, num_channels);
 }
 
@@ -68,6 +66,12 @@ Image::make(const std::string &texture_path) {
     }
 }
 
+tuple3
+Image::fetch_rgb_texel(const uvec2 &coords) const {
+    const auto pixel_index = coords.x + (width * coords.y);
+    return get_rgb_pixel_index(pixel_index);
+}
+
 u64
 Image::calc_index(const vec2 &uv) const {
     f32 foo;
@@ -85,10 +89,7 @@ Image::calc_index(const vec2 &uv) const {
 }
 
 tuple3
-Image::fetch_rgb(const vec2 &uv) const {
-    const auto pixel_index = calc_index(uv);
-    assert(pixel_index < static_cast<i64>(width) * static_cast<i64>(height));
-
+Image::get_rgb_pixel_index(const u64 pixel_index) const {
     switch (data_type) {
     case ImageDataType::U8: {
         if (num_channels >= 3) {
@@ -98,11 +99,11 @@ Image::fetch_rgb(const vec2 &uv) const {
                 static_cast<f32>(pixels_u8[pixel_index * num_channels + 1]) / 255.f;
             const auto b =
                 static_cast<f32>(pixels_u8[pixel_index * num_channels + 2]) / 255.f;
-            return tuple3(r, g, b) /*.pow(2.2f)*/;
+            return nonlinear_to_linear(color_space, tuple3(r, g, b));
         } else {
             const auto g =
                 static_cast<f32>(pixels_u8[pixel_index * num_channels]) / 255.f;
-            return tuple3(g, g, g) /*.pow(2.2f)*/;
+            return nonlinear_to_linear(color_space, tuple3(g, g, g));
         }
     }
     case ImageDataType::F32: {
@@ -119,6 +120,14 @@ Image::fetch_rgb(const vec2 &uv) const {
     default:
         assert(false);
     }
+}
+
+tuple3
+Image::fetch_rgb(const vec2 &uv) const {
+    const auto pixel_index = calc_index(uv);
+    assert(pixel_index < static_cast<i64>(width) * static_cast<i64>(height));
+
+    return get_rgb_pixel_index(pixel_index);
 }
 
 f32

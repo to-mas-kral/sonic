@@ -181,6 +181,8 @@ struct Spectrum {
     f32
     eval_single(f32 lambda) const;
 
+    f32 power() const;
+
     SpectrumType type;
     union {
         DenseSpectrum dense_spectrum;

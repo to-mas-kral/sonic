@@ -10,7 +10,7 @@ DiffuseMaterial::pdf(const ShadingGeometry &sgeom) {
 spectral
 DiffuseMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
                       const vec2 &uv) const {
-    const auto refl = reflectance->fetch(uv).eval(lambdas);
+    const auto refl = reflectance->fetch(uv, lambdas);
     return refl / M_PIf;
 }
 

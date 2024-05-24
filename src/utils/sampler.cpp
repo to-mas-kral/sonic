@@ -37,8 +37,9 @@ rng(u32 &rngState) {
 }
 
 void
-Sampler::init_frame(const uvec2 &pixel, const uvec2 &resolution, u32 frame) {
-    rand_state = init_rng(pixel, resolution, frame);
+Sampler::init_frame(const uvec2 &pixel, const uvec2 &resolution, const u32 p_frame) {
+    rand_state = init_rng(pixel, resolution, p_frame);
+    frame = p_frame;
 }
 
 f32
@@ -49,15 +50,40 @@ Sampler::sample() {
 vec2
 Sampler::sample2() {
     // The order has to be right...
-    auto r1 = rng(rand_state);
-    auto r2 = rng(rand_state);
+    const auto r1 = rng(rand_state);
+    const auto r2 = rng(rand_state);
     return vec2(r1, r2);
+}
+
+vec2
+Sampler::sample_camera() {
+    constexpr i32 STRATA_SQRT_SIZE = 8;
+    constexpr f32 STRATUM_WIDTH = 1.f / static_cast<f32>(STRATA_SQRT_SIZE);
+
+    const auto stratum = frame % (STRATA_SQRT_SIZE * STRATA_SQRT_SIZE);
+    const auto offset_x = static_cast<f32>(stratum % STRATA_SQRT_SIZE) * STRATUM_WIDTH;
+    const auto offset_y = static_cast<f32>(stratum / STRATA_SQRT_SIZE) * STRATUM_WIDTH;
+
+    const auto in_stratum_x = rng(rand_state) / STRATUM_WIDTH;
+    const auto in_stratum_y = rng(rand_state) / STRATUM_WIDTH;
+
+    auto x = offset_x + in_stratum_x;
+    auto y = offset_y + in_stratum_y;
+    if (x >= 1.f) {
+        x = std::nexttowardf(1.f, 0);
+    }
+
+    if (y >= 1.f) {
+        y = std::nexttowardf(1.f, 0);
+    }
+
+    return vec2(x, y);
 }
 
 vec3
 Sampler::sample3() {
-    auto r1 = rng(rand_state);
-    auto r2 = rng(rand_state);
-    auto r3 = rng(rand_state);
+    const auto r1 = rng(rand_state);
+    const auto r2 = rng(rand_state);
+    const auto r3 = rng(rand_state);
     return vec3(r1, r2, r3);
 }

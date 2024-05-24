@@ -23,6 +23,8 @@ Geometry::add_sphere(SphereParams sp, const Option<u32> light_id) {
         spheres.light_ids.push_back(0);
     }
 
+    spheres.alphas.push_back(sp.alpha);
+
     spheres.num_spheres++;
 }
 
@@ -38,7 +40,7 @@ Geometry::get_next_shape_index(const ShapeType type) const {
     }
 }
 
-ShapeSample
+ShapeLightSample
 Geometry::sample_shape(const ShapeIndex si, const point3 &pos, const vec3 &sample) const {
     switch (si.type) {
     case ShapeType::Mesh:
@@ -147,7 +149,7 @@ Mesh::calc_uvs(const u32 triangle_index, const vec3 &bar) const {
     return uv;
 }
 
-ShapeSample
+ShapeLightSample
 Meshes::sample(ShapeIndex si, const vec3 &sample) const {
     const auto &mesh = meshes[si.index];
 
@@ -159,15 +161,14 @@ Meshes::sample(ShapeIndex si, const vec3 &sample) const {
     const auto normal = mesh.calc_normal(si.triangle_index, bar, false);
     const auto area = mesh.tri_area(si.triangle_index);
 
-    return ShapeSample{
+    return ShapeLightSample{
         .pos = sampled_pos,
         .normal = normal,
         .pdf = 1.f / area,
-        .area = area,
     };
 }
 
-ShapeSample
+ShapeLightSample
 Spheres::sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) const {
     vec3 sample_dir = sample_uniform_sphere(vec2(sample.x, sample.y));
     point3 center = vertices[index].pos;
@@ -176,11 +177,10 @@ Spheres::sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) co
     point3 pos = center + radius * sample_dir;
     f32 area = calc_sphere_area(radius);
 
-    return ShapeSample{
+    return ShapeLightSample{
         .pos = pos,
         .normal = calc_normal(pos, center),
         .pdf = 1.f / area,
-        .area = area,
     };
 }
 

@@ -13,3 +13,4 @@
 *.ncu-rep
 *.txt
 /cmake-build-relwithdebinfo/
+/cmake-build-debug-coverage/

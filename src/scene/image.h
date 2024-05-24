@@ -24,6 +24,9 @@ public:
     make(const std::string &texture_path);
 
     tuple3
+    fetch_rgb_texel(const uvec2 &coords) const;
+
+    tuple3
     fetch_rgb(const vec2 &uv) const;
 
     f32
@@ -32,6 +35,16 @@ public:
     const ColorSpace &
     get_scolor_space() const {
         return color_space;
+    }
+
+    i32
+    get_width() const {
+        return width;
+    }
+
+    i32
+    get_height() const {
+        return height;
     }
 
     void
@@ -46,6 +59,9 @@ public:
 private:
     u64
     calc_index(const vec2 &uv) const;
+
+    tuple3
+    get_rgb_pixel_index(u64 pixel_index) const;
 
     ImageDataType data_type{};
     ColorSpace color_space{};

@@ -5,7 +5,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 TEST_CASE("params simple", "[params simple]") {
-    auto input = std::istringstream(std::string(R"("checks" "spectrum" "checkerboard")"));
+    auto input = std::string(R"("checks" "spectrum" "checkerboard")");
 
     auto loader = PbrtLoader(input);
 
@@ -22,7 +22,7 @@ TEST_CASE("params simple", "[params simple]") {
 }
 
 TEST_CASE("params single", "[params single]") {
-    auto input = std::istringstream(std::string(R"("float a" [1] "integer b" 1)"));
+    auto input = std::string(R"("float a" [1] "integer b" 1)");
 
     auto loader = PbrtLoader(input);
 
@@ -40,9 +40,8 @@ TEST_CASE("params single", "[params single]") {
 }
 
 TEST_CASE("params list", "[params list]") {
-    auto input =
-        std::istringstream(std::string(R"("integer b" [1 2 3 4 5] "float a" [1 2 3]
-"integer b" [1 2 3 4 5])"));
+    auto input = std::string(R"("integer b" [1 2 3 4 5] "float a" [1 2 3]
+"integer c" [1 2 3 4 5])");
 
     auto loader = PbrtLoader(input);
 
@@ -60,15 +59,15 @@ TEST_CASE("params list", "[params list]") {
     REQUIRE(std::get<std::vector<f32>>(params[1].inner) == std::vector{1.0f, 2.0f, 3.0f});
 
     REQUIRE(params[2].type == ParamType::List);
-    REQUIRE(params[2].name == "b");
+    REQUIRE(params[2].name == "c");
     REQUIRE(params[2].value_type == ValueType::Int);
     REQUIRE(std::get<std::vector<i32>>(params[2].inner) ==
             std::vector<i32>{1, 2, 3, 4, 5});
 }
 
 TEST_CASE("params various", "[params various]") {
-    auto input = std::istringstream(std::string(R"("distant" "point3 from" [ -30 40  100 ]
-    "float scale" 1.5)"));
+    auto input = std::string(R"("distant" "point3 from" [ -30 40  100 ]
+    "float scale" 1.5)");
 
     auto loader = PbrtLoader(input);
 
@@ -90,4 +89,14 @@ TEST_CASE("params various", "[params various]") {
     REQUIRE(params[2].name == "scale");
     REQUIRE(params[2].value_type == ValueType::Float);
     REQUIRE(std::get<f32>(params[2].inner) == 1.5f);
+}
+
+TEST_CASE("params duplicated param name") {
+    auto input = std::string(R"("arc_rosetta_red-kd" "spectrum" "scale"
+    "float scale" [ 0.620968 ])");
+
+    auto loader = PbrtLoader(input);
+    auto params = loader.parse_param_list();
+
+    REQUIRE_NOTHROW(std::get<f32>(params.get_required("scale", ValueType::Float).inner));
 }

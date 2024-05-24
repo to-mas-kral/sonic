@@ -21,4 +21,32 @@ xyz_to_srgb(const tuple3 &xyz) {
     return XYZ_TO_RGB_MATRIX * xyz;
 }
 
+static tuple3
+srgb_nonlinear_to_linear(const tuple3 &rgb) {
+    const auto transform = [](const f32 c) {
+        if (c <= 0.04045f) {
+            return c / 12.92f;
+        } else {
+            return std::powf((c + 0.055f) / 1.055f, 2.4f);
+        }
+    };
+
+    const auto x = transform(rgb.x);
+    const auto y = transform(rgb.y);
+    const auto z = transform(rgb.z);
+
+    return tuple3(x, y, z);
+}
+
+static tuple3
+nonlinear_to_linear(const ColorSpace color_space, const tuple3 &rgb) {
+    switch (color_space) {
+    case ColorSpace::sRGB: {
+        return srgb_nonlinear_to_linear(rgb);
+    }
+    default:
+        assert(false);
+    }
+}
+
 #endif // PT_COLOR_SPACE_H

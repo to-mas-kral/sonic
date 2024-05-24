@@ -15,7 +15,7 @@ struct SampledSpectrum {
     make_constant(f32 constant);
 
     f32
-    average();
+    average() const;
 
     f32
     max_component() const;
@@ -82,7 +82,7 @@ struct SampledLambdas {
     new_mock();
 
     vec3
-    to_xyz(const SampledSpectrum &radiance);
+    to_xyz(const SampledSpectrum &radiance) const;
 
     const f32 &
     operator[](u32 index) const;

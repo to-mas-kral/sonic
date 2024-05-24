@@ -1,7 +1,8 @@
 
 #include "light_sampler.h"
 
-LightSampler::LightSampler(const std::vector<Light> &lights, const Geometry &geom) {
+LightSampler::
+LightSampler(const std::vector<Light> &lights, const Geometry &geom) {
     if (lights.empty()) {
         return;
     }
@@ -22,25 +23,25 @@ LightSampler::LightSampler(const std::vector<Light> &lights, const Geometry &geo
         pmf.push_back(prob);
     }
 
-    sampling_dist = PiecewiseDist1D(std::move(pmf));
+    sampling_dist = DiscreteDist(std::move(pmf));
 }
 
-Option<LightSample>
-LightSampler::sample(const std::vector<Light> &lights, f32 sample) {
+Option<LightIndexSample>
+LightSampler::sample(const std::vector<Light> &lights, const f32 sample) const {
     if (!has_lights) {
         return {};
     }
 
-    u32 light_index = sampling_dist.sample(sample);
-    f32 pdf = sampling_dist.pdf(light_index);
+    const u32 light_index = sampling_dist.sample(sample);
+    const f32 pdf = sampling_dist.pdf(light_index);
 
-    return LightSample{
+    return LightIndexSample{
         .pdf = pdf,
-        .light = lights[light_index],
+        .light = &lights[light_index],
     };
 }
 
 f32
-LightSampler::light_sample_pdf(u32 light_id) const {
+LightSampler::light_sample_pdf(const u32 light_id) const {
     return sampling_dist.pdf(light_id);
 }

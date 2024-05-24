@@ -25,7 +25,7 @@ public:
     Sampler() = default;
 
     void
-    init_frame(const uvec2 &pixel, const uvec2 &resolution, u32 frame);
+    init_frame(const uvec2 &pixel, const uvec2 &resolution, u32 p_frame);
 
     f32
     sample();
@@ -33,11 +33,15 @@ public:
     vec2
     sample2();
 
+    vec2
+    sample_camera();
+
     vec3
     sample3();
 
 private:
     u32 rand_state{0};
+    u32 frame{0};
 };
 
 #endif // PT_SAMPLER_H

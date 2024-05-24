@@ -1,6 +1,7 @@
 #include "scene.h"
 
 #include "../color/spectral_data.h"
+#include "../integrator/intersection.h"
 
 Scene::
 Scene() {
@@ -71,8 +72,23 @@ Scene::get_image(const std::filesystem::path &path) {
 }
 
 void
+Scene::set_scene_bounds(const AABB &bounds) const {
+    if (envmap) {
+        envmap->set_bounds(bounds);
+    }
+}
+
+void
 Scene::init_light_sampler() {
     light_sampler = LightSampler(lights, geometry);
+}
+
+Option<LightSample>
+Scene::sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
+                     const Intersection &its) {
+    const auto index_sample = light_sampler.sample(lights, sample);
+    return index_sample->light->sample(index_sample->pdf, shape_rng, lambdas, its,
+                                       geometry);
 }
 
 void
@@ -91,7 +107,7 @@ Scene::add_mesh(const MeshParams &mp, const std::optional<InstanceId> instance) 
             const auto si = ShapeIndex{
                 .type = ShapeType::Mesh, .index = next_mesh_id, .triangle_index = i};
 
-            lights.push_back(Light{.shape = si, .emitter = mp.emitter.value()});
+            lights.emplace_back(ShapeLight(si, mp.emitter.value()));
         }
     }
 
@@ -118,7 +134,7 @@ Scene::add_sphere(const SphereParams &sp, std::optional<InstanceId> instance) {
         light_id = Option<u32>(lights.size());
         const auto si = ShapeIndex{.type = ShapeType::Sphere, .index = next_sphere_id};
 
-        lights.push_back(Light{.shape = si, .emitter = sp.emitter.value()});
+        lights.emplace_back(ShapeLight(si, sp.emitter.value()));
     }
 
     // TODO: refactor this...
@@ -164,4 +180,12 @@ Scene() {
     for (const auto &[_, img] : images) {
         img->free();
     }
+}
+
+void
+Scene::set_envmap(Envmap &&a_envmap) {
+    envmap = std::make_unique<Envmap>(std::move(a_envmap));
+    const auto envmap_light_id = lights.size();
+    lights.emplace_back(EnvmapLight(envmap.get()));
+    envmap->set_light_id(envmap_light_id);
 }

@@ -4,10 +4,13 @@
 
 #include <algorithm>
 #include <numeric>
+#include <spdlog/spdlog.h>
 
-PiecewiseDist2D::PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
-    conditionals = std::vector<PiecewiseDist1D>(height);
-    std::vector<f32> marginals_sums(height);
+PiecewiseDist2D::
+PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
+    conditionals.reserve(height);
+    std::vector<f32> marginals_sums{};
+    marginals_sums.reserve(height);
 
     for (int r = 0; r < height; r++) {
         auto row = Span<f32>(const_cast<f32 *>(&grid[r * width]), width);
@@ -22,7 +25,7 @@ PiecewiseDist2D::PiecewiseDist2D(const std::vector<f32> &grid, int width, int he
 }
 
 Tuple<vec2, f32>
-PiecewiseDist2D::sample(const vec2 &sample) {
+PiecewiseDist2D::sample(const vec2 &sample) const {
     auto [v, im] = marginals.sample_continuous(sample.x);
     auto [u, ic] = conditionals[im].sample_continuous(sample.y);
 
@@ -33,78 +36,83 @@ PiecewiseDist2D::sample(const vec2 &sample) {
 }
 
 f32
-PiecewiseDist2D::pdf(const vec2 &sample) {
-    auto [pdf0, im] = marginals.sample_continuous(sample.x);
-    auto [pdf1, _] = conditionals[im].sample_continuous(sample.y);
+PiecewiseDist2D::pdf(const vec2 &sample) const {
+    const auto pdf0 = marginals.pdf(sample.x);
+
+    const auto im = sample.y * marginals.size();
+    const auto pdf1 = conditionals[im].pdf(sample.y);
 
     return pdf0 * pdf1;
 }
 
-PiecewiseDist1D::PiecewiseDist1D(PiecewiseDist1D &&other) noexcept {
-    this->pmf = std::move(other.pmf);
-    this->cmf = std::move(other.cmf);
-}
+/// Code taken from PBRTv4
+PiecewiseDist1D::
+PiecewiseDist1D(Span<f32> vals) {
+    function.assign(vals.begin(), vals.end());
+    m_cdf = std::vector<f32>(vals.size() + 1);
 
-void
-PiecewiseDist1D::create_cmf() {
-    cmf.reserve(pmf.size());
-
-    f32 cmf_sum = 0.f;
-    for (f32 i : pmf) {
-        cmf_sum += i;
-        cmf.push_back(cmf_sum);
+    m_cdf[0] = 0;
+    const auto n = vals.size();
+    for (size_t i = 1; i < n + 1; ++i) {
+        m_cdf[i] = m_cdf[i - 1] + vals[i - 1] / n;
     }
 
-    f32 err = std::abs(cmf[cmf.size() - 1] - 1.f);
-    assert(err < 0.00001f);
-
-    cmf[cmf.size() - 1] = 1.f;
-}
-
-PiecewiseDist1D::PiecewiseDist1D(std::vector<f32> &&p_pmf) : pmf{std::move(p_pmf)} {
-    create_cmf();
-}
-
-PiecewiseDist1D::PiecewiseDist1D(Span<f32> vals) {
-    pmf.reserve(vals.size());
-
-    f32 sum = std::accumulate(vals.begin(), vals.end(), 0.f);
-    for (auto v : vals) {
-        pmf.push_back(v / sum);
+    func_int = m_cdf[n];
+    if (func_int == 0) {
+        for (size_t i = 1; i < n + 1; ++i) {
+            m_cdf[i] = static_cast<f32>(i) / static_cast<f32>(n);
+        }
+    } else {
+        for (size_t i = 1; i < n + 1; ++i) {
+            m_cdf[i] /= func_int;
+        }
     }
 
-    create_cmf();
+    assert(!m_cdf.empty());
 }
 
 f32
-PiecewiseDist1D::pdf(u32 index) const {
-    return pmf[index];
+PiecewiseDist1D::pdf(const u32 index) const {
+    if (func_int == 0.f) {
+        return 0.f;
+    }
+    return function[index] / func_int;
+}
+
+f32
+PiecewiseDist1D::pdf(const f32 sample) const {
+    if (func_int == 0.f) {
+        return 0.f;
+    }
+
+    u32 offset = sample * (f32)function.size();
+    if (offset > m_cdf.size() - 1) {
+        offset = m_cdf.size();
+    }
+
+    return function[offset] / func_int;
 }
 
 u32
-PiecewiseDist1D::sample(f32 sample) {
-    return sample_discrete_cmf(Span<f32>(cmf.data(), cmf.size()), sample);
+PiecewiseDist1D::size() const {
+    return function.size();
 }
 
+/// Samples a CMF, return a value in [0, 1), and an index into the PDF slice.
 Tuple<f32, u32>
-PiecewiseDist1D::sample_continuous(f32 sample) {
-    return sample_continuous_cmf(Span<f32>(cmf.data(), cmf.size()), sample);
-}
+PiecewiseDist1D::sample_continuous(const f32 sample) const {
+    const auto i = std::upper_bound(m_cdf.begin(), m_cdf.end(), sample);
+    assert(i != m_cdf.end());
+    auto offset = std::distance(m_cdf.begin(), i);
+    offset--;
+    assert(offset < m_cdf.size());
 
-Tuple<f32, u32>
-PiecewiseDist1D::pdf(f32 sample) const {
-    u32 offset = sample * (f32)cmf.size();
-    if (offset > cmf.size() - 1) {
-        offset = cmf.size();
+    f32 du = sample - m_cdf[offset];
+    if ((m_cdf[offset + 1] - m_cdf[offset]) > 0) {
+        du /= (m_cdf[offset + 1] - m_cdf[offset]);
     }
 
-    return {pmf[offset], offset};
-}
+    f32 res = (offset + du) / (m_cdf.size() - 1);
 
-PiecewiseDist1D &
-PiecewiseDist1D::operator=(PiecewiseDist1D &&other) noexcept {
-    this->pmf = std::move(other.pmf);
-    this->cmf = std::move(other.cmf);
-
-    return *this;
+    return {res, offset};
 }

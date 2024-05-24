@@ -16,7 +16,7 @@ SampledSpectrum::make_constant(f32 constant) {
 }
 
 f32
-SampledSpectrum::average() {
+SampledSpectrum::average() const {
     f32 sum = 0.f;
     for (auto v : vals) {
         sum += v;
@@ -222,7 +222,7 @@ SampledLambdas::new_sample_uniform(f32 rand) {
 constexpr f32 PDF = 1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
 vec3
-SampledLambdas::to_xyz(const SampledSpectrum &radiance) {
+SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
     SampledSpectrum x = CIE_X.eval(*this) * radiance;
     SampledSpectrum y = CIE_Y.eval(*this) * radiance;
     SampledSpectrum z = CIE_Z.eval(*this) * radiance;

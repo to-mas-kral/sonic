@@ -2,6 +2,7 @@
 #define PT_EMBREE_DEVICE_H
 
 #include "integrator/intersection.h"
+#include "math/aabb.h"
 #include "scene/scene.h"
 
 #include <embree4/rtcore.h>
@@ -242,6 +243,14 @@ public:
 
         rtcCommitScene(main_scene);
 
+        RTCBounds bounds{};
+        rtcGetSceneBounds(main_scene, &bounds);
+
+        const auto low = vec3(bounds.lower_x, bounds.lower_y, bounds.lower_z);
+        const auto high = vec3(bounds.upper_x, bounds.upper_y, bounds.upper_z);
+
+        scene->set_scene_bounds(AABB(low, high));
+
         return main_scene;
     }
 
@@ -402,6 +411,10 @@ public:
     EmbreeDevice() {
         rtcReleaseDevice(device);
         rtcReleaseScene(main_scene);
+
+        for (const auto &scene : instance_scenes) {
+            rtcReleaseScene(scene);
+        }
     }
 
 private:

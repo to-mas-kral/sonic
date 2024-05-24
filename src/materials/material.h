@@ -43,9 +43,6 @@ struct Material {
                    ChunkAllocator<> &material_allocator);
 
     static Material
-    make_conductor_perfect(ChunkAllocator<> &material_allocator);
-
-    static Material
     make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta, SpectrumTexture *k,
                          ChunkAllocator<> &material_allocator);
 
@@ -58,7 +55,6 @@ struct Material {
                        SpectrumTexture *diffuse_reflectance,
                        ChunkAllocator<> &material_allocator);
 
-    // TODO: change Texture* to std::span<>
     Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
            const SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;

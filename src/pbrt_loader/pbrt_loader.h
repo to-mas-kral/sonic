@@ -179,7 +179,7 @@ private:
 
     template <typename T>
     std::optional<T *>
-    get_texture(Scene &sc, ParamsList &params, const std::string &name) {
+    get_texture_opt(Scene &sc, ParamsList &params, const std::string &name) {
         const auto opt_p = params.get_optional(name);
 
         if (!opt_p.has_value()) {
@@ -207,6 +207,31 @@ private:
         }
     }
 
+    template <typename T>
+    T *
+    get_texture_required(Scene &sc, ParamsList &params, const std::string &name) {
+        const auto &p = params.get_required(name);
+
+        if (p.value_type == ValueType::Texture) {
+            const auto &tex_name = std::get<std::string>(p.inner);
+            if constexpr (std::is_same<T, FloatTexture>()) {
+                return float_textures.at(tex_name);
+            } else if constexpr (std::is_same<T, SpectrumTexture>()) {
+                return spectrum_textures.at(tex_name);
+            } else {
+                static_assert(false);
+            }
+        }
+
+        if constexpr (std::is_same<T, SpectrumTexture>()) {
+            return parse_inline_spectrum_texture(p, sc);
+        } else if constexpr (std::is_same<T, FloatTexture>()) {
+            return parse_inline_float_texture(p, sc);
+        } else {
+            static_assert(false);
+        }
+    }
+
     SpectrumTexture *
     parse_inline_spectrum_texture(const Param &param, Scene &sc);
 
@@ -215,6 +240,19 @@ private:
 
     void
     load_named_material();
+    void
+    load_imagemap_texture(Scene &sc, const std::string &name, ParamsList &params,
+                          const std::string &type);
+    void
+    load_scale_texture(Scene &sc, const std::string &name, ParamsList &params,
+                       const std::string &type);
+    void
+    load_mix_texture(Scene &sc, const std::string &name, ParamsList &params,
+                     const std::string &type);
+
+    void
+    load_constant_texture(Scene &sc, const std::string &name, ParamsList &params,
+                          const std::string &type);
 
     void
     load_texture(Scene &sc);

@@ -37,6 +37,18 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
         vec3 xyz = pixels[i] / static_cast<float>(num_samples);
         tuple3 rgb = xyz_to_srgb(tuple3(xyz.x, xyz.y, xyz.z));
 
+        if (rgb.x < 0.f) {
+            rgb.x = 0.f;
+        }
+
+        if (rgb.y < 0.f) {
+            rgb.y = 0.f;
+        }
+
+        if (rgb.z < 0.f) {
+            rgb.z = 0.f;
+        }
+
         images[0][i] = rgb.x;
         images[1][i] = rgb.y;
         images[2][i] = rgb.z;

@@ -461,6 +461,10 @@ template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
 
     Point3(f32 x, f32 y, f32 z) : Tuple3Base(x, y, z) {}
 
+    explicit
+    Point3(Vector3<T> vec)
+        : Tuple3Base(vec.x, vec.y, vec.z) {}
+
     Point3() : Tuple3Base() {}
 
     Vector3<f32>

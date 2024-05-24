@@ -46,20 +46,28 @@ public:
 
     SourceLocation &
     src_location() {
-        if (file_streams.empty()) {
-            throw std::runtime_error("StackFileStream is empty");
-        }
+        if (!is_string_input) {
+            if (file_streams.empty()) {
+                throw std::runtime_error("StackFileStream is empty");
+            }
 
-        return file_streams.back().src_location;
+            return file_streams.back().src_location;
+        } else {
+            return string_source_location;
+        }
     }
 
     void
     inc_line_counter() {
-        if (file_streams.empty()) {
-            throw std::runtime_error("StackFileStream is empty");
-        }
+        if (!is_string_input) {
+            if (file_streams.empty()) {
+                throw std::runtime_error("StackFileStream is empty");
+            }
 
-        file_streams.back().src_location.line_counter++;
+            file_streams.back().src_location.line_counter++;
+        } else {
+            string_source_location.line_counter++;
+        }
     }
 
     bool
@@ -127,6 +135,7 @@ public:
 private:
     bool is_string_input = false;
     std::istringstream string_stream;
+    SourceLocation string_source_location{};
     std::vector<CurrentFileStream> file_streams{};
 };
 

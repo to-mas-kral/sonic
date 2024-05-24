@@ -50,7 +50,7 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
     f32 cos_theta_in = safe_sqrt(1.f - sqr(sin_theta_in));
     f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-    auto α = diffuse_reflectance->fetch(uv).eval(lambdas);
+    auto α = diffuse_reflectance->fetch(uv, lambdas);
 
     f32 re = 0.919317f;
     f32 ior_pow = int_ior_s;

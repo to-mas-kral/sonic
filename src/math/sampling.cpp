@@ -59,26 +59,3 @@ sample_uniform_triangle(const vec2 &sample) {
 
     return vec3(b0, b1, b2);
 }
-
-u32
-sample_discrete_cmf(Span<f32> cmf, const f32 sample) {
-    const auto i = std::upper_bound(cmf.begin(), cmf.end(), sample);
-    assert(i != cmf.end());
-    return std::distance(cmf.begin(), i);
-}
-
-Tuple<f32, u32>
-sample_continuous_cmf(Span<f32> cdf, f32 sample) {
-    const auto i = std::upper_bound(cdf.begin(), cdf.end(), sample);
-    assert(i != cdf.end());
-    auto offset = std::distance(cdf.begin(), i);
-
-    f32 du = sample - cdf[offset];
-    if ((cdf[offset + 1] - cdf[offset]) > 0) {
-        du /= (cdf[offset + 1] - cdf[offset]);
-    }
-
-    f32 res = (offset + du) / cdf.size();
-
-    return {res, offset};
-}

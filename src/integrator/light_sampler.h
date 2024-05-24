@@ -2,22 +2,26 @@
 #define PT_LIGHT_SAMPLER_H
 
 #include "../geometry/geometry.h"
-#include "../math/piecewise_dist.h"
+#include "../math/discrete_dist.h"
 #include "../scene/light.h"
 
-struct LightSample {
+class Envmap;
+
+struct LightIndexSample {
     f32 pdf;
-    Light light;
+    Light const *light;
 };
 
 class LightSampler {
 public:
     LightSampler() = default;
-    explicit LightSampler(const std::vector<Light> &lights, const Geometry &geom);
+
+    explicit
+    LightSampler(const std::vector<Light> &lights, const Geometry &geom);
 
     /// Sample lights according to power
-    Option<LightSample>
-    sample(const std::vector<Light> &lights, f32 sample);
+    Option<LightIndexSample>
+    sample(const std::vector<Light> &lights, f32 sample) const;
 
     /// The pdf of a light being sampled
     f32
@@ -25,7 +29,7 @@ public:
 
 private:
     bool has_lights = false;
-    PiecewiseDist1D sampling_dist;
+    DiscreteDist sampling_dist{};
 };
 
 #endif // PT_LIGHT_SAMPLER_H

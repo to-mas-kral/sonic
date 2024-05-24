@@ -19,8 +19,6 @@ PbrtLoader(const std::string &input)
 void
 PbrtLoader::load_scene(Scene &sc) {
     try {
-        sc.attribs = SceneAttribs::pbrt_defaults();
-
         load_screenwide_options(sc);
         load_scene_description(sc);
     } catch (const std::exception &e) {
@@ -29,6 +27,8 @@ PbrtLoader::load_scene(Scene &sc) {
                       src_location.file_path.string(), src_location.line_counter);
         throw;
     }
+
+    sc.init_light_sampler();
 }
 
 void
@@ -94,7 +94,6 @@ PbrtLoader::load_screenwide_options(Scene &sc) {
 
 void
 PbrtLoader::load_camera(Scene &sc) {
-    // TODO: camera in mitsuba is right-handed but left-handed in PBRT
     auto params = parse_param_list();
     const auto &type = params.expect(ParamType::Simple);
 
@@ -135,6 +134,11 @@ PbrtLoader::load_film(Scene &sc) {
     const auto filename = params.get_optional("filename", ValueType::String);
     if (filename.has_value()) {
         sc.attribs.film.filename = std::get<std::string>(filename.value()->inner);
+    }
+
+    const auto iso = params.get_optional("iso", ValueType::Float);
+    if (iso.has_value()) {
+        sc.attribs.film.iso = std::get<f32>(iso.value()->inner);
     }
 
     params.warn_unused_params("Film"sv);
@@ -184,14 +188,13 @@ PbrtLoader::load_rotate() {
     const auto y = parse_float();
     const auto z = parse_float();
 
-    // TODO: rotate will be wrong if negative axis is used
     mat4 trans;
     if (std::abs(x) == 1.0f && std::abs(y) == 0.0f && std::abs(z) == 0.0f) {
-        trans = mat4::from_euler_x(angle);
+        trans = mat4::from_euler_x(angle * x);
     } else if (std::abs(x) == 0.0f && std::abs(y) == 1.0f && std::abs(z) == 0.0f) {
-        trans = mat4::from_euler_y(angle);
+        trans = mat4::from_euler_y(angle * y);
     } else if (std::abs(x) == 0.0f && std::abs(y) == 0.0f && std::abs(z) == 1.0f) {
-        trans = mat4::from_euler_z(angle);
+        trans = mat4::from_euler_z(angle * z);
     } else {
         throw std::runtime_error("Arbitrary euler angles rotate is unimplemented");
     }
@@ -350,7 +353,7 @@ void
 PbrtLoader::load_shape(Scene &sc) {
     auto params = parse_param_list();
 
-    const auto alpha_t = get_texture<FloatTexture>(sc, params, "alpha");
+    const auto alpha_t = get_texture_opt<FloatTexture>(sc, params, "alpha");
     const auto alpha = alpha_t.value_or(nullptr);
 
     const auto &type = params.next_param();
@@ -410,10 +413,9 @@ PbrtLoader::load_light_source(Scene &sc) {
             const auto filename = std::get<std::string>(filename_p.value()->inner);
             const auto filepath = std::filesystem::path(base_directory).append(filename);
             const auto image = sc.get_image(filepath);
-            const auto tex = SpectrumTexture::make(ImageTexture(image),
-                                                   TextureSpectrumType::Illuminant);
-            const auto tex_ptr = sc.add_texture(tex);
-            sc.set_envmap(Envmap(tex_ptr, scale));
+            const auto tex = ImageTexture(image);
+
+            sc.set_envmap(Envmap(tex, scale, current_astate.ctm));
         }
     } else {
         throw std::runtime_error("analytical light sources aren't implemented");
@@ -421,8 +423,6 @@ PbrtLoader::load_light_source(Scene &sc) {
 
     params.warn_unused_params("LightSource"sv);
 }
-
-// TODO: should I validate indices ?
 
 void
 PbrtLoader::normals_reverse_orientation(const u32 num_verts, vec3 *normals) const {
@@ -697,9 +697,6 @@ PbrtLoader::area_light_source(Scene &sc) {
 
     Emitter emitter{radiance, twosided};
 
-    // TODO: two-sided emitter is probably implemented badly... need to check area
-    // calculations
-
     current_astate.emitter = emitter;
 
     params.warn_unused_params("AreaLightSource"sv);
@@ -859,8 +856,6 @@ PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
 Material
 PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
     // TODO: dielectric rough material not implemented
-    // TODO: move this inside the scene spectra...
-    // const auto ext_ior = Spectrum(AIR_ETA);
     const auto ext_ior = Spectrum(ConstantSpectrum::make(1.f));
     const auto trans = Spectrum(ConstantSpectrum::make(1.f));
     const auto int_ior =
@@ -923,6 +918,84 @@ PbrtLoader::load_named_material() {
 }
 
 void
+PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList &params,
+                                  const std::string &type) {
+    const auto &filename_p = params.get_required("filename", ValueType::String);
+    const auto filename = std::get<std::string>(filename_p.inner);
+
+    const auto path = absolute(base_directory).append(filename);
+    const auto img = sc.get_image(path);
+
+    if (type == "spectrum") {
+        const auto tex = sc.add_texture(
+            SpectrumTexture::make(ImageTexture(img), TextureSpectrumType::Rgb));
+        spectrum_textures.insert({name, tex});
+    } else if (type == "float") {
+        const auto tex = sc.add_texture(FloatTexture::make(ImageTexture(img)));
+        float_textures.insert({name, tex});
+    }
+}
+
+// TODO: technically all these texture have defaults and aren't required...
+void
+PbrtLoader::load_scale_texture(Scene &sc, const std::string &name, ParamsList &params,
+                               const std::string &type) {
+    const auto scale = get_texture_required<FloatTexture>(sc, params, "scale");
+
+    if (type == "spectrum") {
+        const auto tex = get_texture_required<SpectrumTexture>(sc, params, "tex");
+        const auto scaled_tex =
+            sc.add_texture(SpectrumTexture::make(SpectrumScaleTexture(tex, scale)));
+        spectrum_textures.insert({name, scaled_tex});
+    } else if (type == "float") {
+        const auto tex = get_texture_required<FloatTexture>(sc, params, "tex");
+        const auto scaled_tex =
+            sc.add_texture(FloatTexture::make(FloatScaleTexture(tex, scale)));
+        float_textures.insert({name, scaled_tex});
+    }
+}
+
+void
+PbrtLoader::load_mix_texture(Scene &sc, const std::string &name, ParamsList &params,
+                             const std::string &type) {
+    auto mix = 0.5f;
+    const auto mix_p = params.get_optional("mix");
+    if (mix_p.has_value()) {
+        mix = std::get<f32>(mix_p.value()->inner);
+    }
+
+    if (type == "spectrum") {
+        const auto tex_1 = get_texture_required<SpectrumTexture>(sc, params, "tex1");
+        const auto tex_2 = get_texture_required<SpectrumTexture>(sc, params, "tex2");
+
+        const auto new_tex =
+            sc.add_texture(SpectrumTexture::make(SpectrumMixTexture(tex_1, tex_2, mix)));
+        spectrum_textures.insert({name, new_tex});
+    } else if (type == "float") {
+        const auto tex_1 = get_texture_required<FloatTexture>(sc, params, "tex1");
+        const auto tex_2 = get_texture_required<FloatTexture>(sc, params, "tex2");
+
+        const auto new_tex =
+            sc.add_texture(FloatTexture::make(FloatMixTexture(tex_1, tex_2, mix)));
+        float_textures.insert({name, new_tex});
+    }
+}
+
+void
+PbrtLoader::load_constant_texture(Scene &sc, const std::string &name, ParamsList &params,
+                                  const std::string &type) {
+    const auto &value_p = params.get_required("value");
+
+    if (type == "spectrum") {
+        const auto tex = parse_inline_spectrum_texture(value_p, sc);
+        spectrum_textures.insert({name, tex});
+    } else if (type == "float") {
+        const auto tex = parse_inline_float_texture(value_p, sc);
+        float_textures.insert({name, tex});
+    }
+}
+
+void
 PbrtLoader::load_texture(Scene &sc) {
     const auto &name = parse_quoted_string();
 
@@ -936,33 +1009,13 @@ PbrtLoader::load_texture(Scene &sc) {
     const auto &tex_class = params.expect(ParamType::Simple).name;
 
     if (tex_class == "imagemap") {
-        const auto &filename_p = params.get_required("filename", ValueType::String);
-        const auto filename = std::get<std::string>(filename_p.inner);
-
-        const auto path = absolute(base_directory).append(filename);
-        const auto img = sc.get_image(path);
-
-        if (type == "spectrum") {
-            const auto tex = sc.add_texture(
-                SpectrumTexture::make(ImageTexture(img), TextureSpectrumType::Rgb));
-            spectrum_textures.insert({name, tex});
-        } else if (type == "float") {
-            const auto tex = sc.add_texture(FloatTexture::make(ImageTexture(img)));
-            float_textures.insert({name, tex});
-        }
+        load_imagemap_texture(sc, name, params, type);
     } else if (tex_class == "scale") {
-        const auto &tex_p = params.get_required("tex", ValueType::Texture);
-        const auto tex_name = std::get<std::string>(tex_p.inner);
-
-        // TODO: actually implement scaling textures
-        if (type == "spectrum") {
-            const auto tex = spectrum_textures.at(tex_name);
-            spectrum_textures.insert({name, tex});
-        } else if (type == "float") {
-            const auto tex = float_textures.at(tex_name);
-            float_textures.insert({name, tex});
-        }
-
+        load_scale_texture(sc, name, params, type);
+    } else if (tex_class == "mix") {
+        load_mix_texture(sc, name, params, type);
+    } else if (tex_class == "constant") {
+        load_constant_texture(sc, name, params, type);
     } else {
         throw std::runtime_error(
             fmt::format("Unimplemented texture class: '{}'", tex_class));

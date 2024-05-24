@@ -11,12 +11,9 @@ spectral
 RoughConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
                              const vec2 &uv) const {
     // TODO: have to store the current IOR... when it isn't 1...
-    auto eta_spec = m_eta->fetch(uv);
-    auto k_spec = m_k->fetch(uv);
+    auto rel_ior = m_eta->fetch(uv, lambdas);
+    auto k = m_k->fetch(uv, lambdas);
     const auto alpha = fetch_alpha(m_alpha, uv);
-
-    spectral rel_ior = eta_spec.eval(lambdas);
-    spectral k = k_spec.eval(lambdas);
 
     f32 D = TrowbridgeReitzGGX::D(sgeom.noh, alpha);
 

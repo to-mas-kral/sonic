@@ -79,8 +79,6 @@ main(int argc, char **argv) {
 
     RenderContext rc(std::move(scene));
 
-    rc.scene.init_light_sampler();
-
     spdlog::info("Creating Embree acceleration structure");
     auto embree_device = EmbreeDevice(rc.scene);
 

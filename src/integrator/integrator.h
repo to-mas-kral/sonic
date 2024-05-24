@@ -34,13 +34,14 @@ public:
 
         SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
 
-        spectral radiance = integrator_mis_nee(ray, sampler, lambdas);
+        const spectral radiance = integrator_mis_nee(ray, sampler, lambdas);
 
-        if (std::isnan(radiance[0]) || std::isinf(radiance[0])) {
-            fmt::println("\nerr at frame {} x {} y {}", frame, pixel.x, pixel.y);
+        if (radiance.isnan() || radiance.isinf() || radiance.is_negative()) {
+            spdlog::error("Invalid radiance at sample {}", frame);
         }
 
-        rc->fb.get_pixels()[pixel_index] += lambdas.to_xyz(radiance);
+        rc->fb.get_pixels()[pixel_index] +=
+            lambdas.to_xyz(radiance) * rc->scene.attribs.film.iso / 100.f;
     }
 
     spectral
@@ -49,8 +50,8 @@ public:
     spectral
     light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,
               const LightSample &light_sample, const norm_vec3 &geom_normal,
-              const ShapeSample &shape_sample, const Material *material,
-              const spectral &throughput, const SampledLambdas &lambdas) const;
+              const Material *material, const spectral &throughput,
+              const SampledLambdas &lambdas) const;
 
     vec3
     render_aov(Ray ray) const {

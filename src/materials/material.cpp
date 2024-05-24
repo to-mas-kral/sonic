@@ -54,20 +54,6 @@ Material::make_conductor(SpectrumTexture *eta, SpectrumTexture *k,
 }
 
 Material
-Material::make_conductor_perfect(ChunkAllocator<> &material_allocator) {
-    auto *conductor_mat = material_allocator.allocate<ConductorMaterial>();
-    // TODO: need default textures
-    throw std::runtime_error("Perfect conductor unimplemented");
-    /**conductor_mat = ConductorMaterial{
-        .m_perfect = true,
-        .m_eta = Texture::make_constant_texture(0.f),
-        .m_k = Spectrum(ConstantSpectrum::make(0.f)),
-    };*/
-
-    return Material{.type = MaterialType::Conductor, .conductor = conductor_mat};
-}
-
-Material
 Material::make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta,
                                SpectrumTexture *k, ChunkAllocator<> &material_allocator) {
     auto *rough_conductor_mat = material_allocator.allocate<RoughConductorMaterial>();

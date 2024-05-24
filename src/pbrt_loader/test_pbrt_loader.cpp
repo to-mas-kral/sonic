@@ -3,8 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("loader camera", "[loader camera]") {
-    auto input = std::istringstream(
-        std::string(R"(Camera "perspective" "float fov" [23] WorldBegin)"));
+    auto input = std::string(R"(Camera "perspective" "float fov" [23] WorldBegin)");
 
     auto loader = PbrtLoader(input);
     Scene scene{};
@@ -15,9 +14,8 @@ TEST_CASE("loader camera", "[loader camera]") {
 }
 
 TEST_CASE("loader film", "[loader camera]") {
-    auto input =
-        std::istringstream(std::string(R"(Film "rgb" "string filename" "simple.png"
-     "integer xresolution" [400] "integer yresolution" [600] WorldBegin)"));
+    auto input = std::string(R"(Film "rgb" "string filename" "simple.png"
+     "integer xresolution" [400] "integer yresolution" [600] WorldBegin)");
 
     auto loader = PbrtLoader(input);
     Scene scene{};
@@ -32,7 +30,7 @@ TEST_CASE("loader film", "[loader camera]") {
 // TODO: transform tests
 
 TEST_CASE("loader_screenwide") {
-    auto input = std::istringstream(std::string(R"(
+    auto input = std::string(R"(
 Scale -1 1 1
 Film "rgb"
     "string filename" [ "foo.exr" ]
@@ -53,7 +51,7 @@ Sampler "halton"
 Integrator "volpath"
     "integer maxdepth" [ 100 ]
 WorldBegin
-)"));
+)");
 
     auto loader = PbrtLoader(input);
     Scene scene{};
@@ -68,19 +66,26 @@ WorldBegin
 }
 
 TEST_CASE("loader trianglemesh") {
-    auto input = std::istringstream(
+    auto input =
         std::string(R"(WorldBegin Shape "trianglemesh"  "integer indices" [0 2 1 0 3 2 ]
     "point3 P" [550 0 0    0 0 0    0 0 560    550 0 560 ]
     "vector2 uv" [0 1  2 3  4 5  6 7]
-    "normal N" [0 1 2  3 4 5  6 7 8  9 10 11])"));
+    "normal N" [0 1 2  3 4 5  6 7 8  9 10 11])");
 
     auto loader = PbrtLoader(input);
     Scene scene{};
 
     loader.load_scene(scene);
 
-    REQUIRE(scene.geometry.meshes.indices == std::vector{0u, 2u, 1u, 0u, 3u, 2u});
-    const auto &p = scene.geometry.meshes.pos;
+    const auto &i = scene.geometry.meshes.meshes[0].indices;
+    REQUIRE(i[0] == 0);
+    REQUIRE(i[1] == 2);
+    REQUIRE(i[2] == 1);
+    REQUIRE(i[3] == 0);
+    REQUIRE(i[4] == 3);
+    REQUIRE(i[5] == 2);
+
+    const auto &p = scene.geometry.meshes.meshes[0].pos;
     REQUIRE(p[0].x == 550);
     REQUIRE(p[0].y == 0);
     REQUIRE(p[0].z == 0);
@@ -97,7 +102,7 @@ TEST_CASE("loader trianglemesh") {
     REQUIRE(p[3].y == 0);
     REQUIRE(p[3].z == 560);
 
-    const auto &uv = scene.geometry.meshes.uvs;
+    const auto &uv = scene.geometry.meshes.meshes[0].uvs;
     REQUIRE(uv[0].x == 0);
     REQUIRE(uv[0].y == 1);
 
@@ -110,7 +115,7 @@ TEST_CASE("loader trianglemesh") {
     REQUIRE(uv[3].x == 6);
     REQUIRE(uv[3].y == 7);
 
-    const auto &n = scene.geometry.meshes.normals;
+    const auto &n = scene.geometry.meshes.meshes[0].normals;
     REQUIRE(n[0].x == 0);
     REQUIRE(n[0].y == 1);
     REQUIRE(n[0].z == 2);

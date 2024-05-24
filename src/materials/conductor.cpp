@@ -16,11 +16,8 @@ ConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lamb
         return spectral::ONE() / sgeom.cos_theta;
     } else {
         // TODO: have to store the current IOR... when it isn't 1...
-        const auto eta = m_eta->fetch(uv);
-        const auto k_spectrum = m_k->fetch(uv);
-
-        spectral rel_ior = eta.eval(lambdas);
-        spectral k = k_spectrum.eval(lambdas);
+        auto rel_ior = m_eta->fetch(uv, lambdas);
+        auto k = m_k->fetch(uv, lambdas);
 
         spectral fresnel = spectral::ZERO();
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
