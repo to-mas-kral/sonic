@@ -48,6 +48,8 @@ main(int argc, char **argv) {
 
     app.add_option("--start-frame", settings.start_frame,
                    "Frame at which to start rendering. Useful for debugging");
+    app.add_flag("--load-only", settings.load_only, "Only load the scene.")
+            ->default_val(true);
 
     CLI11_PARSE(app, argc, argv)
 
@@ -78,6 +80,10 @@ main(int argc, char **argv) {
     }
 
     RenderContext rc(std::move(scene));
+
+    if (settings.load_only) {
+        return 0;
+    }
 
     spdlog::info("Creating Embree acceleration structure");
     auto embree_device = EmbreeDevice(rc.scene);

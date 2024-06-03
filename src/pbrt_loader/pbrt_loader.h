@@ -287,8 +287,9 @@ private:
             return Param(std::move(name), std::move(elem));
         }
 
-        // TODO: default size (maybe 8) might be good
         std::vector<E> values{};
+        // Reserve 16, so that transformation matrices fit without resizing
+        values.reserve(16);
 
         while (lexer.peek().type != LexemeType::CloseBracket) {
             const auto elem = parse();

@@ -17,16 +17,11 @@ enum class LexemeType {
 };
 
 struct Lexeme {
-    explicit
-    Lexeme(const LexemeType type)
-        : type(type) {}
+    explicit Lexeme(const LexemeType type) : type(type) {}
 
     Lexeme(const LexemeType type, std::string src) : type(type), src(std::move(src)) {}
 
-    bool
-    operator==(const Lexeme &other) const {
-        return type == other.type && src == other.src;
-    }
+    bool operator==(const Lexeme &other) const { return type == other.type && src == other.src; }
 
     LexemeType type;
     std::string src{};
@@ -34,21 +29,14 @@ struct Lexeme {
 
 class Lexer {
 public:
-    explicit
-    Lexer(StackFileStream *src)
-        : src{src} {}
+    explicit Lexer(StackFileStream *src) : src{src} {}
 
-    Lexeme
-    peek(bool accept_any_string = false);
+    Lexeme peek(bool accept_any_string = false);
 
-    Lexeme
-    next(bool accept_any_string = false);
+    Lexeme next(bool accept_any_string = false);
 
 private:
-    template <typename F>
-    std::string
-    advance_while(F test) {
-        // TODO: tweak the default size of this...
+    template <typename F> std::string advance_while(F test) {
         std::string str{};
 
         while (true) {
@@ -74,23 +62,34 @@ private:
         return str;
     }
 
-    Lexeme
-    lex_string();
+    template <typename F> void skip_while(F test) {
+        while (true) {
+            const auto next_ch = peek_char();
+            if (!next_ch.has_value()) {
+                break;
+            }
 
-    Lexeme
-    lex_string_any();
+            const auto ch = next_ch.value();
 
-    Lexeme
-    lex_num();
+            if (!test(ch)) {
+                break;
+            }
 
-    void
-    skip_whitespace_and_comments();
+            advance();
+        }
+    }
 
-    std::optional<char>
-    peek_char();
+    Lexeme lex_string();
 
-    void
-    advance();
+    Lexeme lex_string_any();
+
+    Lexeme lex_num();
+
+    void skip_whitespace_and_comments();
+
+    std::optional<char> peek_char();
+
+    void advance();
 
     StackFileStream *src;
     std::optional<Lexeme> lexeme_buf{};

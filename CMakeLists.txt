@@ -135,10 +135,7 @@ add_executable(pt
         src/main.cpp
 )
 
-target_link_libraries(pt PRIVATE pt_lib)
-
-#[[Packaging]]
-
+#[[RGB2SPEC]]
 add_subdirectory(${CMAKE_SOURCE_DIR}/tools/rgb2spec)
 
 add_custom_command(
@@ -153,7 +150,10 @@ add_custom_target(
         DEPENDS ${CMAKE_BINARY_DIR}/rgb2spec.out
 )
 
-add_dependencies(pt run_rgb2spec_opt)
+add_dependencies(pt_lib run_rgb2spec_opt)
+
+target_link_libraries(pt PRIVATE pt_lib)
+
 
 #[[Tests]]
 add_executable(tests
@@ -163,6 +163,7 @@ add_executable(tests
         src/math/test_transform.cpp
         src/scene/test_sphere_square_mapping.cpp
         src/math/test_sampling_piecewise.cpp
+        src/scene/test_envmap.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)

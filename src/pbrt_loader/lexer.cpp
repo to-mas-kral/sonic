@@ -89,12 +89,11 @@ Lexer::skip_whitespace_and_comments() {
     while (peek_char().has_value()) {
         const auto next_ch = peek_char().value();
         if (next_ch == '#') {
-            // TODO: perf - don't use advance_while here (that allocates)
-            advance_while([](const char ch) { return ch != '\n'; });
+            skip_while([](const char ch) { return ch != '\n'; });
             // skip the potential newline
             advance();
         } else if (std::isspace(next_ch)) {
-            advance_while([](const char ch) { return std::isspace(ch); });
+            skip_while([](const char ch) { return std::isspace(ch); });
         } else {
             break;
         }

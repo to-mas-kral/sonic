@@ -37,10 +37,10 @@ PiecewiseDist2D::sample(const vec2 &sample) const {
 
 f32
 PiecewiseDist2D::pdf(const vec2 &sample) const {
-    const auto pdf0 = marginals.pdf(sample.x);
+    const auto pdf0 = marginals.pdf(sample.y);
 
     const auto im = sample.y * marginals.size();
-    const auto pdf1 = conditionals[im].pdf(sample.y);
+    const auto pdf1 = conditionals[im].pdf(sample.x);
 
     return pdf0 * pdf1;
 }
@@ -85,7 +85,7 @@ PiecewiseDist1D::pdf(const f32 sample) const {
         return 0.f;
     }
 
-    u32 offset = sample * (f32)function.size();
+    u32 offset = (u32)(sample * (f32)function.size());
     if (offset > m_cdf.size() - 1) {
         offset = m_cdf.size();
     }
@@ -112,7 +112,7 @@ PiecewiseDist1D::sample_continuous(const f32 sample) const {
         du /= (m_cdf[offset + 1] - m_cdf[offset]);
     }
 
-    f32 res = (offset + du) / (m_cdf.size() - 1);
+    f32 res = (offset + du) / (f32)(m_cdf.size() - 1u);
 
     return {res, offset};
 }

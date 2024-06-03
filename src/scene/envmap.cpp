@@ -54,7 +54,7 @@ Envmap::get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
 
 std::optional<ShapeLightSample>
 Envmap::sample(const point3 &illum_pos, const vec2 &sample,
-               const SampledLambdas &lambdas) const {
+               const SampledLambdas &lambdas, vec3 *o_world_dir) const {
     auto [uv, pdf] = sampling_dist.sample(sample);
 
     if (pdf == 0.f) {
@@ -66,6 +66,9 @@ Envmap::sample(const point3 &illum_pos, const vec2 &sample,
 
     const auto sphere_vec = square_to_sphere(uv);
     const auto world_dir = world_from_light.transform_vec(sphere_vec).normalized();
+    if (o_world_dir != nullptr) {
+        *o_world_dir = world_dir;
+    }
 
     // From PBRT: change of variables factor from going from unit square to unit sphere
     pdf = pdf / (4.f * M_PIf);
@@ -85,7 +88,8 @@ Envmap::sample(const point3 &illum_pos, const vec2 &sample,
 
 f32
 Envmap::pdf(const norm_vec3 &dir) const {
-    const auto uv = sphere_to_square(light_from_world.transform_vec(dir).normalized());
+    auto uv = sphere_to_square(light_from_world.transform_vec(dir).normalized());
+    uv.y = 1.f - uv.y;
     const auto pdf = sampling_dist.pdf(uv);
 
     return pdf / (4.f * M_PIf);
