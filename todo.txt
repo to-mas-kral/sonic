@@ -1,0 +1,11 @@
+
+denoising - probably OIDN
+
+thresholded alpha
+stratified sampling for camera at least
+
+could optimize images - track which channels are used...
+image channel assignment (alpha for 2-3 channel images??)
+
+overlapping triangles - tracing in camera-world space
+infinite depth due to specular materials
