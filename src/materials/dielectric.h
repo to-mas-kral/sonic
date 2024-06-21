@@ -13,7 +13,7 @@ struct DielectricMaterial {
 
     BSDFSample
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &sample,
-           const SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
+           SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
 
     SpectrumTexture *m_int_ior;
     Spectrum m_ext_ior;

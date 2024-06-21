@@ -66,7 +66,7 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 
 spectral
 Integrator::integrator_mis_nee(Ray ray, Sampler &sampler,
-                               const SampledLambdas &lambdas) const {
+                               SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;

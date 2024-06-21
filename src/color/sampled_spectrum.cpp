@@ -59,8 +59,7 @@ SampledSpectrum::isinf() const {
     return false;
 }
 
-bool
-SampledSpectrum::is_negative() const {
+bool SampledSpectrum::is_negative() const {
     for (const auto &v : vals) {
         if (v < 0.f) {
             return true;
@@ -68,6 +67,17 @@ SampledSpectrum::is_negative() const {
     }
 
     return false;
+}
+
+bool SampledSpectrum::is_constant() const {
+    const auto first = vals[0];
+    for (int i = 1; i < N_SPECTRUM_SAMPLES; ++i) {
+        if (vals[i] != first) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void
@@ -189,10 +199,16 @@ SampledSpectrum::operator/(const SampledSpectrum &other) const {
     return sq;
 }
 
-f32 &
-SampledSpectrum::operator[](u32 index) {
+f32&
+SampledSpectrum::operator[](const u32 index) {
     return vals[index];
 }
+
+const f32&
+SampledSpectrum::operator[](const u32 index) const {
+    return vals[index];
+}
+
 
 SampledLambdas
 SampledLambdas::new_sample_uniform(f32 rand) {
@@ -221,20 +237,32 @@ SampledLambdas::new_sample_uniform(f32 rand) {
 
 constexpr f32 PDF = 1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
-vec3
-SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
-    SampledSpectrum x = CIE_X.eval(*this) * radiance;
-    SampledSpectrum y = CIE_Y.eval(*this) * radiance;
-    SampledSpectrum z = CIE_Z.eval(*this) * radiance;
+vec3 SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
+    auto rad = radiance;
+    auto pdf = PDF;
+    if (is_secondary_terminated) {
+        for (int i = 1; i < N_SPECTRUM_SAMPLES; ++i) {
+            rad[i] = 0.f;
+        }
+        pdf /= N_SPECTRUM_SAMPLES;
+    }
 
-    x.div_pdf(PDF);
-    y.div_pdf(PDF);
-    z.div_pdf(PDF);
+    SampledSpectrum x = CIE_X.eval(*this) * rad;
+    SampledSpectrum y = CIE_Y.eval(*this) * rad;
+    SampledSpectrum z = CIE_Z.eval(*this) * rad;
 
-    f32 x_xyz = x.average() / CIE_Y_INTEGRAL;
-    f32 y_xyz = y.average() / CIE_Y_INTEGRAL;
-    f32 z_xyz = z.average() / CIE_Y_INTEGRAL;
+    x.div_pdf(pdf);
+    y.div_pdf(pdf);
+    z.div_pdf(pdf);
+
+    const f32 x_xyz = x.average() / CIE_Y_INTEGRAL;
+    const f32 y_xyz = y.average() / CIE_Y_INTEGRAL;
+    const f32 z_xyz = z.average() / CIE_Y_INTEGRAL;
     return vec3(x_xyz, y_xyz, z_xyz);
+}
+
+void SampledLambdas::terminate_secondary() {
+    is_secondary_terminated = true;
 }
 
 SampledLambdas

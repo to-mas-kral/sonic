@@ -16,21 +16,26 @@ DielectricMaterial::eval() {
 
 BSDFSample
 DielectricMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
-                           const vec2 &sample, const SampledLambdas &lambdas,
+                           const vec2 &sample, SampledLambdas &lambdas,
                            const vec2 &uv, const bool is_frontfacing) const {
-    f32 int_ior = m_int_ior->fetch(uv, lambdas)[0];
-    f32 ext_ior = m_ext_ior.eval_single(lambdas[0]);
+    const auto int_ior_s = m_int_ior->fetch(uv, lambdas);
+    if (!int_ior_s.is_constant()) {
+        lambdas.terminate_secondary();
+    }
+    const f32 int_ior = int_ior_s[0];
+
+    const  f32 ext_ior = m_ext_ior.eval_single(lambdas[0]);
     f32 rel_ior = int_ior / ext_ior;
     if (!is_frontfacing) {
         rel_ior = 1.f / rel_ior;
     }
 
-    f32 cos_theta_i = vec3::dot(wo, normal);
-    f32 fresnel_refl = fresnel_dielectric(rel_ior, cos_theta_i);
+    const f32 cos_theta_i = vec3::dot(wo, normal);
+    const f32 fresnel_refl = fresnel_dielectric(rel_ior, cos_theta_i);
 
     auto reflect = [&]() {
-        auto wi = vec3::reflect(wo, normal).normalized();
-        auto sgeom = ShadingGeometry::make(normal, wi, wo);
+        const auto wi = vec3::reflect(wo, normal).normalized();
+        const auto sgeom = ShadingGeometry::make(normal, wi, wo);
 
         return BSDFSample{
             .bsdf = spectral::make_constant(fresnel_refl) / sgeom.cos_theta,
@@ -45,9 +50,9 @@ DielectricMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
     } else {
         auto refr = refract(wo, normal, rel_ior);
         if (refr.has_value()) {
-            auto wi = refr.value().normalized();
-            auto sgeom = ShadingGeometry::make(normal, wi, wo);
-            f32 transmittance = m_transmittance.eval_single(lambdas[0]);
+            const auto wi = refr.value().normalized();
+            const auto sgeom = ShadingGeometry::make(normal, wi, wo);
+            const f32 transmittance = m_transmittance.eval_single(lambdas[0]);
 
             return BSDFSample{
                 .bsdf = spectral::make_constant(1.f - fresnel_refl) * transmittance /

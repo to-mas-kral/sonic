@@ -99,7 +99,7 @@ Material::make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int
 
 Option<BSDFSample>
 Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
-                 const SampledLambdas &lambdas, const vec2 &uv,
+                 SampledLambdas &lambdas, const vec2 &uv,
                  bool is_frontfacing) const {
     auto nowo = vec3::dot(normal, wo);
     if (nowo == 0.f) {

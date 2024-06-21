@@ -29,6 +29,9 @@ struct SampledSpectrum {
     bool
     is_negative() const;
 
+    bool
+    is_constant() const;
+
     void
     div_pdf(f32 pdf);
 
@@ -68,7 +71,10 @@ struct SampledSpectrum {
     SampledSpectrum
     operator/(const SampledSpectrum &other) const;
 
-    f32 &
+    const f32&
+    operator[](u32 index) const;
+
+    f32&
     operator[](u32 index);
 
     Array<f32, N_SPECTRUM_SAMPLES> vals;
@@ -84,9 +90,13 @@ struct SampledLambdas {
     vec3
     to_xyz(const SampledSpectrum &radiance) const;
 
+    void
+    terminate_secondary();
+
     const f32 &
     operator[](u32 index) const;
 
+    bool is_secondary_terminated{false};
     Array<f32, N_SPECTRUM_SAMPLES> lambdas;
 };
 

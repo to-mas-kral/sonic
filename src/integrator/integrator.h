@@ -45,7 +45,7 @@ public:
     }
 
     spectral
-    integrator_mis_nee(Ray ray, Sampler &sampler, const SampledLambdas &lambdas) const;
+    integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const;
 
     spectral
     light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,

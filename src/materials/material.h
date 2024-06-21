@@ -57,7 +57,7 @@ struct Material {
 
     Option<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
-           const SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
+           SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
 
     // Probability density function of sampling the BRDF
     f32
