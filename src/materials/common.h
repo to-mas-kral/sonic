@@ -24,4 +24,16 @@ fetch_alpha(const FloatTexture *texture, const vec2 &uv) {
     return std::max(texture->fetch(uv), 0.01f);
 }
 
+inline spectral
+fetch_reflectance(const SpectrumTexture *texture, const vec2 &uv,
+                  const SampledLambdas &lambdas) {
+    auto refl = texture->fetch(uv, lambdas);
+
+    // This has to be done due to the PBRT format accepting textures with reflectance
+    // potentially being > 1
+    refl.clamp(0.f, 1.f);
+
+    return refl;
+}
+
 #endif // PT_COMMON_H

@@ -23,34 +23,34 @@ RoughPlasticMaterial::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ
 spectral
 RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
                            const vec2 &uv) const {
-    f32 int_ior_s = int_ior.eval_single(lambdas[0]);
-    f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
+    const f32 int_ior_s = int_ior.eval_single(lambdas[0]);
+    const f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
     /// This is external / internal !
-    f32 rel_ior = ext_ior_s / int_ior_s;
+    const f32 rel_ior = ext_ior_s / int_ior_s;
 
-    f32 fresnel_i = fresnel_dielectric(1.f / rel_ior, sgeom.nowi);
+    const f32 fresnel_i = fresnel_dielectric(1.f / rel_ior, sgeom.nowi);
 
     // Specular case
-    f32 alpha = fetch_alpha(m_alpha, uv);
-    f32 D = TrowbridgeReitzGGX::D(sgeom.noh, alpha);
+    const f32 alpha = fetch_alpha(m_alpha, uv);
+    const f32 D = TrowbridgeReitzGGX::D(sgeom.noh, alpha);
 
-    float G = TrowbridgeReitzGGX::G1(sgeom.nowi, sgeom.howo, alpha) *
-              TrowbridgeReitzGGX::G1(sgeom.nowo, sgeom.howo, alpha);
-    spectral microfacet_brdf =
+    const f32 G = TrowbridgeReitzGGX::G1(sgeom.nowi, sgeom.howo, alpha) *
+                  TrowbridgeReitzGGX::G1(sgeom.nowo, sgeom.howo, alpha);
+    const spectral microfacet_brdf =
         spectral::make_constant(fresnel_i * G * D) / (4.f * sgeom.nowo * sgeom.nowi);
 
     // TODO: try the height-correlated smith
-    /*f32 V = visibility_smith_height_correlated_ggx(sgeom.nowo, sgeom.nowi,
+    /*const f32 V = visibility_smith_height_correlated_ggx(sgeom.nowo, sgeom.nowi,
     alpha); return fresnel * V * D;*/
 
     // Figure out the angle of the ray that refracts from inside to outisde ωo
-    f32 cos_theta_out = sgeom.nowo;
-    f32 sin_theta_out = safe_sqrt(1.f - sqr(cos_theta_out));
-    f32 sin_theta_in = sin_theta_out * rel_ior;
-    f32 cos_theta_in = safe_sqrt(1.f - sqr(sin_theta_in));
-    f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
+    const f32 cos_theta_out = sgeom.nowo;
+    const f32 sin_theta_out = safe_sqrt(1.f - sqr(cos_theta_out));
+    const f32 sin_theta_in = sin_theta_out * rel_ior;
+    const f32 cos_theta_in = safe_sqrt(1.f - sqr(sin_theta_in));
+    const f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-    auto α = diffuse_reflectance->fetch(uv, lambdas);
+    const auto α = fetch_reflectance(diffuse_reflectance, uv, lambdas);
 
     f32 re = 0.919317f;
     f32 ior_pow = int_ior_s;
@@ -64,12 +64,12 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
     ior_pow *= ior_pow;
     re -= (1.36881f / ior_pow);
 
-    f32 ri = 1.f - sqr(rel_ior) * (1.f - re);
+    const f32 ri = 1.f - sqr(rel_ior) * (1.f - re);
 
-    spectral scattering_brdf = α * (1.f - fresnel_i) * (1.f - fresnel_o) /
-                               ((spectral::make_constant(1.f) - α * ri) * M_PIf);
+    const spectral scattering_brdf = α * (1.f - fresnel_i) * (1.f - fresnel_o) /
+                                     ((spectral::make_constant(1.f) - α * ri) * M_PIf);
 
-    spectral brdf = microfacet_brdf + scattering_brdf * sqr(rel_ior);
+    const spectral brdf = microfacet_brdf + scattering_brdf * sqr(rel_ior);
 
     return brdf;
 }

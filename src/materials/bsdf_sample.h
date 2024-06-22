@@ -6,9 +6,9 @@
 #include "../utils/basic_types.h"
 
 struct BSDFSample {
-    spectral bsdf;
-    norm_vec3 wi;
-    f32 pdf;
-    bool did_refract = false;
+    spectral bsdf{};
+    norm_vec3 wi{1.f, 0.f, 0.f};
+    f32 pdf{};
+    bool did_refract{false};
 };
 #endif // PT_BSDF_SAMPLE_H

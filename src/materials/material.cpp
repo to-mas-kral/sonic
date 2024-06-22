@@ -99,56 +99,84 @@ Material::make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int
 
 Option<BSDFSample>
 Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
-                 SampledLambdas &lambdas, const vec2 &uv,
-                 bool is_frontfacing) const {
+                 SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const {
     auto nowo = vec3::dot(normal, wo);
     if (nowo == 0.f) {
         return {};
     }
 
+    Option<BSDFSample> bsdf_sample{};
+
     switch (type) {
     case MaterialType::Diffuse:
-        return diffuse.sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv);
+        bsdf_sample = diffuse.sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv);
+        break;
     case MaterialType::DiffuseTransmission:
-        return diffusetransmission->sample(normal, wo, vec2(sample.x, sample.y), lambdas,
-                                           uv);
+        bsdf_sample = diffusetransmission->sample(normal, wo, vec2(sample.x, sample.y),
+                                                  lambdas, uv);
+        break;
     case MaterialType::Plastic:
-        return plastic->sample(normal, wo, sample, lambdas, uv);
+        bsdf_sample = plastic->sample(normal, wo, sample, lambdas, uv);
+        break;
     case MaterialType::RoughPlastic:
-        return rough_plastic->sample(normal, wo, sample, lambdas, uv);
+        bsdf_sample = rough_plastic->sample(normal, wo, sample, lambdas, uv);
+        break;
     case MaterialType::Conductor:
-        return conductor->sample(normal, wo, lambdas, uv);
+        bsdf_sample = conductor->sample(normal, wo, lambdas, uv);
+        break;
     case MaterialType::RoughConductor:
-        return rough_conductor->sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv);
+        bsdf_sample =
+            rough_conductor->sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv);
+        break;
     case MaterialType::Dielectric:
-        return dielectric->sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv,
-                                  is_frontfacing);
+        bsdf_sample = dielectric->sample(normal, wo, vec2(sample.x, sample.y), lambdas,
+                                         uv, is_frontfacing);
+        break;
     default:
         assert(false);
     }
+
+    if (bsdf_sample.has_value()) {
+        assert(!bsdf_sample->bsdf.is_invalid());
+    }
+
+    return bsdf_sample;
 }
 
 f32
 Material::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ,
               const vec2 &uv) const {
+    f32 pdf{};
+
     switch (type) {
     case MaterialType::Diffuse:
-        return DiffuseMaterial::pdf(sgeom);
+        pdf = DiffuseMaterial::pdf(sgeom);
+        break;
     case MaterialType::DiffuseTransmission:
-        return DiffuseTransmissionMaterial::pdf(sgeom);
+        pdf = DiffuseTransmissionMaterial::pdf(sgeom);
+        break;
     case MaterialType::Plastic:
-        return plastic->pdf(sgeom, λ);
+        pdf = plastic->pdf(sgeom, λ);
+        break;
     case MaterialType::RoughPlastic:
-        return rough_plastic->pdf(sgeom, λ, uv);
+        pdf = rough_plastic->pdf(sgeom, λ, uv);
+        break;
     case MaterialType::Conductor:
-        return ConductorMaterial::pdf();
+        pdf = ConductorMaterial::pdf();
+        break;
     case MaterialType::RoughConductor:
-        return rough_conductor->pdf(sgeom, uv);
+        pdf = rough_conductor->pdf(sgeom, uv);
+        break;
     case MaterialType::Dielectric:
-        return DielectricMaterial::pdf();
+        pdf = DielectricMaterial::pdf();
+        break;
     default:
         assert(false);
     }
+
+    assert(pdf >= 0.f);
+
+    return pdf;
 }
 
 spectral
@@ -158,24 +186,37 @@ Material::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
         return spectral::ZERO();
     }
 
+    spectral result{};
+
     switch (type) {
     case MaterialType::Diffuse:
-        return diffuse.eval(sgeom, lambdas, uv);
+        result = diffuse.eval(sgeom, lambdas, uv);
+        break;
     case MaterialType::DiffuseTransmission:
-        return diffusetransmission->eval(sgeom, lambdas, uv);
+        result = diffusetransmission->eval(sgeom, lambdas, uv);
+        break;
     case MaterialType::Plastic:
-        return plastic->eval(sgeom, lambdas, uv);
+        result = plastic->eval(sgeom, lambdas, uv);
+        break;
     case MaterialType::RoughPlastic:
-        return rough_plastic->eval(sgeom, lambdas, uv);
+        result = rough_plastic->eval(sgeom, lambdas, uv);
+        break;
     case MaterialType::RoughConductor:
-        return rough_conductor->eval(sgeom, lambdas, uv);
+        result = rough_conductor->eval(sgeom, lambdas, uv);
+        break;
     case MaterialType::Conductor:
-        return conductor->eval(sgeom, lambdas, uv);
+        result = conductor->eval(sgeom, lambdas, uv);
+        break;
     case MaterialType::Dielectric:
-        return DielectricMaterial::eval();
+        result = DielectricMaterial::eval();
+        break;
     default:
         assert(false);
     }
+
+    assert(!result.is_invalid());
+
+    return result;
 }
 
 bool

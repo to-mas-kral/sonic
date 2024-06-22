@@ -128,6 +128,9 @@ target_link_libraries(pt_lib PUBLIC spdlog::spdlog)
 find_package(embree 4 REQUIRED)
 target_link_libraries(pt_lib PUBLIC embree)
 
+find_package(OpenImageDenoise 2 REQUIRED)
+target_link_libraries(pt_lib PUBLIC OpenImageDenoise)
+
 find_package(unofficial-miniply CONFIG REQUIRED)
 target_link_libraries(pt_lib PUBLIC unofficial::miniply::miniply)
 

@@ -36,8 +36,9 @@ public:
 
         const spectral radiance = integrator_mis_nee(ray, sampler, lambdas);
 
-        if (radiance.isnan() || radiance.isinf() || radiance.is_negative()) {
-            spdlog::error("Invalid radiance at sample {}", frame);
+        if (radiance.is_invalid()) {
+            spdlog::error("Invalid radiance {} at sample {}, pixel: {} x {} y",
+                          radiance.to_str(), frame, pixel.x, pixel.y);
         }
 
         rc->fb.get_pixels()[pixel_index] +=

@@ -1,5 +1,6 @@
 
 denoising - probably OIDN
+swap tinyexr for OpenEXR
 
 thresholded alpha
 stratified sampling for camera at least

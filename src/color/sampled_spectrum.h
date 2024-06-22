@@ -4,6 +4,8 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+#include <string>
+
 constexpr u32 N_SPECTRUM_SAMPLES = 4;
 
 struct SampledSpectrum {
@@ -32,8 +34,22 @@ struct SampledSpectrum {
     bool
     is_constant() const;
 
+    bool
+    is_zero() const;
+
+    bool
+    is_invalid() const {
+        return is_negative() || isnan() || isinf();
+    }
+
     void
     div_pdf(f32 pdf);
+
+    std::string
+    to_str() const;
+
+    void
+    clamp(f32 low, f32 high);
 
     static SampledSpectrum
     ONE();
@@ -77,7 +93,7 @@ struct SampledSpectrum {
     f32&
     operator[](u32 index);
 
-    Array<f32, N_SPECTRUM_SAMPLES> vals;
+    Array<f32, N_SPECTRUM_SAMPLES> vals{};
 };
 
 struct SampledLambdas {

@@ -24,9 +24,13 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
     // Quickly precheck if light is reachable
     if (sgeom_light.nowi > 0.f && cos_light > 0.f) {
         point3 ray_orig = offset_ray(its.pos, geom_normal);
+        spectral bxdf_light = material->eval(sgeom_light, lambdas, its.uv);
+        // eval bxdf and check if it's 0 to potentially avoid the raycast
+        if (bxdf_light.is_zero()) {
+            return spectral::ZERO();
+        }
+
         if (device->is_visible(ray_orig, light_pos)) {
-            // TODO: eval bxdf before tracing shadow ray and check if it's 0
-            spectral bxdf_light = material->eval(sgeom_light, lambdas, its.uv);
             f32 mat_pdf = material->pdf(sgeom_light, lambdas, its.uv);
 
             f32 weight_light = mis_power_heuristic(light_sample.pdf, mat_pdf);

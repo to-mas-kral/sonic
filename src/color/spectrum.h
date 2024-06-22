@@ -34,8 +34,19 @@ constexpr DenseSpectrum CIE_65 = DenseSpectrum::make(CIE_D65_RAW);
 
 class PiecewiseSpectrum {
 public:
-    static PiecewiseSpectrum
-    make(const Span<f32> &data);
+    static constexpr PiecewiseSpectrum
+    make(const Span<const f32> &data) {
+        PiecewiseSpectrum ds{};
+
+        if (data.size() % 2 != 0 || data.size() < 2) {
+            throw std::runtime_error("Piecewise spectrum data is wrong");
+        }
+
+        ds.vals = data.data();
+        ds.size = data.size();
+
+        return ds;
+    }
 
     f32
     eval_single(f32 lambda) const;
@@ -181,7 +192,8 @@ struct Spectrum {
     f32
     eval_single(f32 lambda) const;
 
-    f32 power() const;
+    f32
+    power() const;
 
     SpectrumType type;
     union {

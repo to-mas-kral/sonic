@@ -14,6 +14,9 @@ Scene() {
     builtin_spectra.insert({"metal-Cu-eta", Spectrum(CU_ETA)});
     builtin_spectra.insert({"metal-Cu-k", Spectrum(CU_K)});
 
+    builtin_spectra.insert({"metal-TiO2-eta", Spectrum(TIO2_ETA)});
+    builtin_spectra.insert({"metal-TiO2-k", Spectrum(TIO2_K)});
+
     builtin_spectra.insert({"glass-BK7", Spectrum(GLASS_BK7_ETA)});
     builtin_spectra.insert({"glass-BAF10", Spectrum(GLASS_BAF10_ETA)});
     builtin_spectra.insert({"glass-F11", Spectrum(GLASS_F11_ETA)});
@@ -184,6 +187,10 @@ Scene() {
 
 void
 Scene::set_envmap(Envmap &&a_envmap) {
+    if (envmap != nullptr) {
+        throw std::runtime_error("Setting envmap when already set");
+    }
+
     envmap = std::make_unique<Envmap>(std::move(a_envmap));
     const auto envmap_light_id = lights.size();
     lights.emplace_back(EnvmapLight(envmap.get()));

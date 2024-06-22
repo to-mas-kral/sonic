@@ -173,20 +173,6 @@ DenseSpectrum::eval(const SampledLambdas &sl) const {
     return sq;
 }
 
-PiecewiseSpectrum
-PiecewiseSpectrum::make(const Span<f32> &data) {
-    PiecewiseSpectrum ds{};
-
-    if (data.size() % 2 != 0 || data.size() < 2) {
-        throw std::runtime_error("Piecewise spectrum data is wrong");
-    }
-
-    ds.vals = data.data();
-    ds.size = data.size();
-
-    return ds;
-}
-
 f32
 PiecewiseSpectrum::eval_single(const f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);

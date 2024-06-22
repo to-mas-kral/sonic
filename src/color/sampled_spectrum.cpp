@@ -59,7 +59,8 @@ SampledSpectrum::isinf() const {
     return false;
 }
 
-bool SampledSpectrum::is_negative() const {
+bool
+SampledSpectrum::is_negative() const {
     for (const auto &v : vals) {
         if (v < 0.f) {
             return true;
@@ -69,10 +70,22 @@ bool SampledSpectrum::is_negative() const {
     return false;
 }
 
-bool SampledSpectrum::is_constant() const {
+bool
+SampledSpectrum::is_constant() const {
     const auto first = vals[0];
     for (int i = 1; i < N_SPECTRUM_SAMPLES; ++i) {
         if (vals[i] != first) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
+SampledSpectrum::is_zero() const {
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        if (vals[i] != 0.f) {
             return false;
         }
     }
@@ -86,6 +99,26 @@ SampledSpectrum::div_pdf(f32 pdf) {
         if (pdf != 0.f) {
             v /= pdf;
         }
+    }
+}
+
+std::string
+SampledSpectrum::to_str() const {
+    std::string str = "[";
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        str += std::to_string(vals[i]);
+        str += " ";
+    }
+
+    str += "]";
+
+    return str;
+}
+
+void
+SampledSpectrum::clamp(const f32 low, const f32 high) {
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        vals[i] = std::clamp(vals[i], low, high);
     }
 }
 
@@ -199,16 +232,15 @@ SampledSpectrum::operator/(const SampledSpectrum &other) const {
     return sq;
 }
 
-f32&
+f32 &
 SampledSpectrum::operator[](const u32 index) {
     return vals[index];
 }
 
-const f32&
+const f32 &
 SampledSpectrum::operator[](const u32 index) const {
     return vals[index];
 }
-
 
 SampledLambdas
 SampledLambdas::new_sample_uniform(f32 rand) {
@@ -237,7 +269,8 @@ SampledLambdas::new_sample_uniform(f32 rand) {
 
 constexpr f32 PDF = 1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
-vec3 SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
+vec3
+SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
     auto rad = radiance;
     auto pdf = PDF;
     if (is_secondary_terminated) {
@@ -261,7 +294,8 @@ vec3 SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
     return vec3(x_xyz, y_xyz, z_xyz);
 }
 
-void SampledLambdas::terminate_secondary() {
+void
+SampledLambdas::terminate_secondary() {
     is_secondary_terminated = true;
 }
 
