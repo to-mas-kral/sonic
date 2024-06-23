@@ -7,11 +7,21 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+// PBRTv4 texture params
+struct ImageTextureParams {
+    f32 scale{1.f};
+    f32 uscale{1.f};
+    f32 vscale{1.f};
+    f32 udelta{0.f};
+    f32 vdelta{0.f};
+    bool invert{false};
+};
+
 class ImageTexture {
 public:
     explicit
-    ImageTexture(Image *image)
-        : image{image} {}
+    ImageTexture(Image *image, const ImageTextureParams &params = ImageTextureParams())
+        : image{image}, params{params} {}
 
     tuple3
     fetch_rgb_texel(const uvec2 &coords) const {
@@ -20,12 +30,12 @@ public:
 
     tuple3
     fetch_rgb(const vec2 &uv) const {
-        return image->fetch_rgb(uv);
+        return image->fetch_rgb(uv, params);
     }
 
     f32
     fetch_float(const vec2 &uv) const {
-        return image->fetch_float(uv);
+        return image->fetch_float(uv, params);
     }
 
     const ColorSpace &
@@ -45,6 +55,7 @@ public:
 
 private:
     Image *image;
+    ImageTextureParams params;
 };
 
 enum class TextureType : u8 {

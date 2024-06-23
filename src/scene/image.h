@@ -5,6 +5,8 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+struct ImageTextureParams;
+
 enum class ImageDataType : u8 {
     U8,
     F32,
@@ -27,10 +29,10 @@ public:
     fetch_rgb_texel(const uvec2 &coords) const;
 
     tuple3
-    fetch_rgb(const vec2 &uv) const;
+    fetch_rgb(const vec2 &uv_in, const ImageTextureParams &params) const;
 
     f32
-    fetch_float(const vec2 &uv) const;
+    fetch_float(const vec2 &uv_in, const ImageTextureParams &params) const;
 
     const ColorSpace &
     get_scolor_space() const {
@@ -61,7 +63,7 @@ private:
     calc_index(const vec2 &uv) const;
 
     tuple3
-    get_rgb_pixel_index(u64 pixel_index) const;
+    rgb_from_pixel_index(u64 pixel_index) const;
 
     ImageDataType data_type{};
     ColorSpace color_space{};

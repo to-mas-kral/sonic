@@ -2,8 +2,8 @@
 #define PT_RENDER_THREADS_H
 
 #include "../integrator/integrator.h"
-#include "basic_types.h"
 #include "../scene/scene_attribs.h"
+#include "basic_types.h"
 
 #include <atomic>
 #include <barrier>
@@ -12,7 +12,8 @@
 
 class RenderThreads {
 public:
-    RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator);
+    RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
+                  const Settings &settings);
 
     void
     stop();

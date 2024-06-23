@@ -1,6 +1,8 @@
 
-denoising - probably OIDN
+denoising - probably OIDN, ADD AOV before...
 swap tinyexr for OpenEXR
+
+panic on enum dispatch
 
 thresholded alpha
 stratified sampling for camera at least

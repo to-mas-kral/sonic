@@ -43,7 +43,11 @@ Tile::make_from_tile_index(u32 tile_index, uvec2 dimensions) {
 }
 
 u32
-get_num_threads() {
+get_num_threads(const Settings &settings) {
+    if (settings.num_threads != 0) {
+        return settings.num_threads;
+    }
+
     u32 num_threads = std::thread::hardware_concurrency();
     if (num_threads == 0) {
         spdlog::warn("Could not get the number of CPU cores, defaulting to 1 thread");
@@ -54,19 +58,19 @@ get_num_threads() {
 }
 
 RenderThreads::
-RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator)
-    : integrator{integrator}, num_threads(get_num_threads()), start_work{num_threads + 1},
-      end_work{num_threads + 1}, dimensions(uvec2(scene_attribs.film.resx,
-                                                  scene_attribs.film.resy)) {
+RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
+              const Settings &settings)
+    : integrator{integrator}, num_threads(get_num_threads(settings)),
+      start_work{num_threads + 1}, end_work{num_threads + 1},
+      dimensions(uvec2(scene_attribs.film.resx, scene_attribs.film.resy)) {
     threads.reserve(num_threads);
 
     for (int i = 0; i < num_threads; ++i) {
-        auto t = std::jthread([=, this] { render(i); });
+        auto t = std::jthread([i, this] { render(i); });
         threads.push_back(std::move(t));
     }
 
-    u64 frame_area =
-        scene_attribs.film.resx * scene_attribs.film.resy;
+    u64 frame_area = scene_attribs.film.resx * scene_attribs.film.resy;
     u64 tile_area = TILE_SIZE * TILE_SIZE;
 
     tiles_per_frame = (frame_area + tile_area - 1) / tile_area;

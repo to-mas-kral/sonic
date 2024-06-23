@@ -42,7 +42,7 @@ struct Scene {
     add_texture(const SpectrumTexture &texture);
 
     Image *
-    get_image(const std::filesystem::path &path);
+    make_or_get_image(const std::filesystem::path &path);
 
     template <typename T>
     T *

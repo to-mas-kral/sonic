@@ -10,6 +10,7 @@ struct Settings {
     bool load_only = false;
     u32 start_frame = 0;
     u32 spp = 32;
+    u32 num_threads = 0;
     IntegratorType integrator_type = IntegratorType::MISNEE;
 };
 

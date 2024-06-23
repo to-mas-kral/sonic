@@ -203,6 +203,17 @@ struct ParamsList {
         params.push_back(std::move(param));
     }
 
+    template <typename T>
+    T
+    get_optional_or_default(const std::string &name, const ValueType vt, const T def) {
+        const auto p = get_optional(name, vt);
+        if (!p.has_value()) {
+            return def;
+        }
+
+        return std::get<T>(p.value()->inner);
+    }
+
     std::optional<Param *>
     get_optional(const std::string &name, const ValueType vt) {
         if (!params_by_name.contains(name)) {

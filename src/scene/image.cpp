@@ -3,7 +3,9 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "texture.h"
 
+#include <algorithm>
 #include <cmath>
 #include <fmt/core.h>
 #include <tinyexr.h>
@@ -69,7 +71,7 @@ Image::make(const std::string &texture_path) {
 tuple3
 Image::fetch_rgb_texel(const uvec2 &coords) const {
     const auto pixel_index = coords.x + (width * coords.y);
-    return get_rgb_pixel_index(pixel_index);
+    return rgb_from_pixel_index(pixel_index);
 }
 
 u64
@@ -89,7 +91,7 @@ Image::calc_index(const vec2 &uv) const {
 }
 
 tuple3
-Image::get_rgb_pixel_index(const u64 pixel_index) const {
+Image::rgb_from_pixel_index(const u64 pixel_index) const {
     switch (data_type) {
     case ImageDataType::U8: {
         if (num_channels >= 3) {
@@ -122,35 +124,61 @@ Image::get_rgb_pixel_index(const u64 pixel_index) const {
     }
 }
 
+vec2
+calc_uv(const vec2 &uv, const ImageTextureParams &params) {
+    return uv * vec2(params.uscale, params.vscale) + vec2(params.udelta, params.vdelta);
+}
+
 tuple3
-Image::fetch_rgb(const vec2 &uv) const {
+Image::fetch_rgb(const vec2 &uv_in, const ImageTextureParams &params) const {
+    const auto uv = calc_uv(uv_in, params);
+
     const auto pixel_index = calc_index(uv);
     assert(pixel_index < static_cast<i64>(width) * static_cast<i64>(height));
 
-    return get_rgb_pixel_index(pixel_index);
+    auto scaled = rgb_from_pixel_index(pixel_index) * params.scale;
+    if (params.invert) {
+        scaled = (tuple3(1.f) - scaled).clamp_negative();
+    }
+
+    return scaled;
 }
 
 f32
-Image::fetch_float(const vec2 &uv) const {
+Image::fetch_float(const vec2 &uv_in, const ImageTextureParams &params) const {
+    const auto uv = calc_uv(uv_in, params);
+
     const auto pixel_index = calc_index(uv);
     assert(pixel_index < static_cast<i64>(width) * static_cast<i64>(height));
+
+    f32 fetched = 0.f;
 
     switch (data_type) {
     case ImageDataType::U8: {
         if (num_channels == 4) {
-            return static_cast<f32>(pixels_u8[pixel_index * num_channels + 3]) / 255.f;
+            fetched = static_cast<f32>(pixels_u8[pixel_index * num_channels + 3]) / 255.f;
         } else {
-            return static_cast<f32>(pixels_u8[pixel_index * num_channels]) / 255.f;
+            fetched = static_cast<f32>(pixels_u8[pixel_index * num_channels]) / 255.f;
         }
+        break;
     }
     case ImageDataType::F32: {
         if (num_channels == 4) {
-            return pixels_f32[pixel_index * num_channels + 3];
+            fetched = pixels_f32[pixel_index * num_channels + 3];
         } else {
-            return pixels_f32[pixel_index * num_channels];
+            fetched = pixels_f32[pixel_index * num_channels];
         }
+        break;
     }
     default:
         assert(false);
     }
+
+    fetched *= params.scale;
+    if (params.invert) {
+        fetched = 1.f - fetched;
+        fetched = std::max(fetched, 0.f);
+    }
+
+    return fetched;
 }

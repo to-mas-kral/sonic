@@ -212,6 +212,11 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return std::max(std::max(x, y), z);
     }
 
+    Child<T>
+    clamp_negative() {
+        return Child<T>(std::max(x, 0.f), std::max(y, 0.f), std::max(z, 0.f));
+    }
+
     bool
     any_nan() {
         return std::isnan(x) || std::isnan(y) || std::isnan(z);

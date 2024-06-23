@@ -11,7 +11,7 @@
 class Integrator {
 public:
     Integrator(Settings settings, RenderContext *rc, EmbreeDevice *device)
-        : rc{rc}, settings{settings}, device{device} {}
+        : rc{rc}, settings{settings}, device{device}, frame{settings.start_frame} {}
 
     void
     integrate_pixel(uvec2 pixel) const {

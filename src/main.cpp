@@ -33,8 +33,6 @@ main(int argc, char **argv) {
         {"mis_nee", IntegratorType::MISNEE},
     };
 
-    // TODO: add num threads option
-
     app.add_option("--samples", settings.spp, "Samples per pixel (SPP).");
     app.add_option("-s,--scene", scene_path, "Path to the scene file.");
     app.add_option("-o,--out", out_filename, "Path of the output file, without '.exr'");
@@ -46,10 +44,12 @@ main(int argc, char **argv) {
         ->transform(CLI::CheckedTransformer(map, CLI::ignore_case))
         ->default_val(IntegratorType::MISNEE);
 
+    app.add_option("--num-threads", settings.num_threads, "Number of rendering threads")
+        ->check(CLI::Range(1, 1024));
+
     app.add_option("--start-frame", settings.start_frame,
                    "Frame at which to start rendering. Useful for debugging");
-    app.add_flag("--load-only", settings.load_only, "Only load the scene.")
-            ->default_val(true);
+    app.add_flag("--load-only", settings.load_only, "Only load the scene.");
 
     CLI11_PARSE(app, argc, argv)
 
@@ -90,7 +90,7 @@ main(int argc, char **argv) {
 
     Integrator integrator(settings, &rc, &embree_device);
 
-    RenderThreads render_threads(rc.attribs, &integrator);
+    RenderThreads render_threads(rc.attribs, &integrator, settings);
 
     spdlog::info("Rendering a {}x{} image at {} spp.", rc.attribs.film.resx,
                  rc.attribs.film.resy, settings.spp);

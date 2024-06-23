@@ -15,7 +15,7 @@ struct FilmAttribs {
     u32 resx = 1280;
     u32 resy = 720;
     f32 iso = 100.f;
-    std::filesystem::path filename{};
+    std::filesystem::path filename{"out"};
 };
 
 struct SceneAttribs {

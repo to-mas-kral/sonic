@@ -62,7 +62,7 @@ Scene::add_texture(const SpectrumTexture &texture) {
 }
 
 Image *
-Scene::get_image(const std::filesystem::path &path) {
+Scene::make_or_get_image(const std::filesystem::path &path) {
     if (images.contains(path)) {
         return images.at(path);
     } else {

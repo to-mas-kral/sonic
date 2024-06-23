@@ -100,10 +100,8 @@ PbrtLoader::load_camera(Scene &sc) {
     sc.attribs.camera.camera_to_world = current_astate.ctm.inverse();
 
     if (type.name == "perspective") {
-        const auto fov = params.get_optional("fov", ValueType::Float);
-        if (fov.has_value()) {
-            sc.attribs.camera.fov = std::get<f32>(fov.value()->inner);
-        }
+        const auto fov = params.get_optional_or_default("fov", ValueType::Float, 90.f);
+        sc.attribs.camera.fov = fov;
     } else {
         spdlog::warn("Camera type '{}' unimplemented, using default", type.name);
     }
@@ -121,25 +119,16 @@ PbrtLoader::load_film(Scene &sc) {
                      type.name);
     }
 
-    const auto resx = params.get_optional("xresolution", ValueType::Int);
-    if (resx.has_value()) {
-        sc.attribs.film.resx = std::get<i32>(resx.value()->inner);
-    }
+    const auto resx = params.get_optional_or_default("xresolution", ValueType::Int, 1280);
+    const auto resy = params.get_optional_or_default("yresolution", ValueType::Int, 720);
+    const auto filename =
+        params.get_optional_or_default<std::string>("filename", ValueType::String, "out");
+    const auto iso = params.get_optional_or_default("iso", ValueType::Float, 100.f);
 
-    const auto resy = params.get_optional("yresolution", ValueType::Int);
-    if (resy.has_value()) {
-        sc.attribs.film.resy = std::get<i32>(resy.value()->inner);
-    }
-
-    const auto filename = params.get_optional("filename", ValueType::String);
-    if (filename.has_value()) {
-        sc.attribs.film.filename = std::get<std::string>(filename.value()->inner);
-    }
-
-    const auto iso = params.get_optional("iso", ValueType::Float);
-    if (iso.has_value()) {
-        sc.attribs.film.iso = std::get<f32>(iso.value()->inner);
-    }
+    sc.attribs.film.resx = resx;
+    sc.attribs.film.resy = resy;
+    sc.attribs.film.filename = filename;
+    sc.attribs.film.iso = iso;
 
     params.warn_unused_params("Film"sv);
 }
@@ -148,10 +137,8 @@ void
 PbrtLoader::load_integrator(Scene &sc) {
     auto params = parse_param_list();
 
-    const auto &maxdepth_p = params.get_optional("maxdepth", ValueType::Int);
-    if (maxdepth_p.has_value()) {
-        sc.attribs.max_depth = std::get<i32>(maxdepth_p.value()->inner);
-    }
+    const auto maxdepth = params.get_optional_or_default("maxdepth", ValueType::Int, 5);
+    sc.attribs.max_depth = maxdepth;
 
     params.warn_unused_params("Integrator");
 }
@@ -394,11 +381,7 @@ PbrtLoader::load_light_source(Scene &sc) {
 
     const auto &type = params.expect(ParamType::Simple).name;
     if (type == "infinite") {
-        f32 scale = 1.f;
-        const auto scale_p_opt = params.get_optional("scale", ValueType::Float);
-        if (scale_p_opt.has_value()) {
-            scale = std::get<f32>(scale_p_opt.value()->inner);
-        }
+        f32 scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
 
         const auto filename_p = params.get_optional("filename", ValueType::String);
         if (!filename_p.has_value()) {
@@ -412,7 +395,7 @@ PbrtLoader::load_light_source(Scene &sc) {
         } else {
             const auto filename = std::get<std::string>(filename_p.value()->inner);
             const auto filepath = std::filesystem::path(base_directory).append(filename);
-            const auto image = sc.get_image(filepath);
+            const auto image = sc.make_or_get_image(filepath);
             const auto tex = ImageTexture(image);
 
             sc.set_envmap(Envmap(tex, scale, current_astate.ctm));
@@ -636,12 +619,7 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
 
 void
 PbrtLoader::load_sphere(Scene &sc, ParamsList &params, FloatTexture *alpha) const {
-    auto radius = 1.f;
-
-    const auto sphere_p = params.get_optional("radius", ValueType::Float);
-    if (sphere_p.has_value()) {
-        radius = std::get<f32>(sphere_p.value()->inner);
-    }
+    const auto radius = params.get_optional_or_default("radius", ValueType::Float, 1.f);
 
     sc.add_sphere(SphereParams{.center = point3(0.f),
                                .radius = radius,
@@ -665,20 +643,12 @@ PbrtLoader::area_light_source(Scene &sc) {
             fmt::format("Invalid area light source type", type.name));
     }
 
-    auto twosided = false;
     auto radiance = Spectrum(RgbSpectrumIlluminant::make(tuple3(1.0f, 1.0f, 1.0f),
                                                          current_astate.color_space));
-    auto scale = 1.f;
 
-    const auto twosided_p = params.get_optional("twosided", ValueType::Bool);
-    if (twosided_p.has_value()) {
-        twosided = std::get<bool>(twosided_p.value()->inner);
-    }
-
-    const auto scale_p = params.get_optional("scale", ValueType::Float);
-    if (scale_p.has_value()) {
-        scale = std::get<f32>(scale_p.value()->inner);
-    }
+    const auto twosided =
+        params.get_optional_or_default("twosided", ValueType::Bool, false);
+    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
 
     const auto l_p = params.get_optional("L");
     if (l_p.has_value()) {
@@ -843,11 +813,7 @@ PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
     const auto transmittace = get_texture_or_default<SpectrumTexture>(
         sc, params, "transmittance", "reflectance");
 
-    f32 scale = 1.f;
-    const auto scale_p = params.get_optional("scale");
-    if (scale_p.has_value()) {
-        scale = std::get<f32>(scale_p.value()->inner);
-    }
+    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
 
     return Material::make_diffuse_transmission(reflectance, transmittace, scale,
                                                sc.material_allocator);
@@ -924,14 +890,30 @@ PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList
     const auto filename = std::get<std::string>(filename_p.inner);
 
     const auto path = absolute(base_directory).append(filename);
-    const auto img = sc.get_image(path);
+
+    const auto uscale = params.get_optional_or_default("uscale", ValueType::Float, 1.f);
+    const auto vscale = params.get_optional_or_default("vscale", ValueType::Float, 1.f);
+    const auto udelta = params.get_optional_or_default("udelta", ValueType::Float, 0.f);
+    const auto vdelta = params.get_optional_or_default("vdelta", ValueType::Float, 0.f);
+    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
+    const auto invert = params.get_optional_or_default("invert", ValueType::Bool, false);
+
+    const auto imagetex_params = ImageTextureParams{.scale = scale,
+                                                    .uscale = uscale,
+                                                    .vscale = vscale,
+                                                    .udelta = udelta,
+                                                    .vdelta = vdelta,
+                                                    .invert = invert};
+
+    const auto img = sc.make_or_get_image(path);
 
     if (type == "spectrum") {
-        const auto tex = sc.add_texture(
-            SpectrumTexture::make(ImageTexture(img), TextureSpectrumType::Rgb));
+        const auto tex = sc.add_texture(SpectrumTexture::make(
+            ImageTexture(img, imagetex_params), TextureSpectrumType::Rgb));
         spectrum_textures.insert({name, tex});
     } else if (type == "float") {
-        const auto tex = sc.add_texture(FloatTexture::make(ImageTexture(img)));
+        const auto tex =
+            sc.add_texture(FloatTexture::make(ImageTexture(img, imagetex_params)));
         float_textures.insert({name, tex});
     }
 }
@@ -958,25 +940,21 @@ PbrtLoader::load_scale_texture(Scene &sc, const std::string &name, ParamsList &p
 void
 PbrtLoader::load_mix_texture(Scene &sc, const std::string &name, ParamsList &params,
                              const std::string &type) {
-    auto mix = 0.5f;
-    const auto mix_p = params.get_optional("mix");
-    if (mix_p.has_value()) {
-        mix = std::get<f32>(mix_p.value()->inner);
-    }
+    const auto amount = params.get_optional_or_default("amount", ValueType::Float, 0.5f);
 
     if (type == "spectrum") {
         const auto tex_1 = get_texture_required<SpectrumTexture>(sc, params, "tex1");
         const auto tex_2 = get_texture_required<SpectrumTexture>(sc, params, "tex2");
 
-        const auto new_tex =
-            sc.add_texture(SpectrumTexture::make(SpectrumMixTexture(tex_1, tex_2, mix)));
+        const auto new_tex = sc.add_texture(
+            SpectrumTexture::make(SpectrumMixTexture(tex_1, tex_2, amount)));
         spectrum_textures.insert({name, new_tex});
     } else if (type == "float") {
         const auto tex_1 = get_texture_required<FloatTexture>(sc, params, "tex1");
         const auto tex_2 = get_texture_required<FloatTexture>(sc, params, "tex2");
 
         const auto new_tex =
-            sc.add_texture(FloatTexture::make(FloatMixTexture(tex_1, tex_2, mix)));
+            sc.add_texture(FloatTexture::make(FloatMixTexture(tex_1, tex_2, amount)));
         float_textures.insert({name, new_tex});
     }
 }
