@@ -2,8 +2,9 @@
 #define PT_COLOR_SPACE_H
 
 #include "../math/transform.h"
-
 #include "../utils/basic_types.h"
+#include "../utils/panic.h"
+
 enum class ColorSpace : u8 {
     sRGB,
 };
@@ -45,7 +46,7 @@ nonlinear_to_linear(const ColorSpace color_space, const tuple3 &rgb) {
         return srgb_nonlinear_to_linear(rgb);
     }
     default:
-        assert(false);
+        panic();
     }
 }
 

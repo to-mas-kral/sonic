@@ -6,6 +6,7 @@
 #include "../color/spectrum.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
+#include "../utils/panic.h"
 
 // PBRTv4 texture params
 struct ImageTextureParams {
@@ -17,8 +18,19 @@ struct ImageTextureParams {
     bool invert{false};
 };
 
+enum class TextureSpectrumType : u8 {
+    Rgb,
+    Unbounded,
+    Illuminant,
+};
+
 class ImageTexture {
 public:
+    explicit
+    ImageTexture(Image *image, const TextureSpectrumType spectrum_type,
+                 const ImageTextureParams &params = ImageTextureParams())
+        : spectrum_type{spectrum_type}, image{image}, params{params} {}
+
     explicit
     ImageTexture(Image *image, const ImageTextureParams &params = ImageTextureParams())
         : image{image}, params{params} {}
@@ -53,7 +65,25 @@ public:
         return image->get_height();
     }
 
+    SampledSpectrum
+    fetch_spectrum(const vec2 &uv, const SampledLambdas &lambdas) const {
+        const auto rgb = fetch_rgb(uv);
+
+        switch (spectrum_type) {
+        case TextureSpectrumType::Rgb:
+            return RgbSpectrum::make(rgb).eval(lambdas);
+        case TextureSpectrumType::Unbounded:
+            return RgbSpectrumUnbounded::make(rgb).eval(lambdas);
+        case TextureSpectrumType::Illuminant:
+            return RgbSpectrumIlluminant::make(rgb, color_space()).eval(lambdas);
+        default:
+            panic();
+        }
+    }
+
 private:
+    // Only used if the image holds spectra
+    TextureSpectrumType spectrum_type{};
     Image *image;
     ImageTextureParams params;
 };
@@ -99,7 +129,7 @@ public:
     FloatTexture() = default;
 
     static FloatTexture
-    make(const ImageTexture image_texture) {
+    make(const ImageTexture &image_texture) {
         FloatTexture tex{};
         tex.texture_type = TextureType::Image;
         tex.inner.image = image_texture;
@@ -146,7 +176,7 @@ public:
         case TextureType::Mix:
             return inner.mix_texture.fetch(uv);
         default:
-            assert(false);
+            panic();
         }
     }
 
@@ -157,12 +187,6 @@ public:
         FloatScaleTexture scale_texture;
         FloatMixTexture mix_texture;
     } inner{};
-};
-
-enum class TextureSpectrumType : u8 {
-    Rgb,
-    Unbounded,
-    Illuminant,
 };
 
 class SpectrumTexture;
@@ -199,9 +223,8 @@ public:
     SpectrumTexture() = default;
 
     static SpectrumTexture
-    make(const ImageTexture image_texture, const TextureSpectrumType spectrum_type) {
+    make(const ImageTexture &image_texture) {
         SpectrumTexture tex{};
-        tex.spectrum_type = spectrum_type;
         tex.texture_type = TextureType::Image;
         tex.inner.image = image_texture;
 
@@ -259,19 +282,7 @@ public:
         case TextureType::Constant:
             return inner.constant_spectrum.eval(lambdas);
         case TextureType::Image: {
-            const auto rgb = inner.image.fetch_rgb(uv);
-
-            switch (spectrum_type) {
-            case TextureSpectrumType::Rgb:
-                return RgbSpectrum::make(rgb).eval(lambdas);
-            case TextureSpectrumType::Unbounded:
-                return RgbSpectrumUnbounded::make(rgb).eval(lambdas);
-            case TextureSpectrumType::Illuminant:
-                return RgbSpectrumIlluminant::make(rgb, inner.image.color_space())
-                    .eval(lambdas);
-            default:
-                assert(false);
-            }
+            return inner.image.fetch_spectrum(uv, lambdas);
         }
         case TextureType::Scale: {
             return inner.scale_texture.fetch(uv, lambdas);
@@ -279,12 +290,10 @@ public:
         case TextureType::Mix:
             return inner.mix_texture.fetch(uv, lambdas);
         default:
-            assert(false);
+            panic();
         }
     }
 
-    // TODO: this should be handled in the image texture... ?
-    TextureSpectrumType spectrum_type{};
     TextureType texture_type{};
     union {
         Spectrum constant_spectrum{ConstantSpectrum::make(0.f)};

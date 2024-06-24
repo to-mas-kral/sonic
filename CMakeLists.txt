@@ -100,6 +100,7 @@ add_library(pt_lib
         src/scene/sphere_square_mapping.h
         src/math/aabb.h
         src/math/discrete_dist.h
+        src/utils/panic.h
 )
 
 target_compile_options(pt_lib PUBLIC

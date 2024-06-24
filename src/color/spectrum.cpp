@@ -3,6 +3,9 @@
 
 #include "../utils/algs.h"
 #include "spectrum.h"
+
+#include "../utils/panic.h"
+
 #include <cassert>
 
 static const RGB2Spec rgb2spec = RGB2Spec("rgb2spec.out");
@@ -98,7 +101,7 @@ RgbSpectrumIlluminant::eval_single(f32 lambda) const {
         illuminant = &CIE_65;
         break;
     default:
-        assert(false);
+        panic();
     }
 
     /// TODO: this is a hack for normalizing the D65 illuminant to having a luminance
@@ -219,7 +222,7 @@ Spectrum::eval(const SampledLambdas &lambdas) const {
     case SpectrumType::Blackbody:
         return blackbody_spectrum.eval(lambdas);
     default:
-        assert(false);
+        panic();
     }
 }
 
@@ -241,7 +244,7 @@ Spectrum::eval_single(f32 lambda) const {
     case SpectrumType::Blackbody:
         return blackbody_spectrum.eval_single(lambda);
     default:
-        assert(false);
+        panic();
     }
 }
 

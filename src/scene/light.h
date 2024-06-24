@@ -104,7 +104,6 @@ public:
     sample(const f32 light_sampler_pdf, const vec3 &shape_rng,
            const SampledLambdas &lambdas, const Intersection &its,
            const Geometry &geom) const {
-        // TODO: remove this struct alltogether...
         ShapeLightSample sample{};
 
         switch (light_type) {
@@ -121,7 +120,7 @@ public:
             break;
         }
         default:
-            assert(false);
+            panic();
         }
 
         return LightSample{
@@ -141,7 +140,7 @@ public:
         case LightType::EnvmapLight:
             return inner.envmap_light.power();
         default:
-            assert(false);
+            panic();
         }
     }
 
@@ -151,9 +150,9 @@ public:
         case LightType::ShapeLight:
             return inner.shape_light.emission(lambdas);
         case LightType::EnvmapLight:
-            assert(false);
+            panic();
         default:
-            assert(false);
+            panic();
         }
     }
 
@@ -163,9 +162,9 @@ public:
         case LightType::ShapeLight:
             return inner.shape_light.area(geom);
         case LightType::EnvmapLight:
-            assert(false);
+            panic();
         default:
-            assert(false);
+            panic();
         }
     }
 

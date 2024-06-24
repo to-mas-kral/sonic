@@ -93,6 +93,7 @@ struct Mesh {
 
     ~
     Mesh() {
+        // This will be moved elsewhere once geometry is cached
         if (pos) {
             std::free(pos);
         }
@@ -123,8 +124,6 @@ struct Mesh {
     MaterialId material_id;
 };
 
-// TODO: also think about validation... validating the index buffers would be robust
-// against UB...
 // TODO: refactor to norm_vec3... ?
 // Used only for mesh creation
 struct MeshParams {
@@ -152,7 +151,7 @@ struct SphereParams {
     point3 center;
     f32 radius;
     MaterialId material_id;
-    Option<Emitter> emitter = {};
+    Option<Emitter> emitter{};
     FloatTexture *alpha{nullptr};
 };
 
@@ -161,14 +160,25 @@ struct SphereVertex {
     f32 radius;
 };
 
-// SOA layout
+struct SphereAttribs {
+    bool has_light;
+    u32 light_id;
+    MaterialId material_id;
+    FloatTexture *alpha;
+};
+
+// semi-SOA layout...
 struct Spheres {
     std::vector<SphereVertex> vertices{};
-    std::vector<MaterialId> material_ids{};
-    std::vector<bool> has_light{};
-    std::vector<u32> light_ids{};
-    std::vector<FloatTexture *> alphas{};
-    u32 num_spheres = 0;
+    std::vector<SphereAttribs> attribs{};
+
+    void
+    add_sphere(const SphereParams &sp, Option<u32> light_id);
+
+    u32
+    num_spheres() const {
+        return vertices.size();
+    }
 
     ShapeLightSample
     sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) const;
@@ -192,7 +202,7 @@ struct InstancedObj {
     Spheres spheres{};
 };
 
-/// InstancedObj is one intanced object (let's say a tree).
+/// InstancedObj is one intanced object (let's say a bush made of many leaves).
 /// Then the instances themselves are stored in a SOA layout, so that it can be shared
 /// with Embree.
 /// 'indices' maps from the instances themselves to the instanced objects.
@@ -212,7 +222,7 @@ struct Geometry {
     void
     add_mesh(const MeshParams &mp, Option<u32> lights_start_id);
     void
-    add_sphere(SphereParams sp, Option<u32> light_id);
+    add_sphere(const SphereParams &sp, Option<u32> light_id);
 
     /// Based on the shape type, returns the  index of the *next* shape in that category.
     u32

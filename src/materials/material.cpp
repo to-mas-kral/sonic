@@ -133,7 +133,7 @@ Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sampl
                                          uv, is_frontfacing);
         break;
     default:
-        assert(false);
+        panic();
     }
 
     if (bsdf_sample.has_value()) {
@@ -171,7 +171,7 @@ Material::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ,
         pdf = DielectricMaterial::pdf();
         break;
     default:
-        assert(false);
+        panic();
     }
 
     assert(pdf >= 0.f);
@@ -211,7 +211,7 @@ Material::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
         result = DielectricMaterial::eval();
         break;
     default:
-        assert(false);
+        panic();
     }
 
     assert(!result.is_invalid());
@@ -237,6 +237,6 @@ Material::is_dirac_delta() const {
     case MaterialType::Dielectric:
         return true;
     default:
-        assert(false);
+        panic();
     }
 }

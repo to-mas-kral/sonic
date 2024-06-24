@@ -5,15 +5,13 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <catch2/matchers/catch_matchers.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <random>
 
 TEST_CASE("envmap pdf roudtrip") {
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
 
-    // TODO: choose smaller envmap (make a custom one)
-    auto image = Image::make("../resources/test/envmap.exr");
+    auto image = Image::make("../resources/test/envmap_test.exr");
     auto texture = ImageTexture(&image);
     auto envmap = Envmap(texture, 1.f, mat4::identity());
 
@@ -40,7 +38,7 @@ TEST_CASE("envmap pdf roudtrip") {
         }
     }
 
-    // TODO: would be nice to pass this 100%, don't know what I can do about the imprecision...
-    // 0.1% fail rate...
+    // would be nice to pass this 100%, don't know what I can do about the imprecision...
+    // 0.1% fail rate is OK I guess
     REQUIRE((wrong < 10));
 }

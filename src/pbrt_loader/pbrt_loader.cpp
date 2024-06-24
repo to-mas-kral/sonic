@@ -396,7 +396,7 @@ PbrtLoader::load_light_source(Scene &sc) {
             const auto filename = std::get<std::string>(filename_p.value()->inner);
             const auto filepath = std::filesystem::path(base_directory).append(filename);
             const auto image = sc.make_or_get_image(filepath);
-            const auto tex = ImageTexture(image);
+            const auto tex = ImageTexture(image, TextureSpectrumType::Illuminant);
 
             sc.set_envmap(Envmap(tex, scale, current_astate.ctm));
         }
@@ -431,6 +431,9 @@ PbrtLoader::transform_mesh(point3 *pos, const u32 num_verts, vec3 *normals) cons
         }
     }
 }
+
+// TODO: also think about mesh validation... validating the index buffers would be robust
+// against UB...
 
 void
 PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha) const {
@@ -856,7 +859,6 @@ PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) {
         return sc.add_texture(SpectrumTexture::make(
             Spectrum(ConstantSpectrum::make(std::get<f32>(param.inner)))));
     } else {
-        // TODO: implement other spectrum types
         spdlog::warn("Spectrum texture '{}' unimplemented, getting default", param.name);
         return sc.add_texture(SpectrumTexture::make(RgbSpectrum::make(tuple3(0.5))));
     }
@@ -871,7 +873,6 @@ PbrtLoader::parse_inline_float_texture(const Param &param, Scene &sc) const {
         const auto texture_name = std::get<std::string>(param.inner);
         return float_textures.at(texture_name);
     } else {
-        // TODO: implement other spectrum types
         spdlog::warn("Float texture '{}' unimplemented, getting default", param.name);
         return sc.add_texture(FloatTexture::make(1.f));
     }
@@ -909,7 +910,7 @@ PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList
 
     if (type == "spectrum") {
         const auto tex = sc.add_texture(SpectrumTexture::make(
-            ImageTexture(img, imagetex_params), TextureSpectrumType::Rgb));
+            ImageTexture(img, TextureSpectrumType::Rgb, imagetex_params)));
         spectrum_textures.insert({name, tex});
     } else if (type == "float") {
         const auto tex =
@@ -1164,7 +1165,6 @@ PbrtLoader::parse_int() {
     return _int;
 }
 
-// TODO: could use something like "fast_float" by Lemire
 f32
 PbrtLoader::parse_float() {
     const auto num = expect(LexemeType::Num);

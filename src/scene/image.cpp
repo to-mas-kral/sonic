@@ -120,7 +120,7 @@ Image::rgb_from_pixel_index(const u64 pixel_index) const {
         }
     }
     default:
-        assert(false);
+        panic();
     }
 }
 
@@ -171,7 +171,7 @@ Image::fetch_float(const vec2 &uv_in, const ImageTextureParams &params) const {
         break;
     }
     default:
-        assert(false);
+        panic();
     }
 
     fetched *= params.scale;

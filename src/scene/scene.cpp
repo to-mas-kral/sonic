@@ -140,25 +140,10 @@ Scene::add_sphere(const SphereParams &sp, std::optional<InstanceId> instance) {
         lights.emplace_back(ShapeLight(si, sp.emitter.value()));
     }
 
-    // TODO: refactor this...
     if (instance.has_value()) {
         const auto instance_id = instance.value();
         auto &spheres = geometry.instances.instanced_objs[instance_id.inner].spheres;
-        spheres.vertices.push_back(SphereVertex{
-            .pos = sp.center,
-            .radius = sp.radius,
-        });
-        spheres.material_ids.push_back(sp.material_id);
-        spheres.has_light.push_back(light_id.has_value());
-        if (light_id.has_value()) {
-            spheres.light_ids.push_back(light_id.value());
-        } else {
-            spheres.light_ids.push_back(0);
-        }
-
-        spheres.alphas.push_back(sp.alpha);
-
-        spheres.num_spheres++;
+        spheres.add_sphere(sp, light_id);
     } else {
         geometry.add_sphere(sp, light_id);
     }

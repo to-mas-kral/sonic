@@ -1,8 +1,7 @@
 
 denoising - probably OIDN, ADD AOV before...
 swap tinyexr for OpenEXR
-
-panic on enum dispatch
+could use fast float by Emire...
 
 thresholded alpha
 stratified sampling for camera at least

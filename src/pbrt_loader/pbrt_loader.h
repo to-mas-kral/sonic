@@ -33,7 +33,6 @@ struct RoughnessDescription {
     FloatTexture *vroughness;
 };
 
-// TODO: consider a custom allocator in the future
 class PbrtLoader {
 public:
     explicit

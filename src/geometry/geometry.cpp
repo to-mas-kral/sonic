@@ -10,22 +10,8 @@ Geometry::add_mesh(const MeshParams &mp, const Option<u32> lights_start_id) {
 }
 
 void
-Geometry::add_sphere(SphereParams sp, const Option<u32> light_id) {
-    spheres.vertices.push_back(SphereVertex{
-        .pos = sp.center,
-        .radius = sp.radius,
-    });
-    spheres.material_ids.push_back(sp.material_id);
-    spheres.has_light.push_back(light_id.has_value());
-    if (light_id.has_value()) {
-        spheres.light_ids.push_back(light_id.value());
-    } else {
-        spheres.light_ids.push_back(0);
-    }
-
-    spheres.alphas.push_back(sp.alpha);
-
-    spheres.num_spheres++;
+Geometry::add_sphere(const SphereParams &sp, const Option<u32> light_id) {
+    spheres.add_sphere(sp, light_id);
 }
 
 u32
@@ -34,9 +20,9 @@ Geometry::get_next_shape_index(const ShapeType type) const {
     case ShapeType::Mesh:
         return meshes.meshes.size();
     case ShapeType::Sphere:
-        return spheres.num_spheres;
+        return spheres.num_spheres();
     default:
-        assert(false);
+        panic();
     }
 }
 
@@ -48,7 +34,7 @@ Geometry::sample_shape(const ShapeIndex si, const point3 &pos, const vec3 &sampl
     case ShapeType::Sphere:
         return spheres.sample(si.index, pos, sample);
     default:
-        assert(false);
+        panic();
     }
 }
 
@@ -62,7 +48,7 @@ Geometry::shape_area(const ShapeIndex si) const {
     case ShapeType::Sphere:
         return spheres.calc_sphere_area(si.index);
     default:
-        assert(false);
+        panic();
     }
 }
 
@@ -166,6 +152,19 @@ Meshes::sample(ShapeIndex si, const vec3 &sample) const {
         .normal = normal,
         .pdf = 1.f / area,
     };
+}
+
+void
+Spheres::add_sphere(const SphereParams &sp, Option<u32> light_id) {
+    vertices.push_back(SphereVertex{
+        .pos = sp.center,
+        .radius = sp.radius,
+    });
+
+    attribs.emplace_back(SphereAttribs{.has_light = light_id.has_value(),
+                                       .light_id = light_id.value_or(0),
+                                       .material_id = sp.material_id,
+                                       .alpha = sp.alpha});
 }
 
 ShapeLightSample

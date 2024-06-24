@@ -23,7 +23,7 @@ main(int argc, char **argv) {
 
     Settings settings{};
     std::string scene_path{};
-    std::string out_filename = "out";
+    std::string out_filename;
 
     CLI::App app{"A path-tracer by Tomáš Král, 2023-2024."};
     // argv = app.ensure_utf8(argv);
@@ -79,6 +79,10 @@ main(int argc, char **argv) {
         return 1;
     }
 
+    if (out_filename.empty()) {
+        out_filename = scene.attribs.film.filename;
+    }
+
     RenderContext rc(std::move(scene));
 
     if (settings.load_only) {
@@ -97,7 +101,6 @@ main(int argc, char **argv) {
 
     ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};
-    // TODO: actually use correct filename
     for (u32 s = 1; s <= settings.spp; s++) {
         render_threads.start_new_frame();
 
