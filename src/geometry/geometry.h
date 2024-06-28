@@ -31,7 +31,7 @@ struct ShapeLightSample {
 struct MeshParams;
 
 struct Mesh {
-    Mesh(const MeshParams &mp, Option<u32> p_lights_start_id);
+    Mesh(const MeshParams &mp, std::optional<u32> p_lights_start_id);
 
     u32
     num_triangles() const;
@@ -134,7 +134,7 @@ struct MeshParams {
     vec2 *uvs = nullptr;     // may be null
     u32 num_verts;
     MaterialId material_id;
-    Option<Emitter> emitter{};
+    std::optional<Emitter> emitter{};
     FloatTexture *alpha{nullptr};
 };
 
@@ -151,7 +151,7 @@ struct SphereParams {
     point3 center;
     f32 radius;
     MaterialId material_id;
-    Option<Emitter> emitter{};
+    std::optional<Emitter> emitter{};
     FloatTexture *alpha{nullptr};
 };
 
@@ -173,7 +173,7 @@ struct Spheres {
     std::vector<SphereAttribs> attribs{};
 
     void
-    add_sphere(const SphereParams &sp, Option<u32> light_id);
+    add_sphere(const SphereParams &sp, std::optional<u32> light_id);
 
     u32
     num_spheres() const {
@@ -220,9 +220,9 @@ struct Geometry {
     Instances instances{};
 
     void
-    add_mesh(const MeshParams &mp, Option<u32> lights_start_id);
+    add_mesh(const MeshParams &mp, std::optional<u32> lights_start_id);
     void
-    add_sphere(const SphereParams &sp, Option<u32> light_id);
+    add_sphere(const SphereParams &sp, std::optional<u32> light_id);
 
     /// Based on the shape type, returns the  index of the *next* shape in that category.
     u32

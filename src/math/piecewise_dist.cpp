@@ -13,7 +13,7 @@ PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
     marginals_sums.reserve(height);
 
     for (int r = 0; r < height; r++) {
-        auto row = Span<f32>(const_cast<f32 *>(&grid[r * width]), width);
+        auto row = std::span<f32>(const_cast<f32 *>(&grid[r * width]), width);
         auto conditional = PiecewiseDist1D(row);
         conditionals.emplace_back(std::move(conditional));
 
@@ -21,10 +21,11 @@ PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
         marginals_sums.push_back(sum);
     }
 
-    marginals = PiecewiseDist1D(Span<f32>(marginals_sums.data(), marginals_sums.size()));
+    marginals =
+        PiecewiseDist1D(std::span<f32>(marginals_sums.data(), marginals_sums.size()));
 }
 
-Tuple<vec2, f32>
+std::tuple<vec2, f32>
 PiecewiseDist2D::sample(const vec2 &sample) const {
     auto [v, im] = marginals.sample_continuous(sample.x);
     auto [u, ic] = conditionals[im].sample_continuous(sample.y);
@@ -47,7 +48,7 @@ PiecewiseDist2D::pdf(const vec2 &sample) const {
 
 /// Code taken from PBRTv4
 PiecewiseDist1D::
-PiecewiseDist1D(Span<f32> vals) {
+PiecewiseDist1D(std::span<f32> vals) {
     function.assign(vals.begin(), vals.end());
     m_cdf = std::vector<f32>(vals.size() + 1);
 
@@ -99,7 +100,7 @@ PiecewiseDist1D::size() const {
 }
 
 /// Samples a CMF, return a value in [0, 1), and an index into the PDF slice.
-Tuple<f32, u32>
+std::tuple<f32, u32>
 PiecewiseDist1D::sample_continuous(const f32 sample) const {
     const auto i = std::upper_bound(m_cdf.begin(), m_cdf.end(), sample);
     assert(i != m_cdf.end());

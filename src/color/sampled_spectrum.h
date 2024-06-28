@@ -4,6 +4,7 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+#include <array>
 #include <string>
 
 constexpr u32 N_SPECTRUM_SAMPLES = 4;
@@ -11,7 +12,7 @@ constexpr u32 N_SPECTRUM_SAMPLES = 4;
 struct SampledSpectrum {
     SampledSpectrum() = default;
 
-    explicit SampledSpectrum(const Array<f32, N_SPECTRUM_SAMPLES> &p_vals);
+    explicit SampledSpectrum(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals);
 
     static SampledSpectrum
     make_constant(f32 constant);
@@ -93,7 +94,7 @@ struct SampledSpectrum {
     f32&
     operator[](u32 index);
 
-    Array<f32, N_SPECTRUM_SAMPLES> vals{};
+    std::array<f32, N_SPECTRUM_SAMPLES> vals{};
 };
 
 struct SampledLambdas {
@@ -113,7 +114,7 @@ struct SampledLambdas {
     operator[](u32 index) const;
 
     bool is_secondary_terminated{false};
-    Array<f32, N_SPECTRUM_SAMPLES> lambdas;
+    std::array<f32, N_SPECTRUM_SAMPLES> lambdas;
 };
 
 using spectral = SampledSpectrum;

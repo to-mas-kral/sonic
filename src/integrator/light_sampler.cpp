@@ -26,7 +26,7 @@ LightSampler(const std::vector<Light> &lights, const Geometry &geom) {
     sampling_dist = DiscreteDist(std::move(pmf));
 }
 
-Option<LightIndexSample>
+std::optional<LightIndexSample>
 LightSampler::sample(const std::vector<Light> &lights, const f32 sample) const {
     if (!has_lights) {
         return {};

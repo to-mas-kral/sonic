@@ -49,7 +49,7 @@ public:
 
     /// Calculates probabilities
     explicit
-    DiscreteDist(Span<const f32> vals) {
+    DiscreteDist(std::span<const f32> vals) {
         pmf.reserve(vals.size());
 
         const f32 sum = std::accumulate(vals.begin(), vals.end(), 0.f);
@@ -77,7 +77,7 @@ public:
         return offset == 0 ? 0 : offset - 1;
     }
 
-    /*Tuple<f32, u32>
+    /*std::tuple<f32, u32>
     pdf(const f32 sample) const {
         u32 offset = sample * (f32)cmf.size();
         if (offset > cmf.size() - 1) {

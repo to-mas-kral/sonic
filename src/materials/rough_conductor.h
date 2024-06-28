@@ -17,7 +17,7 @@ struct RoughConductorMaterial {
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
          const vec2 &uv) const;
 
-    Option<BSDFSample>
+    std::optional<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &ξ,
            const SampledLambdas &lambdas, const vec2 &uv) const;
 

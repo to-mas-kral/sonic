@@ -4,6 +4,7 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+#include <span>
 #include <vector>
 
 class PiecewiseDist1D {
@@ -24,12 +25,12 @@ public:
     /// The function is defined over the range 0-1... if the domain is larger,
     /// the resulting PDF needs to be remapped (a simple lerp).
     explicit
-    PiecewiseDist1D(Span<f32> vals);
+    PiecewiseDist1D(std::span<f32> vals);
 
     f32
     pdf(u32 index) const;
 
-    Tuple<f32, u32>
+    std::tuple<f32, u32>
     sample_continuous(f32 sample) const;
 
     f32
@@ -57,7 +58,7 @@ public:
     PiecewiseDist2D(const std::vector<f32> &grid, int width, int height);
 
     /// Returns uv-coords and the pdf
-    Tuple<vec2, f32>
+    std::tuple<vec2, f32>
     sample(const vec2 &sample) const;
 
     f32

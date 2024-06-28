@@ -18,7 +18,7 @@ struct SquareMatrix4 {
 
     /// Column-major order !
     static SquareMatrix4
-    from_elements(const Array<f32, 16> &columns);
+    from_elements(const std::array<f32, 16> &columns);
 
     SquareMatrix4
     transpose() const;
@@ -84,7 +84,7 @@ struct SquareMatrix3 {
 
     /// Column-major order !
     static SquareMatrix3
-    from_elements(const Array<f32, 9> &columns);
+    from_elements(const std::array<f32, 9> &columns);
 
     SquareMatrix3
     transpose() const;

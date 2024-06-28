@@ -15,7 +15,7 @@ struct RoughPlasticMaterial {
     eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
          const vec2 &uv) const;
 
-    Option<BSDFSample>
+    std::optional<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
            const SampledLambdas &λ, const vec2 &uv) const;
 

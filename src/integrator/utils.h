@@ -6,11 +6,12 @@
 #include "../utils/basic_types.h"
 
 #include <algorithm>
+#include <optional>
 
 /// Randomly selects if a path should be terminated based on its throughput.
 /// Roulette is only applied after the first 3 bounces.
 /// Returns true if path should be terminated. If not, also returns roulette compensation.
-inline Option<f32>
+inline std::optional<f32>
 russian_roulette(u32 depth, f32 u, const spectral &throughput) {
     if (depth > 3) {
         f32 survival_prob = 1.f - std::max(throughput.max_component(), 0.05f);

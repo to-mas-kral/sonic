@@ -86,7 +86,7 @@ Scene::init_light_sampler() {
     light_sampler = LightSampler(lights, geometry);
 }
 
-Option<LightSample>
+std::optional<LightSample>
 Scene::sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
                      const Intersection &its) {
     const auto index_sample = light_sampler.sample(lights, sample);
@@ -97,14 +97,14 @@ Scene::sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &la
 void
 Scene::add_mesh(const MeshParams &mp, const std::optional<InstanceId> instance) {
     const auto next_mesh_id = geometry.get_next_shape_index(ShapeType::Mesh);
-    Option<u32> lights_start_id = {};
+    std::optional<u32> lights_start_id = {};
 
     if (mp.emitter.has_value() && instance.has_value()) {
         throw std::runtime_error("Instanced lights arent implemented yet");
     }
 
     if (mp.emitter.has_value()) {
-        lights_start_id = Option<u32>(lights.size());
+        lights_start_id = std::optional<u32>(lights.size());
 
         for (u32 i = 0; i < mp.num_indices / 3; i++) {
             const auto si = ShapeIndex{
@@ -127,14 +127,14 @@ Scene::add_mesh(const MeshParams &mp, const std::optional<InstanceId> instance) 
 void
 Scene::add_sphere(const SphereParams &sp, std::optional<InstanceId> instance) {
     const auto next_sphere_id = geometry.get_next_shape_index(ShapeType::Sphere);
-    Option<u32> light_id = {};
+    std::optional<u32> light_id = {};
 
     if (sp.emitter.has_value() && instance.has_value()) {
         throw std::runtime_error("Instanced lights arent implemented yet");
     }
 
     if (sp.emitter.has_value()) {
-        light_id = Option<u32>(lights.size());
+        light_id = std::optional<u32>(lights.size());
         const auto si = ShapeIndex{.type = ShapeType::Sphere, .index = next_sphere_id};
 
         lights.emplace_back(ShapeLight(si, sp.emitter.value()));

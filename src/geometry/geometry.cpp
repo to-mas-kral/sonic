@@ -4,13 +4,13 @@
 #include "../math/sampling.h"
 
 void
-Geometry::add_mesh(const MeshParams &mp, const Option<u32> lights_start_id) {
+Geometry::add_mesh(const MeshParams &mp, const std::optional<u32> lights_start_id) {
     auto mesh = Mesh(mp, lights_start_id);
     meshes.meshes.push_back(std::move(mesh));
 }
 
 void
-Geometry::add_sphere(const SphereParams &sp, const Option<u32> light_id) {
+Geometry::add_sphere(const SphereParams &sp, const std::optional<u32> light_id) {
     spheres.add_sphere(sp, light_id);
 }
 
@@ -53,7 +53,7 @@ Geometry::shape_area(const ShapeIndex si) const {
 }
 
 Mesh::
-Mesh(const MeshParams &mp, const Option<u32> p_lights_start_id)
+Mesh(const MeshParams &mp, const std::optional<u32> p_lights_start_id)
     : num_verts{mp.num_verts}, num_indices{mp.num_indices}, pos{mp.pos},
       normals{mp.normals}, uvs{mp.uvs}, indices{mp.indices}, alpha{mp.alpha},
       material_id{mp.material_id} {
@@ -155,7 +155,7 @@ Meshes::sample(ShapeIndex si, const vec3 &sample) const {
 }
 
 void
-Spheres::add_sphere(const SphereParams &sp, Option<u32> light_id) {
+Spheres::add_sphere(const SphereParams &sp, std::optional<u32> light_id) {
     vertices.push_back(SphereVertex{
         .pos = sp.center,
         .radius = sp.radius,

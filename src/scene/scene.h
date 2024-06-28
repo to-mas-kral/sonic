@@ -62,7 +62,7 @@ struct Scene {
     void
     init_light_sampler();
 
-    Option<LightSample>
+    std::optional<LightSample>
     sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
                   const Intersection &pos);
 

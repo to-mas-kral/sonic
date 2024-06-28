@@ -97,7 +97,7 @@ Material::make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int
                     .rough_plastic = rough_plastic_mat};
 }
 
-Option<BSDFSample>
+std::optional<BSDFSample>
 Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
                  SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const {
     auto nowo = vec3::dot(normal, wo);
@@ -105,7 +105,7 @@ Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sampl
         return {};
     }
 
-    Option<BSDFSample> bsdf_sample{};
+    std::optional<BSDFSample> bsdf_sample{};
 
     switch (type) {
     case MaterialType::Diffuse:

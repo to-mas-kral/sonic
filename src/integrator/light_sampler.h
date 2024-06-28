@@ -20,7 +20,7 @@ public:
     LightSampler(const std::vector<Light> &lights, const Geometry &geom);
 
     /// Sample lights according to power
-    Option<LightIndexSample>
+    std::optional<LightIndexSample>
     sample(const std::vector<Light> &lights, f32 sample) const;
 
     /// The pdf of a light being sampled

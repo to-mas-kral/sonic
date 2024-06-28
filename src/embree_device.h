@@ -124,7 +124,7 @@ public:
         };
     }
 
-    Option<Intersection>
+    std::optional<Intersection>
     intersect_instance(const point3 &orig, const vec3 &dir,
                        const RTCRayHit &rayhit) const {
         const auto instance_indice =
@@ -156,7 +156,7 @@ public:
         return its;
     }
 
-    Option<Intersection>
+    std::optional<Intersection>
     intersect_non_instance(const point3 &orig, const vec3 &dir, RTCRayHit rayhit) const {
         if (rayhit.hit.geomID < mesh_geom_count) {
             return get_triangle_its(scene->geometry.meshes.meshes.data(),
@@ -168,7 +168,7 @@ public:
         }
     }
 
-    Option<Intersection>
+    std::optional<Intersection>
     cast_ray(const point3 &orig, const vec3 &dir) const {
         RTCRayHit rayhit{};
         rayhit.ray.org_x = orig.x;
@@ -197,7 +197,7 @@ public:
         return {};
     }
 
-    Option<Intersection>
+    std::optional<Intersection>
     cast_ray(const Ray &ray) const {
         return cast_ray(ray.o, ray.dir);
     }

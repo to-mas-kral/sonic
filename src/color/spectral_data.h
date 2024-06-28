@@ -6,7 +6,7 @@
 
 /// Data from: https://refractiveindex.info/ (public domain)
 
-inline constexpr auto GLASS_BAF10_ETA_RAW = Array<f32, 58>{
+inline constexpr auto GLASS_BAF10_ETA_RAW = std::array<f32, 58>{
     350, 1.7126880848268, 371, 1.7044510025682, 393, 1.6978539633931,
     414, 1.6924597573902, 436, 1.6879747521657, 457, 1.6841935148947,
     479, 1.6809676313681, 500, 1.6781870617363, 522, 1.6757684467878,
@@ -18,7 +18,7 @@ inline constexpr auto GLASS_BAF10_ETA_RAW = Array<f32, 58>{
     866, 1.6581293446924, 887, 1.6575896837763, 909, 1.6570773750475,
 };
 
-inline constexpr auto GLASS_BK7_ETA_RAW = Array<f32, 58>{
+inline constexpr auto GLASS_BK7_ETA_RAW = std::array<f32, 58>{
     300, 1.5527702635739, 322, 1.5458699289209, 344, 1.5404466868331,
     366, 1.536090527917,  388, 1.53252773217,   410, 1.529568767224,
     432, 1.5270784291406, 454, 1.5249578457324, 476, 1.5231331738499,
@@ -31,7 +31,7 @@ inline constexpr auto GLASS_BK7_ETA_RAW = Array<f32, 58>{
     894, 1.5090939781792, 916, 1.5087426727363,
 };
 
-inline constexpr auto GLASS_F11_ETA_RAW = Array<f32, 58>{
+inline constexpr auto GLASS_F11_ETA_RAW = std::array<f32, 58>{
     370, 1.8700216173234, 391, 1.8516255860581, 412, 1.8374707714715,
     433, 1.8262323798466, 455, 1.8170946940119, 476, 1.8095242343848,
     497, 1.803155581666,  519, 1.7977291183308, 540, 1.7930548640505,
@@ -43,7 +43,7 @@ inline constexpr auto GLASS_F11_ETA_RAW = Array<f32, 58>{
     881, 1.7604521601554, 902, 1.7595216323879,
 };
 
-inline constexpr auto AU_ETA_RAW = Array<f32, 112>{
+inline constexpr auto AU_ETA_RAW = std::array<f32, 112>{
     298.757050, 1.795000,   302.400421, 1.812000,   306.133759, 1.822625,   309.960449,
     1.830000,   313.884003, 1.837125,   317.908142, 1.840000,   322.036835, 1.834250,
     326.274139, 1.824000,   330.624481, 1.812000,   335.092377, 1.798000,   339.682678,
@@ -62,7 +62,7 @@ inline constexpr auto AU_ETA_RAW = Array<f32, 112>{
     0.181375,   826.561157, 0.188000,   855.063293, 0.198125,   885.601257, 0.210000,
 };
 
-inline constexpr auto AU_K_RAW = Array<f32, 112>{
+inline constexpr auto AU_K_RAW = std::array<f32, 112>{
     298.757050, 1.920375,   302.400421, 1.920000,   306.133759, 1.918875,   309.960449,
     1.916000,   313.884003, 1.911375,   317.908142, 1.904000,   322.036835, 1.891375,
     326.274139, 1.878000,   330.624481, 1.868250,   335.092377, 1.860000,   339.682678,
@@ -81,7 +81,7 @@ inline constexpr auto AU_K_RAW = Array<f32, 112>{
     5.125813,   826.561157, 5.390000,   855.063293, 5.631250,   885.601257, 5.880000,
 };
 
-inline constexpr auto AL_ETA_RAW = Array<f32, 112>{
+inline constexpr auto AL_ETA_RAW = std::array<f32, 112>{
     298.757050, 0.273375,   302.400421, 0.280000,   306.133759, 0.286813,   309.960449,
     0.294000,   313.884003, 0.301875,   317.908142, 0.310000,   322.036835, 0.317875,
     326.274139, 0.326000,   330.624481, 0.334750,   335.092377, 0.344000,   339.682678,
@@ -100,7 +100,7 @@ inline constexpr auto AL_ETA_RAW = Array<f32, 112>{
     2.800000,   826.561157, 2.740000,   855.063293, 2.580000,   885.601257, 2.240000,
 };
 
-inline constexpr auto AL_K_RAW = Array<f32, 112>{
+inline constexpr auto AL_K_RAW = std::array<f32, 112>{
     298.757050, 3.593750,   302.400421, 3.640000,   306.133759, 3.689375,   309.960449,
     3.740000,   313.884003, 3.789375,   317.908142, 3.840000,   322.036835, 3.894375,
     326.274139, 3.950000,   330.624481, 4.005000,   335.092377, 4.060000,   339.682678,
@@ -119,7 +119,7 @@ inline constexpr auto AL_K_RAW = Array<f32, 112>{
     8.450000,   826.561157, 8.310000,   855.063293, 8.210000,   885.601257, 8.210000,
 };
 
-inline constexpr auto AG_ETA_RAW = Array<f32, 112>{
+inline constexpr auto AG_ETA_RAW = std::array<f32, 112>{
     298.757050, 1.519000,   302.400421, 1.496000,   306.133759, 1.432500,   309.960449,
     1.323000,   313.884003, 1.142062,   317.908142, 0.932000,   322.036835, 0.719062,
     326.274139, 0.526000,   330.624481, 0.388125,   335.092377, 0.294000,   339.682678,
@@ -138,7 +138,7 @@ inline constexpr auto AG_ETA_RAW = Array<f32, 112>{
     0.142563,   826.561157, 0.145000,   855.063293, 0.151938,   885.601257, 0.163000,
 };
 
-inline constexpr auto AG_K_RAW = Array<f32, 112>{
+inline constexpr auto AG_K_RAW = std::array<f32, 112>{
     298.757050, 1.080000,   302.400421, 0.882000,   306.133759, 0.761063,   309.960449,
     0.647000,   313.884003, 0.550875,   317.908142, 0.504000,   322.036835, 0.554375,
     326.274139, 0.663000,   330.624481, 0.818563,   335.092377, 0.986000,   339.682678,
@@ -157,7 +157,7 @@ inline constexpr auto AG_K_RAW = Array<f32, 112>{
     5.288750,   826.561157, 5.500000,   855.063293, 5.720624,   885.601257, 5.950000,
 };
 
-inline constexpr auto CU_ETA_RAW = Array<f32, 112>{
+inline constexpr auto CU_ETA_RAW = std::array<f32, 112>{
     298.757050, 1.400313,   302.400421, 1.380000,   306.133759, 1.358438,   309.960449,
     1.340000,   313.884003, 1.329063,   317.908142, 1.325000,   322.036835, 1.332500,
     326.274139, 1.340000,   330.624481, 1.334375,   335.092377, 1.325000,   339.682678,
@@ -176,7 +176,7 @@ inline constexpr auto CU_ETA_RAW = Array<f32, 112>{
     0.254188,   826.561157, 0.260000,   855.063293, 0.280000,   885.601257, 0.300000,
 };
 
-inline constexpr auto CU_K_RAW = Array<f32, 112>{
+inline constexpr auto CU_K_RAW = std::array<f32, 112>{
     298.757050, 1.662125,   302.400421, 1.687000,   306.133759, 1.703313,   309.960449,
     1.720000,   313.884003, 1.744563,   317.908142, 1.770000,   322.036835, 1.791625,
     326.274139, 1.810000,   330.624481, 1.822125,   335.092377, 1.834000,   339.682678,
@@ -195,7 +195,7 @@ inline constexpr auto CU_K_RAW = Array<f32, 112>{
     5.034125,   826.561157, 5.260000,   855.063293, 5.485625,   885.601257, 5.717000,
 };
 
-inline constexpr auto TIO2_ETA_RAW = Array<f32, 68>{
+inline constexpr auto TIO2_ETA_RAW = std::array<f32, 68>{
     305.972015, 3.840000,   317.979004, 5.380000,   334.990997, 4.220000,   344.007019,
     4.360000,   359.988007, 3.870000,   388.044006, 3.490000,   399.935028, 3.400000,
     412.031006, 3.240000,   419.985992, 3.290000,   439.957001, 3.200000,   460.037018,
@@ -208,7 +208,7 @@ inline constexpr auto TIO2_ETA_RAW = Array<f32, 68>{
     2.780000,   879.915039, 2.770000,   899.709961, 2.770000,
 };
 
-inline constexpr auto TIO2_K_RAW = Array<f32, 68>{
+inline constexpr auto TIO2_K_RAW = std::array<f32, 68>{
     305.972015, 1.950000,   317.979004, 2.180000,   334.990997, 0.788000,   344.007019,
     0.000000,   359.988007, 0.251000,   388.044006, 0.000000,   399.935028, 0.000000,
     412.031006, 0.022000,   419.985992, 0.000000,   439.957001, 0.000000,   460.037018,
@@ -222,43 +222,43 @@ inline constexpr auto TIO2_K_RAW = Array<f32, 68>{
 };
 
 constexpr PiecewiseSpectrum GLASS_BAF10_ETA = PiecewiseSpectrum::make(
-    Span<const f32>(GLASS_BAF10_ETA_RAW.data(), GLASS_BAF10_ETA_RAW.size()));
+    std::span<const f32>(GLASS_BAF10_ETA_RAW.data(), GLASS_BAF10_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum GLASS_BK7_ETA = PiecewiseSpectrum::make(
-    Span<const f32>(GLASS_BK7_ETA_RAW.data(), GLASS_BK7_ETA_RAW.size()));
+    std::span<const f32>(GLASS_BK7_ETA_RAW.data(), GLASS_BK7_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum GLASS_F11_ETA = PiecewiseSpectrum::make(
-    Span<const f32>(GLASS_F11_ETA_RAW.data(), GLASS_F11_ETA_RAW.size()));
+    std::span<const f32>(GLASS_F11_ETA_RAW.data(), GLASS_F11_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum AU_ETA =
-    PiecewiseSpectrum::make(Span<const f32>(AU_ETA_RAW.data(), AU_ETA_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(AU_ETA_RAW.data(), AU_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum AU_K =
-    PiecewiseSpectrum::make(Span<const f32>(AU_K_RAW.data(), AU_K_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(AU_K_RAW.data(), AU_K_RAW.size()));
 
 constexpr PiecewiseSpectrum AL_ETA =
-    PiecewiseSpectrum::make(Span<const f32>(AL_ETA_RAW.data(), AL_ETA_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(AL_ETA_RAW.data(), AL_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum AL_K =
-    PiecewiseSpectrum::make(Span<const f32>(AL_K_RAW.data(), AL_K_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(AL_K_RAW.data(), AL_K_RAW.size()));
 
 constexpr PiecewiseSpectrum AG_ETA =
-    PiecewiseSpectrum::make(Span<const f32>(AG_ETA_RAW.data(), AG_ETA_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(AG_ETA_RAW.data(), AG_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum AG_K =
-    PiecewiseSpectrum::make(Span<const f32>(AG_K_RAW.data(), AG_K_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(AG_K_RAW.data(), AG_K_RAW.size()));
 
 constexpr PiecewiseSpectrum CU_ETA =
-    PiecewiseSpectrum::make(Span<const f32>(CU_ETA_RAW.data(), CU_ETA_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(CU_ETA_RAW.data(), CU_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum CU_K =
-    PiecewiseSpectrum::make(Span<const f32>(CU_K_RAW.data(), CU_K_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(CU_K_RAW.data(), CU_K_RAW.size()));
 
-constexpr PiecewiseSpectrum TIO2_ETA =
-    PiecewiseSpectrum::make(Span<const f32>(TIO2_ETA_RAW.data(), TIO2_ETA_RAW.size()));
+constexpr PiecewiseSpectrum TIO2_ETA = PiecewiseSpectrum::make(
+    std::span<const f32>(TIO2_ETA_RAW.data(), TIO2_ETA_RAW.size()));
 
 constexpr PiecewiseSpectrum TIO2_K =
-    PiecewiseSpectrum::make(Span<const f32>(TIO2_K_RAW.data(), TIO2_K_RAW.size()));
+    PiecewiseSpectrum::make(std::span<const f32>(TIO2_K_RAW.data(), TIO2_K_RAW.size()));
 
 constexpr ConstantSpectrum AIR_ETA = ConstantSpectrum::make(1.000277f);
 

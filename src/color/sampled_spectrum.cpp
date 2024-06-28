@@ -5,7 +5,7 @@
 #include <limits>
 
 SampledSpectrum::
-SampledSpectrum(const Array<f32, N_SPECTRUM_SAMPLES> &p_vals)
+SampledSpectrum(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals)
     : vals(p_vals) {}
 
 SampledSpectrum

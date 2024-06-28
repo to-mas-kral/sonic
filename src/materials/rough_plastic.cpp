@@ -74,7 +74,7 @@ RoughPlasticMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &l
     return brdf;
 }
 
-Option<BSDFSample>
+std::optional<BSDFSample>
 RoughPlasticMaterial::sample(const norm_vec3 &normal, const norm_vec3 &ωo, const vec3 &ξ,
                              const SampledLambdas &λ, const vec2 &uv) const {
     f32 int_η = int_ior.eval_single(λ[0]);

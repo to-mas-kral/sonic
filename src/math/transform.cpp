@@ -1,5 +1,7 @@
 #include "transform.h"
 
+#include <array>
+
 SquareMatrix4::
 SquareMatrix4(f32 m00, f32 m01, f32 m02, f32 m03, f32 m10, f32 m11, f32 m12, f32 m13,
               f32 m20, f32 m21, f32 m22, f32 m23, f32 m30, f32 m31, f32 m32, f32 m33) {
@@ -37,7 +39,7 @@ SquareMatrix4::from_columns(const tuple4 &c0, const tuple4 &c1, const tuple4 &c2
 }
 
 SquareMatrix4
-SquareMatrix4::from_elements(const Array<f32, 16> &columns) {
+SquareMatrix4::from_elements(const std::array<f32, 16> &columns) {
     // clang-format off
     return SquareMatrix4(columns[0],  columns[1],  columns[2],  columns[3],
                          columns[4],  columns[5],  columns[6],  columns[7],
@@ -309,7 +311,7 @@ SquareMatrix3::from_columns(const tuple3 &c0, const tuple3 &c1, const tuple3 &c2
 }
 
 SquareMatrix3
-SquareMatrix3::from_elements(const Array<f32, 9> &columns) {
+SquareMatrix3::from_elements(const std::array<f32, 9> &columns) {
     // clang-format off
     return SquareMatrix3(columns[0],  columns[1],  columns[2],
                          columns[3],  columns[4],  columns[5],

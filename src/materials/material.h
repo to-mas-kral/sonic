@@ -55,7 +55,7 @@ struct Material {
                        SpectrumTexture *diffuse_reflectance,
                        ChunkAllocator<> &material_allocator);
 
-    Option<BSDFSample>
+    std::optional<BSDFSample>
     sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
            SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
 

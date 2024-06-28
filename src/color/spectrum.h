@@ -10,7 +10,7 @@
 class DenseSpectrum {
 public:
     constexpr static DenseSpectrum
-    make(const Array<f32, LAMBDA_RANGE> &data) {
+    make(const std::array<f32, LAMBDA_RANGE> &data) {
         DenseSpectrum ds{};
         ds.vals = data.data();
 
@@ -35,7 +35,7 @@ constexpr DenseSpectrum CIE_65 = DenseSpectrum::make(CIE_D65_RAW);
 class PiecewiseSpectrum {
 public:
     static constexpr PiecewiseSpectrum
-    make(const Span<const f32> &data) {
+    make(const std::span<const f32> &data) {
         PiecewiseSpectrum ds{};
 
         if (data.size() % 2 != 0 || data.size() < 2) {

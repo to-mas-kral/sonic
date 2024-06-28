@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <tuple>
 
 // Vector3, Point3 and Tuple3 is inspired by PBRTv4...
 
@@ -656,7 +657,7 @@ barycentric_interp(const vec3 &bar, const T &x, const T &y, const T &z) {
 /// Taken from: Building an Orthonormal Basis, Revisited
 /// Tom Duff, James Burgess, Per Christensen, Christophe Hery, Andrew Kensler, Max Liani,
 /// and Ryusuke Villemin
-inline Tuple<vec3, vec3, vec3>
+inline std::tuple<vec3, vec3, vec3>
 coordinate_system(vec3 v1) {
     f32 sign = std::copysign(1.f, v1.z);
     f32 a = -1.f / (sign + v1.z);
