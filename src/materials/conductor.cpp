@@ -10,10 +10,10 @@ ConductorMaterial::pdf() {
 }
 
 spectral
-ConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
+ConductorMaterial::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
                         const vec2 &uv) const {
     if (m_perfect) {
-        return spectral::ONE() / sgeom.cos_theta;
+        return spectral::ONE() / sframe.nowi();
     } else {
         // TODO: have to store the current IOR... when it isn't 1...
         auto rel_ior = m_eta->fetch(uv, lambdas);
@@ -22,21 +22,22 @@ ConductorMaterial::eval(const ShadingGeometry &sgeom, const SampledLambdas &lamb
         spectral fresnel = spectral::ZERO();
         for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
             fresnel[i] =
-                fresnel_conductor(std::complex<f32>(rel_ior[i], k[i]), sgeom.howo);
+                fresnel_conductor(std::complex<f32>(rel_ior[i], k[i]), sframe.howo());
         }
-        return fresnel / sgeom.cos_theta;
+        return fresnel / sframe.nowi();
     }
 }
 
 BSDFSample
-ConductorMaterial::sample(const norm_vec3 &normal, const norm_vec3 &wo,
+ConductorMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo,
                           const SampledLambdas &lambdas, const vec2 &uv) const {
-    norm_vec3 wi = vec3::reflect(wo, normal).normalized();
-    auto sgeom = ShadingGeometry::make(normal, wi, wo);
+    const norm_vec3 wi = ShadingFrameIncomplete::reflect(wo);
+    const auto sframe_complete = ShadingFrame(sframe, wi, wo);
+
     return BSDFSample{
-        .bsdf = eval(sgeom, lambdas, uv),
-        .wi = wi,
+        .bsdf = eval(sframe_complete, lambdas, uv),
         .pdf = 1.f,
         .did_refract = false,
+        .sframe = sframe_complete,
     };
 }

@@ -1,15 +1,23 @@
 
-introduce shading space
+TOD0:
+
+fix nonlinear multithreaded scaling
+fix coateddiffuse multiwavelength
 
 thresholded alpha
-stratified sampling for camera at least
-
-denoising - probably OIDN, ADD AOV before...
 swap tinyexr for OpenEXR
-could use fast float by Emire...
 
-could optimize images - track which channels are used...
+COULD BE AN ISSUE:
+
 image channel assignment (alpha for 2-3 channel images??)
-
 overlapping triangles - tracing in camera-world space
 infinite depth due to specular materials
+
+IDEAS:
+
+denoising - probably OIDN, ADD AOV before...
+stratified sampling for camera at least
+light sampling with solid angle
+
+could use fast float by Emire...
+could optimize images - track which channels are used...

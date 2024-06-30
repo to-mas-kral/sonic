@@ -3,23 +3,22 @@
 
 #include "../color/sampled_spectrum.h"
 #include "../color/spectrum.h"
-#include "../integrator/utils.h"
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
+#include "coateddiffuse.h"
 #include "conductor.h"
 #include "dielectric.h"
 #include "diffuse.h"
 #include "diffuse_transmission.h"
-#include "plastic.h"
+#include "rough_coateddiffuse.h"
 #include "rough_conductor.h"
-#include "rough_plastic.h"
 
 enum class MaterialType : u8 {
     Diffuse,
     DiffuseTransmission,
-    Plastic,
-    RoughPlastic,
+    CoatedDiffuse,
+    RoughCoatedDiffuse,
     Conductor,
     RoughConductor,
     Dielectric,
@@ -56,15 +55,16 @@ struct Material {
                        ChunkAllocator<> &material_allocator);
 
     std::optional<BSDFSample>
-    sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
+    sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &sample,
            SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
 
     // Probability density function of sampling the BRDF
     f32
-    pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ, const vec2 &uv) const;
+    pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas,
+        const vec2 &uv) const;
 
     spectral
-    eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
+    eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
          const vec2 &uv) const;
 
     bool
@@ -76,8 +76,8 @@ struct Material {
     union {
         DiffuseMaterial diffuse;
         DiffuseTransmissionMaterial *diffusetransmission;
-        PlasticMaterial *plastic;
-        RoughPlasticMaterial *rough_plastic;
+        CoatedDifuseMaterial *coateddiffuse;
+        RoughCoatedDiffuseMaterial *rough_coateddiffuse;
         DielectricMaterial *dielectric;
         ConductorMaterial *conductor;
         RoughConductorMaterial *rough_conductor;

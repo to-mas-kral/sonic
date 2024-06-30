@@ -15,7 +15,7 @@ sample_vndf_hemisphere(vec2 u, vec3 wi);
 
 // Adapted from "Sampling Visible GGX Normals with Spherical Caps - Jonathan Dupuy"
 norm_vec3
-sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec2 &ξ, f32 alpha);
+sample(const norm_vec3 &wo, const vec2 &xi, f32 alpha);
 
 f32
 D(f32 noh, f32 alpha);
@@ -24,10 +24,10 @@ f32
 G1(f32 now, f32 how, f32 alpha);
 
 f32
-pdf(const ShadingGeometry &sgeom, f32 alpha);
+pdf(const ShadingFrame &sframe, f32 alpha);
 
 f32
-vndf_ggx(const ShadingGeometry &sgeom, f32 alpha);
+vndf_ggx(const ShadingFrame &sframe, f32 alpha);
 
 f32
 visibility_smith_height_correlated_ggx(f32 nowo, f32 nowi, f32 alpha);

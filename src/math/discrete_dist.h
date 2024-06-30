@@ -5,6 +5,7 @@
 #include "../utils/basic_types.h"
 
 #include <vector>
+#include <span>
 
 class DiscreteDist {
 public:

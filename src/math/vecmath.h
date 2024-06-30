@@ -165,6 +165,18 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
         }
     }
 
+    bool
+    operator==(const Tuple2Base &other) const {
+        return x == other.x && y == other.y;
+    }
+
+    bool
+    approx_eq(const Tuple2Base &other) const {
+        // This comparison could be better but works for now...
+        constexpr f32 EPS = 0.00001;
+        return std::abs(x - other.x) < EPS && std::abs(y - other.y) < EPS;
+    }
+
     T x;
     T y;
 };
@@ -371,6 +383,19 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         }
     }
 
+    bool
+    operator==(const Tuple3Base &other) const {
+        return x == other.x && y == other.y && z == other.z;
+    }
+
+    bool
+    approx_eq(const Tuple3Base &other) const {
+        // This comparison could be better, but works for now...
+        constexpr f32 EPS = 0.00001;
+        return std::abs(x - other.x) < EPS && std::abs(y - other.y) < EPS &&
+               std::abs(z - other.z) < EPS;
+    }
+
     T x;
     T y;
     T z;
@@ -400,7 +425,7 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
     }
 
     NormalizedVector3
-    normalized();
+    normalized() const;
 
     static f32
     dot(const Vector3 &a, const Vector3 &b) {
@@ -426,6 +451,8 @@ template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
 };
 
 struct NormalizedVector3 : Vector3<f32> {
+    NormalizedVector3() : Vector3(0.f, 0.f, 1.f) {}
+
     explicit
     NormalizedVector3(f32 val)
         : Vector3(val) {
@@ -441,6 +468,11 @@ struct NormalizedVector3 : Vector3<f32> {
         return 1.f;
     }
 
+    static NormalizedVector3
+    halfway(const NormalizedVector3 &a, const NormalizedVector3 &b) {
+        return (a + b).normalized();
+    }
+
     NormalizedVector3
     operator-() const {
         return NormalizedVector3(-x, -y, -z);
@@ -449,7 +481,7 @@ struct NormalizedVector3 : Vector3<f32> {
 
 template <typename T>
 NormalizedVector3
-Vector3<T>::normalized() {
+Vector3<T>::normalized() const {
     auto v = *this / length();
     return NormalizedVector3(v.x, v.y, v.z);
 }
@@ -652,39 +684,6 @@ template <typename T>
 T
 barycentric_interp(const vec3 &bar, const T &x, const T &y, const T &z) {
     return (bar.x * x) + (bar.y * y) + (bar.z * z);
-}
-
-/// Taken from: Building an Orthonormal Basis, Revisited
-/// Tom Duff, James Burgess, Per Christensen, Christophe Hery, Andrew Kensler, Max Liani,
-/// and Ryusuke Villemin
-inline std::tuple<vec3, vec3, vec3>
-coordinate_system(vec3 v1) {
-    f32 sign = std::copysign(1.f, v1.z);
-    f32 a = -1.f / (sign + v1.z);
-    f32 b = v1.x * v1.y * a;
-
-    vec3 v2 = vec3(1.f + sign * sqr(v1.x) * a, sign * b, -sign * v1.x);
-    vec3 v3 = vec3(b, sign + sqr(v1.y) * a, -v1.y);
-
-    assert(std::abs(vec3::dot(v1, v2)) < 0.00001f);
-    assert(std::abs(vec3::dot(v1, v3)) < 0.00001f);
-    assert(std::abs(vec3::dot(v2, v3)) < 0.00001f);
-
-    return {v1, v2, v3};
-}
-
-/// Transforms dir into the frame specified by the basis of the normal
-inline norm_vec3
-transform_frame(const vec3 &dir, const norm_vec3 &basis) {
-    auto [_, b1, b2] = coordinate_system(basis);
-    norm_vec3 sample_dir = (b1 * dir.x + b2 * dir.y + basis * dir.z).normalized();
-
-    if (vec3::dot(basis, sample_dir) < 0.f) {
-        // TODO: it's usually really close to 0, unsure what to do here...
-        sample_dir = -sample_dir;
-    }
-
-    return sample_dir;
 }
 
 #endif // PT_VECMATH_H

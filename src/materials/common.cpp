@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include "../integrator/shading_frame.h"
+
 #include <cmath>
 
 f32
@@ -35,16 +37,17 @@ fresnel_conductor(std::complex<f32> rel_ior, f32 cos_theta_i) {
 }
 
 std::optional<vec3>
-refract(const norm_vec3 &wo, const norm_vec3 &normal, f32 rel_ior) {
-    f32 cos_theta_i = vec3::dot(normal, wo);
-    f32 sin2_theta_i = std::max(0.f, 1.f - sqr(cos_theta_i));
-    f32 sin2_theta_t = sin2_theta_i / sqr(rel_ior);
+refract(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo, f32 rel_ior) {
+    const f32 cos_theta_i = ShadingFrameIncomplete::cos_theta(wo);
+    const f32 sin2_theta_i = std::max(0.f, 1.f - sqr(cos_theta_i));
+    const f32 sin2_theta_t = sin2_theta_i / sqr(rel_ior);
 
     // Total internal reflection
     if (sin2_theta_t >= 1.f) {
         return {};
     }
 
-    f32 cos_theta_t = std::sqrt(1.f - sin2_theta_t);
-    return (-wo / rel_ior) + normal * ((cos_theta_i / rel_ior) - cos_theta_t);
+    const f32 cos_theta_t = std::sqrt(1.f - sin2_theta_t);
+    return (-wo / rel_ior) +
+           vec3(0.f, 0.f, 1.f) * ((cos_theta_i / rel_ior) - cos_theta_t);
 }

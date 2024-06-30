@@ -1,5 +1,6 @@
 #include "material.h"
 
+#include "../integrator/shading_frame.h"
 #include "diffuse_transmission.h"
 
 Material
@@ -71,37 +72,39 @@ Material
 Material::make_plastic(Spectrum ext_ior, Spectrum int_ior,
                        SpectrumTexture *diffuse_reflectance,
                        ChunkAllocator<> &material_allocator) {
-    auto *plastic_mat = material_allocator.allocate<PlasticMaterial>();
-    *plastic_mat = PlasticMaterial{
+    auto *plastic_mat = material_allocator.allocate<CoatedDifuseMaterial>();
+    *plastic_mat = CoatedDifuseMaterial{
         .ext_ior = ext_ior,
         .int_ior = int_ior,
         .diffuse_reflectance = diffuse_reflectance,
     };
 
-    return Material{.type = MaterialType::Plastic, .plastic = plastic_mat};
+    return Material{.type = MaterialType::CoatedDiffuse, .coateddiffuse = plastic_mat};
 }
 
 Material
 Material::make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int_ior,
                              SpectrumTexture *diffuse_reflectance,
                              ChunkAllocator<> &material_allocator) {
-    auto *rough_plastic_mat = material_allocator.allocate<RoughPlasticMaterial>();
-    *rough_plastic_mat = RoughPlasticMaterial{
+    auto *rough_plastic_mat = material_allocator.allocate<RoughCoatedDiffuseMaterial>();
+    *rough_plastic_mat = RoughCoatedDiffuseMaterial{
         .m_alpha = alpha,
         .ext_ior = ext_ior,
         .int_ior = int_ior,
         .diffuse_reflectance = diffuse_reflectance,
     };
 
-    return Material{.type = MaterialType::RoughPlastic,
-                    .rough_plastic = rough_plastic_mat};
+    return Material{.type = MaterialType::RoughCoatedDiffuse,
+                    .rough_coateddiffuse = rough_plastic_mat};
 }
 
 std::optional<BSDFSample>
-Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sample,
-                 SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const {
-    auto nowo = vec3::dot(normal, wo);
-    if (nowo == 0.f) {
+Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &sample,
+                 SampledLambdas &lambdas, const vec2 &uv,
+                 const bool is_frontfacing) const {
+    wo = sframe.to_local(wo).normalized();
+
+    if (sframe.cos_theta(wo) == 0.f) {
         return {};
     }
 
@@ -109,27 +112,27 @@ Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sampl
 
     switch (type) {
     case MaterialType::Diffuse:
-        bsdf_sample = diffuse.sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv);
+        bsdf_sample = diffuse.sample(sframe, wo, vec2(sample.x, sample.y), lambdas, uv);
         break;
     case MaterialType::DiffuseTransmission:
-        bsdf_sample = diffusetransmission->sample(normal, wo, vec2(sample.x, sample.y),
+        bsdf_sample = diffusetransmission->sample(sframe, wo, vec2(sample.x, sample.y),
                                                   lambdas, uv);
         break;
-    case MaterialType::Plastic:
-        bsdf_sample = plastic->sample(normal, wo, sample, lambdas, uv);
+    case MaterialType::CoatedDiffuse:
+        bsdf_sample = coateddiffuse->sample(sframe, wo, sample, lambdas, uv);
         break;
-    case MaterialType::RoughPlastic:
-        bsdf_sample = rough_plastic->sample(normal, wo, sample, lambdas, uv);
+    case MaterialType::RoughCoatedDiffuse:
+        bsdf_sample = rough_coateddiffuse->sample(sframe, wo, sample, lambdas, uv);
         break;
     case MaterialType::Conductor:
-        bsdf_sample = conductor->sample(normal, wo, lambdas, uv);
+        bsdf_sample = conductor->sample(sframe, wo, lambdas, uv);
         break;
     case MaterialType::RoughConductor:
         bsdf_sample =
-            rough_conductor->sample(normal, wo, vec2(sample.x, sample.y), lambdas, uv);
+            rough_conductor->sample(sframe, wo, vec2(sample.x, sample.y), lambdas, uv);
         break;
     case MaterialType::Dielectric:
-        bsdf_sample = dielectric->sample(normal, wo, vec2(sample.x, sample.y), lambdas,
+        bsdf_sample = dielectric->sample(sframe, wo, vec2(sample.x, sample.y), lambdas,
                                          uv, is_frontfacing);
         break;
     default:
@@ -144,28 +147,28 @@ Material::sample(const norm_vec3 &normal, const norm_vec3 &wo, const vec3 &sampl
 }
 
 f32
-Material::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ,
+Material::pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas,
               const vec2 &uv) const {
     f32 pdf{};
 
     switch (type) {
     case MaterialType::Diffuse:
-        pdf = DiffuseMaterial::pdf(sgeom);
+        pdf = DiffuseMaterial::pdf(sframe);
         break;
     case MaterialType::DiffuseTransmission:
-        pdf = DiffuseTransmissionMaterial::pdf(sgeom);
+        pdf = DiffuseTransmissionMaterial::pdf(sframe);
         break;
-    case MaterialType::Plastic:
-        pdf = plastic->pdf(sgeom, λ);
+    case MaterialType::CoatedDiffuse:
+        pdf = coateddiffuse->pdf(sframe, lambdas);
         break;
-    case MaterialType::RoughPlastic:
-        pdf = rough_plastic->pdf(sgeom, λ, uv);
+    case MaterialType::RoughCoatedDiffuse:
+        pdf = rough_coateddiffuse->pdf(sframe, lambdas, uv);
         break;
     case MaterialType::Conductor:
         pdf = ConductorMaterial::pdf();
         break;
     case MaterialType::RoughConductor:
-        pdf = rough_conductor->pdf(sgeom, uv);
+        pdf = rough_conductor->pdf(sframe, uv);
         break;
     case MaterialType::Dielectric:
         pdf = DielectricMaterial::pdf();
@@ -180,9 +183,9 @@ Material::pdf(const ShadingGeometry &sgeom, const SampledLambdas &λ,
 }
 
 spectral
-Material::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
+Material::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
                const vec2 &uv) const {
-    if (sgeom.is_degenerate()) {
+    if (sframe.is_degenerate()) {
         return spectral::ZERO();
     }
 
@@ -190,22 +193,22 @@ Material::eval(const ShadingGeometry &sgeom, const SampledLambdas &lambdas,
 
     switch (type) {
     case MaterialType::Diffuse:
-        result = diffuse.eval(sgeom, lambdas, uv);
+        result = diffuse.eval(lambdas, uv);
         break;
     case MaterialType::DiffuseTransmission:
-        result = diffusetransmission->eval(sgeom, lambdas, uv);
+        result = diffusetransmission->eval(lambdas, uv);
         break;
-    case MaterialType::Plastic:
-        result = plastic->eval(sgeom, lambdas, uv);
+    case MaterialType::CoatedDiffuse:
+        result = coateddiffuse->eval(sframe, lambdas, uv);
         break;
-    case MaterialType::RoughPlastic:
-        result = rough_plastic->eval(sgeom, lambdas, uv);
+    case MaterialType::RoughCoatedDiffuse:
+        result = rough_coateddiffuse->eval(sframe, lambdas, uv);
         break;
     case MaterialType::RoughConductor:
-        result = rough_conductor->eval(sgeom, lambdas, uv);
+        result = rough_conductor->eval(sframe, lambdas, uv);
         break;
     case MaterialType::Conductor:
-        result = conductor->eval(sgeom, lambdas, uv);
+        result = conductor->eval(sframe, lambdas, uv);
         break;
     case MaterialType::Dielectric:
         result = DielectricMaterial::eval();
@@ -226,9 +229,9 @@ Material::is_dirac_delta() const {
         return false;
     case MaterialType::DiffuseTransmission:
         return false;
-    case MaterialType::Plastic:
-        return PlasticMaterial::is_dirac_delta();
-    case MaterialType::RoughPlastic:
+    case MaterialType::CoatedDiffuse:
+        return CoatedDifuseMaterial::is_dirac_delta();
+    case MaterialType::RoughCoatedDiffuse:
         return false;
     case MaterialType::Conductor:
         return true;

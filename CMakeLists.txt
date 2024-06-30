@@ -63,8 +63,8 @@ add_library(pt_lib
 
         src/materials/material.h
         src/materials/material.cpp
-        src/materials/plastic.h
-        src/materials/plastic.cpp
+        src/materials/coateddiffuse.h
+        src/materials/coateddiffuse.cpp
         src/materials/common.h
         src/materials/common.cpp
         src/materials/diffuse.h
@@ -77,8 +77,8 @@ add_library(pt_lib
         src/materials/rough_conductor.cpp
         src/materials/trowbridge_reitz_ggx.h
         src/materials/trowbridge_reitz_ggx.cpp
-        src/materials/rough_plastic.h
-        src/materials/rough_plastic.cpp
+        src/materials/rough_coateddiffuse.h
+        src/materials/rough_coateddiffuse.cpp
         src/utils/sampler.cpp
         src/settings.h
         src/pbrt_loader/pbrt_loader.cpp
@@ -101,6 +101,8 @@ add_library(pt_lib
         src/math/aabb.h
         src/math/discrete_dist.h
         src/utils/panic.h
+        src/integrator/shading_frame.h
+        src/math/coordinate_system.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -168,6 +170,7 @@ add_executable(tests
         src/scene/test_sphere_square_mapping.cpp
         src/math/test_sampling_piecewise.cpp
         src/scene/test_envmap.cpp
+        src/math/test_coordinate_system.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)
