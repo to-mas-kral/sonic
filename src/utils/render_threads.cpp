@@ -105,7 +105,7 @@ RenderThreads::render(u32 thread_id) {
         }
 
         while (true) {
-            const u32 tile_index = tile_counter.fetch_add(1);
+            const u32 tile_index = tile_counter.fetch_add(1, std::memory_order::relaxed);
 
             if (tile_index < tiles_per_frame) {
                 auto tile = Tile::make_from_tile_index(tile_index, dimensions);

@@ -1,7 +1,6 @@
 
 TOD0:
 
-fix nonlinear multithreaded scaling
 fix coateddiffuse multiwavelength
 
 thresholded alpha

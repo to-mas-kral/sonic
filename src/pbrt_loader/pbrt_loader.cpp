@@ -626,7 +626,6 @@ PbrtLoader::load_sphere(Scene &sc, ParamsList &params, FloatTexture *alpha) cons
 
     const auto center = current_astate.ctm.transform_point(point3(0.f));
 
-
     sc.add_sphere(SphereParams{.center = center,
                                .radius = radius,
                                .material_id = current_astate.material,

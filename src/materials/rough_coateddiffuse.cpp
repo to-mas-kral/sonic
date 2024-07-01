@@ -51,7 +51,7 @@ RoughCoatedDiffuseMaterial::eval(const ShadingFrame &sframe,
     const f32 cos_theta_in = safe_sqrt(1.f - sqr(sin_theta_in));
     const f32 fresnel_o = fresnel_dielectric(rel_ior, cos_theta_in);
 
-    const auto α = fetch_reflectance(diffuse_reflectance, uv, lambdas);
+    const auto a = fetch_reflectance(diffuse_reflectance, uv, lambdas);
 
     f32 re = 0.919317f;
     f32 ior_pow = int_ior_s;
@@ -67,8 +67,8 @@ RoughCoatedDiffuseMaterial::eval(const ShadingFrame &sframe,
 
     const f32 ri = 1.f - sqr(rel_ior) * (1.f - re);
 
-    const spectral scattering_brdf = α * (1.f - fresnel_i) * (1.f - fresnel_o) /
-                                     ((spectral::make_constant(1.f) - α * ri) * M_PIf);
+    const spectral scattering_brdf = a * (1.f - fresnel_i) * (1.f - fresnel_o) /
+                                     ((spectral::make_constant(1.f) - a * ri) * M_PIf);
 
     const spectral brdf = microfacet_brdf + scattering_brdf * sqr(rel_ior);
 

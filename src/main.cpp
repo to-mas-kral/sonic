@@ -113,7 +113,9 @@ main(int argc, char **argv) {
         }
 
         integrator.frame += 1;
-        pb.print(s, settings.spp, elapsed);
+        if (!settings.silent) {
+            pb.print(s, settings.spp, elapsed);
+        }
     }
 
     render_threads.stop();
