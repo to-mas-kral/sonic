@@ -28,6 +28,12 @@ This scene was made by [Angelo Ferretti](https://www.lucydreams.it/).
 
 ![WaterColor](docs/watercolor-4096spp.png)
 
+**Landscape**
+
+This scene was made by [Laubwerk](https://www.laubwerk.com/)
+
+![WaterColor](docs/landscape.png)
+
 **Coffee**
 
 All scenes shown below were taken from [Benedikt Bitterli's Rendering Resources](https://benedikt-bitterli.me/resources/).
