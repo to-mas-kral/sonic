@@ -5,9 +5,10 @@
 
 #include <cassert>
 #include <cmath>
-#include <numeric>
 
 static constexpr f32 EPS = 0.00001f;
+
+const f32 ONE_MINUS_EPS = std::nexttoward(1.f, 0.);
 
 template <typename T>
 T

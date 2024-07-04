@@ -24,6 +24,18 @@ enum class TextureSpectrumType : u8 {
     Illuminant,
 };
 
+/// UV - texture space:
+///
+///  1   ^
+///      |
+///      |
+///      |
+///      |
+///      |
+///      |
+///      |
+///    --.--------------->
+///  0,0 |               1
 class ImageTexture {
 public:
     explicit
@@ -40,14 +52,37 @@ public:
         return image->fetch_rgb_texel(coords);
     }
 
+    /// These coords are top to bottom!:
+    ///
+    /// 0,0 |               x
+    ///   --.--------------->
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///  y  |
+    tuple3
+    fetch_rgb_texel_xycoords(const vec2 &coords) const {
+        return image->fetch_rgb_texel(coords);
+    }
+
     tuple3
     fetch_rgb(const vec2 &uv) const {
-        return image->fetch_rgb(uv, params);
+        // Remap UV because image coordinate system is flipped.
+        // It's better to do this here because if flipping is done
+        // in the image, there are inaccuracies that affect envmap
+        // pdf sampling caylculations...
+        const auto remapped_uv = vec2(uv.x, 1.f - uv.y);
+        return image->fetch_rgb(remapped_uv, params);
     }
 
     f32
     fetch_float(const vec2 &uv) const {
-        return image->fetch_float(uv, params);
+        // See fetch_rgb comment.
+        const auto remapped_uv = vec2(uv.x, 1.f - uv.y);
+        return image->fetch_float(remapped_uv, params);
     }
 
     const ColorSpace &

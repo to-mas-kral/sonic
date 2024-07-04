@@ -4,8 +4,9 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
-#include <vector>
+#include <numeric>
 #include <span>
+#include <vector>
 
 class DiscreteDist {
 public:

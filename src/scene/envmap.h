@@ -18,7 +18,8 @@ public:
     get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const;
 
     std::optional<ShapeLightSample>
-    sample(const point3 &illum_pos, const vec2 &sample, const SampledLambdas &lambdas, vec3 *o_world_dir = nullptr) const;
+    sample(const point3 &illum_pos, const vec2 &xi, const SampledLambdas &lambdas,
+           norm_vec3 *o_world_dir = nullptr, vec2 *out_xy = nullptr) const;
 
     f32
     pdf(const norm_vec3 &dir) const;

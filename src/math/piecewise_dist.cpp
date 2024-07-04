@@ -1,10 +1,7 @@
 #include "piecewise_dist.h"
 
-#include "../math/sampling.h"
-
 #include <algorithm>
 #include <numeric>
-#include <spdlog/spdlog.h>
 
 PiecewiseDist2D::
 PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
@@ -26,22 +23,22 @@ PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
 }
 
 std::tuple<vec2, f32>
-PiecewiseDist2D::sample(const vec2 &sample) const {
-    auto [v, im] = marginals.sample_continuous(sample.x);
-    auto [u, ic] = conditionals[im].sample_continuous(sample.y);
+PiecewiseDist2D::sample(const vec2 &xi) const {
+    auto [y, im] = marginals.sample_continuous(xi.x);
+    auto [x, ic] = conditionals[im].sample_continuous(xi.y);
 
     f32 pdf0 = marginals.pdf(im);
     f32 pdf1 = conditionals[im].pdf(ic);
 
-    return {vec2(u, v), pdf0 * pdf1};
+    return {vec2(x, y), pdf0 * pdf1};
 }
 
 f32
-PiecewiseDist2D::pdf(const vec2 &sample) const {
-    const auto pdf0 = marginals.pdf(sample.y);
+PiecewiseDist2D::pdf(const vec2 &xy) const {
+    const auto pdf0 = marginals.pdf(xy.y);
 
-    const auto im = sample.y * marginals.size();
-    const auto pdf1 = conditionals[im].pdf(sample.x);
+    const auto im = xy.y * marginals.size();
+    const auto pdf1 = conditionals[im].pdf(xy.x);
 
     return pdf0 * pdf1;
 }
@@ -86,7 +83,7 @@ PiecewiseDist1D::pdf(const f32 sample) const {
         return 0.f;
     }
 
-    u32 offset = (u32)(sample * (f32)function.size());
+    u32 offset = (u32)(sample * (f32)(function.size()));
     if (offset > m_cdf.size() - 1) {
         offset = m_cdf.size();
     }
@@ -101,19 +98,27 @@ PiecewiseDist1D::size() const {
 
 /// Samples a CMF, return a value in [0, 1), and an index into the PDF slice.
 std::tuple<f32, u32>
-PiecewiseDist1D::sample_continuous(const f32 sample) const {
-    const auto i = std::upper_bound(m_cdf.begin(), m_cdf.end(), sample);
+PiecewiseDist1D::sample_continuous(const f32 xi) const {
+    const auto i = std::upper_bound(m_cdf.begin(), m_cdf.end(), xi);
     assert(i != m_cdf.end());
     auto offset = std::distance(m_cdf.begin(), i);
     offset--;
     assert(offset < m_cdf.size());
 
-    f32 du = sample - m_cdf[offset];
+    f32 du = xi - m_cdf[offset];
     if ((m_cdf[offset + 1] - m_cdf[offset]) > 0) {
         du /= (m_cdf[offset + 1] - m_cdf[offset]);
     }
 
-    f32 res = (offset + du) / (f32)(m_cdf.size() - 1u);
+    f32 res = (offset + du) / (f32)(size());
 
-    return {res, offset};
+    // offset and calculated offset can wary because of precision issues in extreme cases
+    // it's better to return calculated offset ro be consistent with some of the other
+    // methods
+    auto offset_calc = res * size();
+    if (offset_calc == size()) {
+        offset_calc--;
+    }
+
+    return {res, offset_calc};
 }

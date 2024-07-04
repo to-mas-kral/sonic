@@ -36,12 +36,12 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
 
             const f32 weight_light = mis_power_heuristic(light_sample.pdf, mat_pdf);
 
-            const auto ret = bxdf_light * sframe_light.abs_nowi() *
-                             (1.f / light_sample.pdf) * light_sample.emission *
-                             weight_light * throughput;
+            const auto contrib = bxdf_light * sframe_light.abs_nowi() *
+                                 (1.f / light_sample.pdf) * light_sample.emission *
+                                 weight_light * throughput;
 
-            assert(!ret.is_invalid());
-            return ret;
+            assert(!contrib.is_invalid());
+            return contrib;
         }
     }
 
@@ -70,11 +70,24 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 
     const f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_light);
     // pdf is already contained in the throughput
-    return throughput * emission * bxdf_weight;
+    const auto contrib = throughput * emission * bxdf_weight;
+    return contrib;
+}
+
+// This is useful for debugging fireflies
+void
+add_radiance_contrib(spectral &radiance, const spectral &contrib) {
+    if (contrib.max_component() > 10000.f) {
+        spdlog::warn("potential firefly");
+    }
+    assert(!contrib.is_invalid());
+    assert(!radiance.is_invalid());
+    radiance += contrib;
 }
 
 spectral
-Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const {
+Integrator::integrator_mis_nee(Ray ray, SobolSampler &sampler,
+                               SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;
@@ -96,7 +109,8 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
                 if (depth == 1 || last_hit_specular ||
                     settings.integrator_type == IntegratorType::Naive) {
                     // straight miss... can't do MIS
-                    radiance += throughput * envrad;
+                    const auto contrib = throughput * envrad;
+                    add_radiance_contrib(radiance, contrib);
                 } else {
                     f32 pdf_envmap =
                         sc.light_sampler.light_sample_pdf(sc.envmap->light_id()) *
@@ -104,10 +118,9 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
                     f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_envmap);
 
                     // pdf is already contained in the throughput
-                    radiance += throughput * envrad * bxdf_weight;
+                    const auto contrib = throughput * envrad * bxdf_weight;
+                    add_radiance_contrib(radiance, contrib);
                 }
-
-                assert(!radiance.is_invalid());
             }
             break;
         }
@@ -135,15 +148,14 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
             if (settings.integrator_type == IntegratorType::Naive || depth == 1 ||
                 last_hit_specular) {
                 // Primary ray hit, can't apply MIS...
-                radiance += throughput * emission;
+                const auto contrib = throughput * emission;
+                add_radiance_contrib(radiance, contrib);
             } else {
                 auto bxdf_mis_contrib =
                     bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its, emission);
 
-                radiance += bxdf_mis_contrib;
+                add_radiance_contrib(radiance, bxdf_mis_contrib);
             }
-
-            assert(!radiance.is_invalid());
         }
 
         // Do this before light sampling, because that "extends the path"
@@ -151,18 +163,18 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
             break;
         }
 
+        const f32 light_xi = sampler.sample();
+        const auto shape_xi = sampler.sample3();
+
         last_hit_specular = material->is_dirac_delta();
         if (settings.integrator_type != IntegratorType::Naive && !last_hit_specular) {
-            const f32 light_xi = sampler.sample();
-            const auto shape_xi = sampler.sample3();
             const auto sampled_light = sc.sample_lights(light_xi, shape_xi, lambdas, its);
             if (sampled_light.has_value()) {
                 auto light_mis_contrib =
                     light_mis(sc, its, ray, sampled_light.value(), its.geometric_normal,
                               material, throughput, lambdas);
 
-                radiance += light_mis_contrib;
-                assert(!radiance.is_invalid());
+                add_radiance_contrib(radiance, light_mis_contrib);
             }
         }
 

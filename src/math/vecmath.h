@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <tuple>
 
 // Vector3, Point3 and Tuple3 is inspired by PBRTv4...
 

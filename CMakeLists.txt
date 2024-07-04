@@ -103,6 +103,8 @@ add_library(pt_lib
         src/utils/panic.h
         src/integrator/shading_frame.h
         src/math/coordinate_system.h
+        src/integrator/sobol_matrices.h
+        src/integrator/sobol_sampler.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -171,6 +173,7 @@ add_executable(tests
         src/math/test_sampling_piecewise.cpp
         src/scene/test_envmap.cpp
         src/math/test_coordinate_system.cpp
+        src/integrator/test_sobol_sampler.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)
@@ -181,3 +184,6 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(tests PRIVATE fmt::fmt)
 
 target_link_libraries(tests PRIVATE unofficial::tinyexr::tinyexr)
+
+find_package(Matplot++ CONFIG REQUIRED)
+target_link_libraries(tests PRIVATE Matplot++::cimg  Matplot++::matplot)

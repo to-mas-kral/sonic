@@ -4,6 +4,8 @@
 
 #include "vecmath.h"
 
+#include <tuple>
+
 inline std::tuple<vec3, vec3, vec3>
 coordinate_system(norm_vec3 v1) {
     f32 sign = std::copysign(1.f, v1.z);

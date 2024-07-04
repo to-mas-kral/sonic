@@ -44,27 +44,28 @@ Envmap(ImageTexture tex, const f32 scale, const SquareMatrix4 &world_from_light)
 spectral
 Envmap::get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
     const auto transformed_dir = light_from_world.transform_vec(ray.dir).normalized();
-    const auto uv = sphere_to_square(transformed_dir);
+    const auto xy = sphere_to_square(transformed_dir);
 
-    const auto rgb = tex.fetch_rgb(uv);
+    const auto rgb = tex.fetch_rgb_texel_xycoords(xy);
     const auto spec_illum = RgbSpectrumIlluminant::make(rgb, ColorSpace::sRGB);
 
     return spec_illum.eval(lambdas) * scale;
 }
 
 std::optional<ShapeLightSample>
-Envmap::sample(const point3 &illum_pos, const vec2 &sample,
-               const SampledLambdas &lambdas, vec3 *o_world_dir) const {
-    auto [uv, pdf] = sampling_dist.sample(sample);
+Envmap::sample(const point3 &illum_pos, const vec2 &xi, const SampledLambdas &lambdas,
+               norm_vec3 *o_world_dir, vec2 *out_xy) const {
+    auto [xy, pdf] = sampling_dist.sample(xi);
 
     if (pdf == 0.f) {
         return {};
     }
 
-    // TODO: flip coords hack
-    uv.y = 1.f - uv.y;
+    if (out_xy) {
+        *out_xy = xy;
+    }
 
-    const auto sphere_vec = square_to_sphere(uv);
+    const auto sphere_vec = square_to_sphere(xy);
     const auto world_dir = world_from_light.transform_vec(sphere_vec).normalized();
     if (o_world_dir != nullptr) {
         *o_world_dir = world_dir;
@@ -73,7 +74,7 @@ Envmap::sample(const point3 &illum_pos, const vec2 &sample,
     // From PBRT: change of variables factor from going from unit square to unit sphere
     pdf = pdf / (4.f * M_PIf);
 
-    const auto rgb = tex.fetch_rgb(uv);
+    const auto rgb = tex.fetch_rgb_texel_xycoords(xy);
     const auto spec = RgbSpectrumIlluminant::make(rgb, ColorSpace::sRGB);
 
     const auto hit_pos = illum_pos + world_dir * (2.f * radius);
@@ -88,9 +89,8 @@ Envmap::sample(const point3 &illum_pos, const vec2 &sample,
 
 f32
 Envmap::pdf(const norm_vec3 &dir) const {
-    auto uv = sphere_to_square(light_from_world.transform_vec(dir).normalized());
-    uv.y = 1.f - uv.y;
-    const auto pdf = sampling_dist.pdf(uv);
+    const auto xy = sphere_to_square(light_from_world.transform_vec(dir).normalized());
+    const auto pdf = sampling_dist.pdf(xy);
 
     return pdf / (4.f * M_PIf);
 }

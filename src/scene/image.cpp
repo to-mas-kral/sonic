@@ -21,11 +21,11 @@ check_texture_dimensions(i32 width, i32 height) {
 }
 
 Image
-load_exr_texture(const std::string &texture_path) {
+load_exr_image(const std::string &texture_path) {
     f32 *pixels = nullptr;
     i32 width = 0;
     i32 height = 0;
-    u32 num_channels = 4;
+    constexpr u32 num_channels = 4;
 
     const char *err = nullptr;
     const auto ret = LoadEXR(&pixels, &width, &height, texture_path.c_str(), &err);
@@ -43,7 +43,7 @@ load_exr_texture(const std::string &texture_path) {
 }
 
 Image
-load_other_format_texture(const std::string &texture_path) {
+load_other_format_image(const std::string &texture_path) {
     i32 width = 0;
     i32 height = 0;
     i32 num_channels = 0;
@@ -62,31 +62,61 @@ load_other_format_texture(const std::string &texture_path) {
 Image
 Image::make(const std::string &texture_path) {
     if (texture_path.ends_with(".exr")) {
-        return load_exr_texture(texture_path);
+        return load_exr_image(texture_path);
     } else {
-        return load_other_format_texture(texture_path);
+        return load_other_format_image(texture_path);
     }
 }
 
 tuple3
 Image::fetch_rgb_texel(const uvec2 &coords) const {
+    assert(coords.x >= 0 && coords.x < width);
+    assert(coords.y >= 0 && coords.y < height);
+
     const auto pixel_index = coords.x + (width * coords.y);
     return rgb_from_pixel_index(pixel_index);
+}
+
+tuple3
+Image::fetch_rgb_texel(const vec2 &coords) const {
+    assert(coords.x >= 0.f && coords.x <= 1.f);
+    assert(coords.y >= 0.f && coords.y <= 1.f);
+
+    auto xy_integer = uvec2(coords.x * width, coords.y * height);
+
+    if (xy_integer.x == width) {
+        xy_integer.x = width - 1;
+    }
+
+    if (xy_integer.y == height) {
+        xy_integer.y = height - 1;
+    }
+
+    return fetch_rgb_texel(xy_integer);
 }
 
 u64
 Image::calc_index(const vec2 &uv) const {
     f32 foo;
-    f32 ufrac = std::modf(uv.x, &foo);
-    f32 vfrac = std::modf(uv.y, &foo);
+    const f32 ufrac = std::modf(uv.x, &foo);
+    const f32 vfrac = std::modf(uv.y, &foo);
 
-    f32 u = ufrac < 0.f ? 1.f + ufrac : ufrac;
-    f32 v = vfrac < 0.f ? 1.f + vfrac : vfrac;
+    const f32 u = ufrac < 0.f ? 1.f + ufrac : ufrac;
+    const f32 v = vfrac < 0.f ? 1.f + vfrac : vfrac;
 
-    vec2 xy_sized = vec2(u, 1.f - v) * vec2(width - 1U, height - 1U);
+    const vec2 xy_integer = vec2(u, v) * vec2(width, height);
 
-    u32 x = xy_sized.x;
-    u32 y = xy_sized.y;
+    u32 x = xy_integer.x;
+    u32 y = xy_integer.y;
+
+    if (x >= width) {
+        x = width - 1;
+    }
+
+    if (y >= height) {
+        y = height - 1;
+    }
+
     return x + (width * y);
 }
 

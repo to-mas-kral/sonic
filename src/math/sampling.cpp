@@ -31,7 +31,7 @@ sample_cosine_hemisphere(const vec2 &sample) {
     return norm_vec3(d.x, d.y, z);
 }
 
-vec3
+norm_vec3
 sample_uniform_sphere(const vec2 &sample) {
     f32 z = 1.f - 2.f * sample.x;
     f32 r = std::sqrt(std::max(1.f - sqr(z), 0.f));
@@ -39,7 +39,7 @@ sample_uniform_sphere(const vec2 &sample) {
     return vec3(r * std::cos(phi), r * std::sin(phi), z).normalized();
 }
 
-vec3
+norm_vec3
 sample_uniform_hemisphere(const vec2 &sample) {
     f32 z = sample.x;
     f32 r = std::sqrt(std::max(1.f - sqr(z), 0.f));

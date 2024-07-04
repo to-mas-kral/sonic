@@ -12,6 +12,17 @@ enum class ImageDataType : u8 {
     F32,
 };
 
+/// XY - image space:
+///
+///  0,0 |               X
+///    --.--------------->
+///      |
+///      |
+///      |
+///      |
+///      |
+///      |
+///   Y  |
 class Image {
 public:
     Image(const i32 width, const i32 height, u8 *pixels, const u32 num_channels)
@@ -25,8 +36,23 @@ public:
     static Image
     make(const std::string &texture_path);
 
+    /// Coordinate system - see above
     tuple3
     fetch_rgb_texel(const uvec2 &coords) const;
+
+    /// These coords are top to bottom!:
+    ///
+    /// 0,0 |               x
+    ///   --.--------------->
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///  y  |
+    tuple3
+    fetch_rgb_texel(const vec2 &coords) const;
 
     tuple3
     fetch_rgb(const vec2 &uv_in, const ImageTextureParams &params) const;

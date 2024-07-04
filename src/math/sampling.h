@@ -15,11 +15,11 @@ norm_vec3
 sample_cosine_hemisphere(const vec2 &sample);
 
 // z-up
-vec3
+norm_vec3
 sample_uniform_sphere(const vec2 &sample);
 
 // z-up
-vec3
+norm_vec3
 sample_uniform_hemisphere(const vec2 &sample);
 
 /// Taken from PBRT - UniformSampleTriangle.

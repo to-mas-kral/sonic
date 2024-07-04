@@ -1,7 +1,10 @@
 
 #ifndef AABB_H
 #define AABB_H
+
 #include "vecmath.h"
+
+#include <tuple>
 
 struct AABB {
     AABB(const vec3 &low, const vec3 &high) : low(low), high(high) {}

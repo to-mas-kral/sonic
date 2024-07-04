@@ -31,12 +31,13 @@ public:
     pdf(u32 index) const;
 
     std::tuple<f32, u32>
-    sample_continuous(f32 sample) const;
+    sample_continuous(f32 xi) const;
 
     f32
     pdf(f32 sample) const;
 
-    u32 size() const;
+    u32
+    size() const;
 
 private:
     /// Cumulative distribution function
@@ -57,12 +58,24 @@ public:
     explicit
     PiecewiseDist2D(const std::vector<f32> &grid, int width, int height);
 
-    /// Returns uv-coords and the pdf
+    /// Returns xy-coords (ranging 0-1) and the pdf
+    ///
+    /// XY coords are top to bottom!:
+    ///
+    /// 0,0 |               x
+    ///   --.--------------->
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///     |
+    ///  y  |
     std::tuple<vec2, f32>
-    sample(const vec2 &sample) const;
+    sample(const vec2 &xi) const;
 
     f32
-    pdf(const vec2 &sample) const;
+    pdf(const vec2 &xy) const;
 
 private:
     /// probability distributions in rows
