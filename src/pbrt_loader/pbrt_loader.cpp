@@ -660,8 +660,8 @@ PbrtLoader::area_light_source(Scene &sc) {
         const auto p = l_p.value();
         // TODO: will need some general spectrum-loader later
         if (p->value_type == ValueType::Rgb) {
-            radiance = Spectrum(RgbSpectrumIlluminant::make(
-                scale * std::get<tuple3>(p->inner), current_astate.color_space));
+            radiance = Spectrum(RgbSpectrumIlluminant::make(std::get<tuple3>(p->inner),
+                                                            current_astate.color_space));
         } else if (p->value_type == ValueType::Blackbody) {
             radiance = Spectrum(BlackbodySpectrum::make(std::get<i32>(p->inner)));
         } else {
@@ -670,7 +670,7 @@ PbrtLoader::area_light_source(Scene &sc) {
         }
     }
 
-    Emitter emitter{radiance, twosided};
+    const Emitter emitter{radiance, twosided, scale};
 
     current_astate.emitter = emitter;
 

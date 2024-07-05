@@ -10,8 +10,8 @@
 class Emitter {
 public:
     explicit
-    Emitter(const Spectrum &emission, const bool twosided = false)
-        : twosided{twosided}, _emission(emission) {}
+    Emitter(const Spectrum &emission, const bool twosided, const f32 scale)
+        : twosided{twosided}, scale{scale}, _emission(emission) {}
 
     spectral
     emission(const SampledLambdas &lambdas) const;
@@ -23,6 +23,7 @@ public:
     bool twosided = false;
 
 private:
+    f32 scale{1.f};
     Spectrum _emission;
 };
 
