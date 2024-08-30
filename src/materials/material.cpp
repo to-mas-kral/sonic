@@ -99,7 +99,7 @@ Material::make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int
 }
 
 std::optional<BSDFSample>
-Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &sample,
+Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &xi,
                  SampledLambdas &lambdas, const vec2 &uv,
                  const bool is_frontfacing) const {
     wo = sframe.to_local(wo).normalized();
@@ -112,27 +112,27 @@ Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 
 
     switch (type) {
     case MaterialType::Diffuse:
-        bsdf_sample = diffuse.sample(sframe, wo, vec2(sample.x, sample.y), lambdas, uv);
+        bsdf_sample = diffuse.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
         break;
     case MaterialType::DiffuseTransmission:
-        bsdf_sample = diffusetransmission->sample(sframe, wo, vec2(sample.x, sample.y),
+        bsdf_sample = diffusetransmission->sample(sframe, wo, vec2(xi.x, xi.y),
                                                   lambdas, uv);
         break;
     case MaterialType::CoatedDiffuse:
-        bsdf_sample = coateddiffuse->sample(sframe, wo, sample, lambdas, uv);
+        bsdf_sample = coateddiffuse->sample(sframe, wo, xi, lambdas, uv);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        bsdf_sample = rough_coateddiffuse->sample(sframe, wo, sample, lambdas, uv);
+        bsdf_sample = rough_coateddiffuse->sample(sframe, wo, xi, lambdas, uv);
         break;
     case MaterialType::Conductor:
         bsdf_sample = conductor->sample(sframe, wo, lambdas, uv);
         break;
     case MaterialType::RoughConductor:
         bsdf_sample =
-            rough_conductor->sample(sframe, wo, vec2(sample.x, sample.y), lambdas, uv);
+            rough_conductor->sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
         break;
     case MaterialType::Dielectric:
-        bsdf_sample = dielectric->sample(sframe, wo, vec2(sample.x, sample.y), lambdas,
+        bsdf_sample = dielectric->sample(sframe, wo, vec2(xi.x, xi.y), lambdas,
                                          uv, is_frontfacing);
         break;
     default:

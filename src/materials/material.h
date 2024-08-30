@@ -55,7 +55,7 @@ struct Material {
                        ChunkAllocator<> &material_allocator);
 
     std::optional<BSDFSample>
-    sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &sample,
+    sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &xi,
            SampledLambdas &lambdas, const vec2 &uv, bool is_frontfacing) const;
 
     // Probability density function of sampling the BRDF

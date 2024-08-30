@@ -6,11 +6,13 @@
 #include "../integrator/intersection.h"
 #include "../integrator/light_sampler.h"
 #include "../materials/material.h"
+#include "../math/aabb.h"
 #include "envmap.h"
 #include "light.h"
 #include "scene_attribs.h"
 #include "texture.h"
 
+// TODO: redo scene initialization when refactoring pbrt_loader...
 struct Scene {
     Scene();
 
@@ -57,7 +59,7 @@ struct Scene {
     }
 
     void
-    set_scene_bounds(const AABB &bounds) const;
+    set_scene_bounds(const AABB &bounds);
 
     void
     init_light_sampler();
@@ -86,6 +88,8 @@ struct Scene {
     std::unique_ptr<Envmap> envmap{nullptr};
 
     SceneAttribs attribs{};
+
+    AABB m_bounds{vec3(0.f), vec3(0.f)};
 
     Scene(const Scene &other) = delete;
 

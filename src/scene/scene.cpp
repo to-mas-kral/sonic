@@ -75,10 +75,12 @@ Scene::make_or_get_image(const std::filesystem::path &path) {
 }
 
 void
-Scene::set_scene_bounds(const AABB &bounds) const {
+Scene::set_scene_bounds(const AABB &bounds) {
     if (envmap) {
         envmap->set_bounds(bounds);
     }
+
+    m_bounds = bounds;
 }
 
 void

@@ -73,7 +73,7 @@ public:
         // Remap UV because image coordinate system is flipped.
         // It's better to do this here because if flipping is done
         // in the image, there are inaccuracies that affect envmap
-        // pdf sampling caylculations...
+        // pdf sampling calculations...
         const auto remapped_uv = vec2(uv.x, 1.f - uv.y);
         return image->fetch_rgb(remapped_uv, params);
     }
