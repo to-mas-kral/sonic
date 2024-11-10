@@ -68,7 +68,7 @@ struct Material {
          const vec2 &uv) const;
 
     bool
-    is_dirac_delta() const;
+    is_delta() const;
 
     MaterialType type = MaterialType::Diffuse;
     bool is_twosided = false;

@@ -314,6 +314,10 @@ PbrtLoader::load_scene_description(Scene &sc) {
             load_texture(sc);
         } else if (directive.src == "Include") {
             include();
+        } else if (directive.src == "Import") {
+            // FIXME: Import doesn't work like Include
+            spdlog::warn("Import is not properly implemented");
+            include();
         } else {
             throw std::runtime_error(
                 fmt::format("Unknown scene directive: '{}'", directive.src));
@@ -351,7 +355,7 @@ PbrtLoader::load_shape(Scene &sc) {
     } else if (type.name == "sphere") {
         load_sphere(sc, params, alpha);
     } else {
-        throw std::runtime_error(fmt::format("'{}' shape is unimplemented", type.name));
+        spdlog::info(fmt::format("'{}' shape is unimplemented", type.name));
     }
 }
 

@@ -20,7 +20,7 @@ public:
 
         const auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
-        SobolSampler sampler{};
+        Sampler sampler{};
         sampler.init_frame(pixel, dim, frame, settings.spp);
 
         const auto cam_sample = sampler.sample2();
@@ -47,7 +47,7 @@ public:
     }
 
     spectral
-    integrator_mis_nee(Ray ray, SobolSampler &sampler, SampledLambdas &lambdas) const;
+    integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const;
 
     spectral
     light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,

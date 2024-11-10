@@ -25,7 +25,7 @@ public:
     Sampler() = default;
 
     void
-    init_frame(const uvec2 &pixel, const uvec2 &resolution, u32 p_frame);
+    init_frame(const uvec2 &pixel, const uvec2 &resolution, u32 p_frame, u32 spp);
 
     f32
     sample();

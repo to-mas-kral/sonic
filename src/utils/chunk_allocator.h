@@ -45,9 +45,12 @@ public:
 
         auto return_ptr =
             std::align(T_ALIGN, T_SIZE, chunk.current_ptr, m_bytes_remaining);
+        // m_bytes_remaining is reduced by the size needed for padding by the std::align
+        // need to subtract the actual size as well
+        m_bytes_remaining -= T_SIZE;
         // return_ptr can be nullptr if space is too small, but that was already checked
         assert(return_ptr != nullptr);
-
+        
         chunk.current_ptr = static_cast<std::byte *>(return_ptr) + T_SIZE;
         return static_cast<T *>(return_ptr);
     }

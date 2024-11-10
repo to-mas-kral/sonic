@@ -37,7 +37,7 @@ rng(u32 &rngState) {
 }
 
 void
-Sampler::init_frame(const uvec2 &pixel, const uvec2 &resolution, const u32 p_frame) {
+Sampler::init_frame(const uvec2 &pixel, const uvec2 &resolution, const u32 p_frame, const u32 spp) {
     rand_state = init_rng(pixel, resolution, p_frame);
     frame = p_frame;
 }

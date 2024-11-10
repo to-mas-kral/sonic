@@ -22,10 +22,8 @@ CoatedDifuseMaterial::is_dirac_delta() {
 }
 
 spectral
-CoatedDifuseMaterial::eval(const ShadingFrame &sframe,
-                           const SampledLambdas &lambdas, const vec2 &uv) const {
-    // TODO: fix this and roughcoateddiffuse for multiple spectral samples.. this should
-    //       evaluate separately for all lambdas
+CoatedDifuseMaterial::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
+                           const vec2 &uv) const {
     const f32 int_ior_s = int_ior.eval_single(lambdas[0]);
     const f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
     /// This is external / internal !
@@ -72,8 +70,9 @@ CoatedDifuseMaterial::eval(const ShadingFrame &sframe,
 
 BSDFSample
 CoatedDifuseMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo,
-                             const vec3 &xi, const SampledLambdas &lambdas,
+                             const vec3 &xi, SampledLambdas &lambdas,
                              const vec2 &uv) const {
+    lambdas.terminate_secondary();
     const f32 int_η = int_ior.eval_single(lambdas[0]);
     const f32 ext_η = ext_ior.eval_single(lambdas[0]);
     const f32 rel_η = int_η / ext_η;

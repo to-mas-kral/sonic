@@ -19,12 +19,11 @@ struct CoatedDifuseMaterial {
     is_dirac_delta();
 
     spectral
-    eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
-         const vec2 &uv) const;
+    eval(const ShadingFrame &sframe, const SampledLambdas &lambdas, const vec2 &uv) const;
 
     BSDFSample
     sample(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo, const vec3 &xi,
-           const SampledLambdas &lambdas, const vec2 &uv) const;
+           SampledLambdas &lambdas, const vec2 &uv) const;
 
     Spectrum ext_ior;
     Spectrum int_ior;

@@ -85,40 +85,48 @@ add_radiance_contrib(spectral &radiance, const spectral &contrib) {
     radiance += contrib;
 }
 
+struct Vertex {
+    spectral throughput{spectral::ONE()};
+    f32 pdf_bxdf{0.f};
+    bool is_bxdf_delta{false};
+    point3 pos{0.f};
+};
+
 spectral
-Integrator::integrator_mis_nee(Ray ray, SobolSampler &sampler,
-                               SampledLambdas &lambdas) const {
+Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;
     auto max_depth = rc->attribs.max_depth;
 
     spectral radiance = spectral::ZERO();
-    spectral throughput = spectral::ONE();
     u32 depth = 1;
-    f32 last_pdf_bxdf = 0.f;
-    bool last_hit_specular = false;
-    point3 last_hit_pos(0.f);
+    auto last_vertex = Vertex{};
+
+#ifndef NDEBUG
+    std::vector<Vertex> path_vertices{};
+#endif
 
     while (true) {
         auto opt_its = device->cast_ray(ray);
         if (!opt_its.has_value()) {
             if (sc.envmap) {
-                spectral envrad = sc.envmap->get_ray_radiance(ray, lambdas);
+                const auto envrad = sc.envmap->get_ray_radiance(ray, lambdas);
 
-                if (depth == 1 || last_hit_specular ||
+                if (depth == 1 || last_vertex.is_bxdf_delta ||
                     settings.integrator_type == IntegratorType::Naive) {
                     // straight miss... can't do MIS
-                    const auto contrib = throughput * envrad;
+                    const auto contrib = last_vertex.throughput * envrad;
                     add_radiance_contrib(radiance, contrib);
                 } else {
                     f32 pdf_envmap =
                         sc.light_sampler.light_sample_pdf(sc.envmap->light_id()) *
                         sc.envmap->pdf(ray.dir);
-                    f32 bxdf_weight = mis_power_heuristic(last_pdf_bxdf, pdf_envmap);
+                    f32 bxdf_weight =
+                        mis_power_heuristic(last_vertex.pdf_bxdf, pdf_envmap);
 
                     // pdf is already contained in the throughput
-                    const auto contrib = throughput * envrad * bxdf_weight;
+                    const auto contrib = last_vertex.throughput * envrad * bxdf_weight;
                     add_radiance_contrib(radiance, contrib);
                 }
             }
@@ -146,13 +154,14 @@ Integrator::integrator_mis_nee(Ray ray, SobolSampler &sampler,
             const spectral emission = lights[its.light_id].emission(lambdas);
 
             if (settings.integrator_type == IntegratorType::Naive || depth == 1 ||
-                last_hit_specular) {
+                last_vertex.is_bxdf_delta) {
                 // Primary ray hit, can't apply MIS...
-                const auto contrib = throughput * emission;
+                const auto contrib = last_vertex.throughput * emission;
                 add_radiance_contrib(radiance, contrib);
             } else {
                 auto bxdf_mis_contrib =
-                    bxdf_mis(sc, throughput, last_hit_pos, last_pdf_bxdf, its, emission);
+                    bxdf_mis(sc, last_vertex.throughput, last_vertex.pos,
+                             last_vertex.pdf_bxdf, its, emission);
 
                 add_radiance_contrib(radiance, bxdf_mis_contrib);
             }
@@ -166,13 +175,14 @@ Integrator::integrator_mis_nee(Ray ray, SobolSampler &sampler,
         const f32 light_xi = sampler.sample();
         const auto shape_xi = sampler.sample3();
 
-        last_hit_specular = material->is_dirac_delta();
-        if (settings.integrator_type != IntegratorType::Naive && !last_hit_specular) {
+        last_vertex.is_bxdf_delta = material->is_delta();
+        if (settings.integrator_type != IntegratorType::Naive &&
+            !last_vertex.is_bxdf_delta) {
             const auto sampled_light = sc.sample_lights(light_xi, shape_xi, lambdas, its);
             if (sampled_light.has_value()) {
                 auto light_mis_contrib =
                     light_mis(sc, its, ray, sampled_light.value(), its.geometric_normal,
-                              material, throughput, lambdas);
+                              material, last_vertex.throughput, lambdas);
 
                 add_radiance_contrib(radiance, light_mis_contrib);
             }
@@ -194,27 +204,32 @@ Integrator::integrator_mis_nee(Ray ray, SobolSampler &sampler,
 
         const auto spawn_ray_normal =
             (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
-        Ray bxdf_ray = spawn_ray(its.pos, spawn_ray_normal,
-                                 sframe_bsdf.from_local(sframe_bsdf.wi).normalized());
+        Ray const bxdf_ray =
+            spawn_ray(its.pos, spawn_ray_normal,
+                      sframe_bsdf.from_local(sframe_bsdf.wi).normalized());
 
-        const auto rr = russian_roulette(depth, rr_xi, throughput);
+        const auto rr = russian_roulette(depth, rr_xi, last_vertex.throughput);
         if (!rr.has_value()) {
             break;
         }
 
         const auto roulette_compensation = rr.value();
-        throughput *= bsdf_sample.bsdf * sframe_bsdf.abs_nowi() *
-                      (1.f / (bsdf_sample.pdf * roulette_compensation));
-        assert(!throughput.is_invalid());
+        last_vertex.throughput *= bsdf_sample.bsdf * sframe_bsdf.abs_nowi() *
+                                  (1.f / (bsdf_sample.pdf * roulette_compensation));
+        assert(!last_vertex.throughput.is_invalid());
 
-        if (throughput.is_zero()) {
+        if (last_vertex.throughput.is_zero()) {
             break;
         }
 
         ray = bxdf_ray;
-        last_hit_pos = its.pos;
-        last_pdf_bxdf = bsdf_sample.pdf;
+        last_vertex.pos = its.pos;
+        last_vertex.pdf_bxdf = bsdf_sample.pdf;
         depth++;
+
+#ifndef NDEBUG
+        path_vertices.emplace_back(last_vertex);
+#endif
 
         if (depth == 1024) {
             fmt::println("infinite self-intersection path");

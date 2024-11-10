@@ -223,7 +223,7 @@ Material::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
 }
 
 bool
-Material::is_dirac_delta() const {
+Material::is_delta() const {
     switch (type) {
     case MaterialType::Diffuse:
         return false;

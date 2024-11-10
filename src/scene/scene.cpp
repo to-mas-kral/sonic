@@ -89,9 +89,12 @@ Scene::init_light_sampler() {
 }
 
 std::optional<LightSample>
-Scene::sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
-                     const Intersection &its) {
+Scene::sample_lights(const f32 sample, const vec3 &shape_rng,
+                     const SampledLambdas &lambdas, const Intersection &its) const {
     const auto index_sample = light_sampler.sample(lights, sample);
+    if (!index_sample.has_value()) {
+        return {};
+    }
     return index_sample->light->sample(index_sample->pdf, shape_rng, lambdas, its,
                                        geometry);
 }
@@ -127,7 +130,7 @@ Scene::add_mesh(const MeshParams &mp, const std::optional<InstanceId> instance) 
 }
 
 void
-Scene::add_sphere(const SphereParams &sp, std::optional<InstanceId> instance) {
+Scene::add_sphere(const SphereParams &sp, const std::optional<InstanceId> instance) {
     const auto next_sphere_id = geometry.get_next_shape_index(ShapeType::Sphere);
     std::optional<u32> light_id = {};
 

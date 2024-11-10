@@ -304,8 +304,8 @@ struct ParamsList {
         for (const auto &p : params) {
             if (!p.was_accessed) {
                 // TODO: could provide better diagnostic by printing the whole params list
-                spdlog::warn("Param '{}' was ignored in directive '{}'", p.name,
-                             directive);
+                //spdlog::warn("Param '{}' was ignored in directive '{}'", p.name,
+                //             directive);
             }
         }
     }
