@@ -30,29 +30,25 @@ struct Material {
 
     static Material
     make_diffuse_transmission(SpectrumTexture *reflectance,
-                              SpectrumTexture *transmittance, f32 scale,
-                              ChunkAllocator<> &material_allocator);
+                              SpectrumTexture *transmittance, f32 scale);
 
     static Material
-    make_dielectric(Spectrum ext_ior, SpectrumTexture *int_ior, Spectrum transmittance,
-                    ChunkAllocator<> &material_allocator);
+    make_dielectric(const Spectrum &ext_ior, SpectrumTexture *int_ior,
+                    const Spectrum &transmittance);
 
     static Material
-    make_conductor(SpectrumTexture *eta, SpectrumTexture *k,
-                   ChunkAllocator<> &material_allocator);
+    make_conductor(SpectrumTexture *eta, SpectrumTexture *k);
 
     static Material
-    make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta, SpectrumTexture *k,
-                         ChunkAllocator<> &material_allocator);
+    make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta, SpectrumTexture *k);
 
     static Material
-    make_plastic(Spectrum ext_ior, Spectrum int_ior, SpectrumTexture *diffuse_reflectance,
-                 ChunkAllocator<> &material_allocator);
+    make_plastic(const Spectrum &ext_ior, const Spectrum &int_ior,
+                 SpectrumTexture *diffuse_reflectance);
 
     static Material
-    make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int_ior,
-                       SpectrumTexture *diffuse_reflectance,
-                       ChunkAllocator<> &material_allocator);
+    make_rough_plastic(FloatTexture *alpha, const Spectrum &ext_ior,
+                       const Spectrum &int_ior, SpectrumTexture *diffuse_reflectance);
 
     std::optional<BSDFSample>
     sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &xi,
@@ -60,12 +56,10 @@ struct Material {
 
     // Probability density function of sampling the BRDF
     f32
-    pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas,
-        const vec2 &uv) const;
+    pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas, const vec2 &uv) const;
 
     spectral
-    eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
-         const vec2 &uv) const;
+    eval(const ShadingFrame &sframe, const SampledLambdas &lambdas, const vec2 &uv) const;
 
     bool
     is_delta() const;
@@ -75,12 +69,12 @@ struct Material {
 
     union {
         DiffuseMaterial diffuse;
-        DiffuseTransmissionMaterial *diffusetransmission;
-        CoatedDifuseMaterial *coateddiffuse;
-        RoughCoatedDiffuseMaterial *rough_coateddiffuse;
-        DielectricMaterial *dielectric;
-        ConductorMaterial *conductor;
-        RoughConductorMaterial *rough_conductor;
+        DiffuseTransmissionMaterial diffusetransmission;
+        CoatedDifuseMaterial coateddiffuse;
+        RoughCoatedDiffuseMaterial rough_coateddiffuse;
+        DielectricMaterial dielectric;
+        ConductorMaterial conductor;
+        RoughConductorMaterial rough_conductor;
     };
 };
 

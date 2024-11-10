@@ -9,6 +9,10 @@ class ShadingFrame;
 class ShadingFrameIncomplete;
 
 struct DiffuseMaterial {
+    explicit
+    DiffuseMaterial(SpectrumTexture *const reflectance)
+        : reflectance(reflectance) {}
+
     static f32
     pdf(const ShadingFrame &sframe);
 
@@ -19,6 +23,7 @@ struct DiffuseMaterial {
     sample(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo, const vec2 &sample,
            const SampledLambdas &lambdas, const vec2 &uv) const;
 
+private:
     SpectrumTexture *reflectance;
 };
 

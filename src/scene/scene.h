@@ -12,6 +12,8 @@
 #include "scene_attribs.h"
 #include "texture.h"
 
+#include <deque>
+
 // TODO: redo scene initialization when refactoring pbrt_loader...
 struct Scene {
     Scene();
@@ -64,33 +66,6 @@ struct Scene {
     void
     init_light_sampler();
 
-    std::optional<LightSample>
-    sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
-                  const Intersection &its) const;
-
-    Geometry geometry{};
-    LightSampler light_sampler{};
-    std::vector<Light> lights{};
-
-    std::vector<FloatTexture> float_textures{};
-    std::vector<SpectrumTexture> spectrum_textures{};
-    std::unordered_map<std::string, FloatTexture *> builtin_float_textures{};
-    std::unordered_map<std::string, SpectrumTexture *> builtin_spectrum_textures{};
-    ChunkAllocator<> texture_allocator{};
-    ChunkAllocator<> image_allocator{};
-    std::unordered_map<std::filesystem::path, Image *> images{};
-
-    ChunkAllocator<> material_allocator{};
-    std::vector<Material> materials{};
-
-    std::unordered_map<std::string, Spectrum> builtin_spectra{};
-
-    std::unique_ptr<Envmap> envmap{nullptr};
-
-    SceneAttribs attribs{};
-
-    AABB m_bounds{vec3(0.f), vec3(0.f)};
-
     Scene(const Scene &other) = delete;
 
     Scene(Scene &&other) noexcept = default;
@@ -100,6 +75,32 @@ struct Scene {
 
     Scene &
     operator=(Scene &&other) = default;
+
+    std::optional<LightSample>
+    sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
+                  const Intersection &its) const;
+
+    // TODO: encapsulate
+    Geometry geometry{};
+    LightSampler light_sampler{};
+    SceneAttribs attribs{};
+    std::vector<Light> lights{};
+    std::deque<Material> materials{};
+    std::unique_ptr<Envmap> envmap{nullptr};
+
+    std::unordered_map<std::string, FloatTexture *> builtin_float_textures{};
+    std::unordered_map<std::string, SpectrumTexture *> builtin_spectrum_textures{};
+
+private:
+    std::deque<FloatTexture> float_textures{};
+    std::deque<SpectrumTexture> spectrum_textures{};
+
+    std::unordered_map<std::filesystem::path, Image *> images_by_name{};
+    std::deque<Image> images{};
+
+    std::unordered_map<std::string, Spectrum> builtin_spectra{};
+
+    AABB m_bounds{vec3(0.f), vec3(0.f)};
 };
 
 #endif // PT_SCENE_H

@@ -6,94 +6,53 @@
 Material
 Material::make_diffuse(SpectrumTexture *reflectance) {
     return Material{.type = MaterialType::Diffuse,
-                    .diffuse = {
-                        .reflectance = reflectance,
-                    }};
+                    .diffuse = DiffuseMaterial(reflectance)};
 }
 
 Material
 Material::make_diffuse_transmission(SpectrumTexture *reflectance,
-                                    SpectrumTexture *transmittance, f32 scale,
-                                    ChunkAllocator<> &material_allocator) {
-    auto *diffusetransmission_mat =
-        material_allocator.allocate<DiffuseTransmissionMaterial>();
-
-    *diffusetransmission_mat = DiffuseTransmissionMaterial{
-        .reflectance = reflectance,
-        .transmittace = transmittance,
-        .scale = scale,
-    };
+                                    SpectrumTexture *transmittance, const f32 scale) {
+    const auto diffusetransmission_mat =
+        DiffuseTransmissionMaterial(reflectance, transmittance, scale);
 
     return Material{.type = MaterialType::DiffuseTransmission,
                     .diffusetransmission = diffusetransmission_mat};
 }
 
 Material
-Material::make_dielectric(Spectrum ext_ior, SpectrumTexture *int_ior,
-                          Spectrum transmittance, ChunkAllocator<> &material_allocator) {
-    auto *dielectric_mat = material_allocator.allocate<DielectricMaterial>();
-    *dielectric_mat = DielectricMaterial{
-        .m_int_ior = int_ior,
-        .m_ext_ior = ext_ior,
-        .m_transmittance = transmittance,
-    };
-
+Material::make_dielectric(const Spectrum &ext_ior, SpectrumTexture *int_ior,
+                          const Spectrum &transmittance) {
+    const auto dielectric_mat = DielectricMaterial(int_ior, ext_ior, transmittance);
     return Material{.type = MaterialType::Dielectric, .dielectric = dielectric_mat};
 }
 
 Material
-Material::make_conductor(SpectrumTexture *eta, SpectrumTexture *k,
-                         ChunkAllocator<> &material_allocator) {
-    auto *conductor_mat = material_allocator.allocate<ConductorMaterial>();
-    *conductor_mat = ConductorMaterial{
-        .m_perfect = false,
-        .m_eta = eta,
-        .m_k = k,
-    };
-
+Material::make_conductor(SpectrumTexture *eta, SpectrumTexture *k) {
+    const auto conductor_mat = ConductorMaterial(false, eta, k);
     return Material{.type = MaterialType::Conductor, .conductor = conductor_mat};
 }
 
 Material
 Material::make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta,
-                               SpectrumTexture *k, ChunkAllocator<> &material_allocator) {
-    auto *rough_conductor_mat = material_allocator.allocate<RoughConductorMaterial>();
-    *rough_conductor_mat = RoughConductorMaterial{
-        .m_eta = eta,
-        .m_k = k,
-        .m_alpha = alpha,
-    };
-
+                               SpectrumTexture *k) {
+    const auto rough_conductor_material = RoughConductorMaterial(eta, k, alpha);
     return Material{.type = MaterialType::RoughConductor,
-                    .rough_conductor = rough_conductor_mat};
+                    .rough_conductor = rough_conductor_material};
 }
 
 Material
-Material::make_plastic(Spectrum ext_ior, Spectrum int_ior,
-                       SpectrumTexture *diffuse_reflectance,
-                       ChunkAllocator<> &material_allocator) {
-    auto *plastic_mat = material_allocator.allocate<CoatedDifuseMaterial>();
-    *plastic_mat = CoatedDifuseMaterial{
-        .ext_ior = ext_ior,
-        .int_ior = int_ior,
-        .diffuse_reflectance = diffuse_reflectance,
-    };
-
+Material::make_plastic(const Spectrum &ext_ior, const Spectrum &int_ior,
+                       SpectrumTexture *diffuse_reflectance) {
+    const auto plastic_mat = CoatedDifuseMaterial(ext_ior, int_ior, diffuse_reflectance);
     return Material{.type = MaterialType::CoatedDiffuse, .coateddiffuse = plastic_mat};
 }
 
 Material
-Material::make_rough_plastic(FloatTexture *alpha, Spectrum ext_ior, Spectrum int_ior,
-                             SpectrumTexture *diffuse_reflectance,
-                             ChunkAllocator<> &material_allocator) {
-    auto *rough_plastic_mat = material_allocator.allocate<RoughCoatedDiffuseMaterial>();
-    *rough_plastic_mat = RoughCoatedDiffuseMaterial{
-        .m_alpha = alpha,
-        .ext_ior = ext_ior,
-        .int_ior = int_ior,
-        .diffuse_reflectance = diffuse_reflectance,
-    };
-
+Material::make_rough_plastic(FloatTexture *alpha, const Spectrum &ext_ior,
+                             const Spectrum &int_ior,
+                             SpectrumTexture *diffuse_reflectance) {
+    const auto rough_plastic_mat =
+        RoughCoatedDiffuseMaterial(alpha, ext_ior, int_ior, diffuse_reflectance);
     return Material{.type = MaterialType::RoughCoatedDiffuse,
                     .rough_coateddiffuse = rough_plastic_mat};
 }
@@ -115,25 +74,24 @@ Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 
         bsdf_sample = diffuse.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
         break;
     case MaterialType::DiffuseTransmission:
-        bsdf_sample = diffusetransmission->sample(sframe, wo, vec2(xi.x, xi.y),
-                                                  lambdas, uv);
+        bsdf_sample =
+            diffusetransmission.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
         break;
     case MaterialType::CoatedDiffuse:
-        bsdf_sample = coateddiffuse->sample(sframe, wo, xi, lambdas, uv);
+        bsdf_sample = coateddiffuse.sample(sframe, wo, xi, lambdas, uv);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        bsdf_sample = rough_coateddiffuse->sample(sframe, wo, xi, lambdas, uv);
+        bsdf_sample = rough_coateddiffuse.sample(sframe, wo, xi, lambdas, uv);
         break;
     case MaterialType::Conductor:
-        bsdf_sample = conductor->sample(sframe, wo, lambdas, uv);
+        bsdf_sample = conductor.sample(sframe, wo, lambdas, uv);
         break;
     case MaterialType::RoughConductor:
-        bsdf_sample =
-            rough_conductor->sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
+        bsdf_sample = rough_conductor.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
         break;
     case MaterialType::Dielectric:
-        bsdf_sample = dielectric->sample(sframe, wo, vec2(xi.x, xi.y), lambdas,
-                                         uv, is_frontfacing);
+        bsdf_sample =
+            dielectric.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv, is_frontfacing);
         break;
     default:
         panic();
@@ -159,16 +117,16 @@ Material::pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas,
         pdf = DiffuseTransmissionMaterial::pdf(sframe);
         break;
     case MaterialType::CoatedDiffuse:
-        pdf = coateddiffuse->pdf(sframe, lambdas);
+        pdf = coateddiffuse.pdf(sframe, lambdas);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        pdf = rough_coateddiffuse->pdf(sframe, lambdas, uv);
+        pdf = rough_coateddiffuse.pdf(sframe, lambdas, uv);
         break;
     case MaterialType::Conductor:
         pdf = ConductorMaterial::pdf();
         break;
     case MaterialType::RoughConductor:
-        pdf = rough_conductor->pdf(sframe, uv);
+        pdf = rough_conductor.pdf(sframe, uv);
         break;
     case MaterialType::Dielectric:
         pdf = DielectricMaterial::pdf();
@@ -196,19 +154,19 @@ Material::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
         result = diffuse.eval(lambdas, uv);
         break;
     case MaterialType::DiffuseTransmission:
-        result = diffusetransmission->eval(lambdas, uv);
+        result = diffusetransmission.eval(lambdas, uv);
         break;
     case MaterialType::CoatedDiffuse:
-        result = coateddiffuse->eval(sframe, lambdas, uv);
+        result = coateddiffuse.eval(sframe, lambdas, uv);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        result = rough_coateddiffuse->eval(sframe, lambdas, uv);
+        result = rough_coateddiffuse.eval(sframe, lambdas, uv);
         break;
     case MaterialType::RoughConductor:
-        result = rough_conductor->eval(sframe, lambdas, uv);
+        result = rough_conductor.eval(sframe, lambdas, uv);
         break;
     case MaterialType::Conductor:
-        result = conductor->eval(sframe, lambdas, uv);
+        result = conductor.eval(sframe, lambdas, uv);
         break;
     case MaterialType::Dielectric:
         result = DielectricMaterial::eval();

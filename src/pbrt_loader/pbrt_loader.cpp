@@ -804,7 +804,7 @@ PbrtLoader::parse_coateddiffuse_material(Scene &sc, ParamsList &params) {
     const auto roughness = parse_material_roughness(sc, params);
 
     return Material::make_rough_plastic(roughness.roughness, ext_ior, int_ior,
-                                        reflectance, sc.material_allocator);
+                                        reflectance);
 }
 
 Material
@@ -824,8 +824,7 @@ PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
 
     const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
 
-    return Material::make_diffuse_transmission(reflectance, transmittace, scale,
-                                               sc.material_allocator);
+    return Material::make_diffuse_transmission(reflectance, transmittace, scale);
 }
 
 Material
@@ -836,7 +835,7 @@ PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
     const auto int_ior =
         get_texture_or_default<SpectrumTexture>(sc, params, "eta", "eta-dielectric");
 
-    return Material::make_dielectric(ext_ior, int_ior, trans, sc.material_allocator);
+    return Material::make_dielectric(ext_ior, int_ior, trans);
 }
 
 Material
@@ -847,8 +846,7 @@ PbrtLoader::parse_conductor_material(Scene &sc, ParamsList &params) {
         get_texture_or_default<SpectrumTexture>(sc, params, "k", "k-conductor");
     const auto roughness = parse_material_roughness(sc, params);
 
-    return Material::make_rough_conductor(roughness.roughness, eta, k,
-                                          sc.material_allocator);
+    return Material::make_rough_conductor(roughness.roughness, eta, k);
 }
 
 // TODO: probably should validate here, that the texture has correct params

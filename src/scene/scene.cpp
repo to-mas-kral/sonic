@@ -49,27 +49,25 @@ Scene::add_material(const Material &material) {
 
 FloatTexture *
 Scene::add_texture(const FloatTexture &texture) {
-    const auto ptr = texture_allocator.allocate<FloatTexture>();
-    const auto new_ptr = new (ptr) FloatTexture(texture);
-    return new_ptr;
+    float_textures.push_back(texture);
+    return &float_textures.back();
 }
 
 SpectrumTexture *
 Scene::add_texture(const SpectrumTexture &texture) {
-    const auto ptr = texture_allocator.allocate<SpectrumTexture>();
-    const auto new_ptr = new (ptr) SpectrumTexture(texture);
-    return new_ptr;
+    spectrum_textures.push_back(texture);
+    return &spectrum_textures.back();
 }
 
 Image *
 Scene::make_or_get_image(const std::filesystem::path &path) {
-    if (images.contains(path)) {
-        return images.at(path);
+    if (images_by_name.contains(path)) {
+        return images_by_name.at(path);
     } else {
         const auto img = Image::make(path);
-        const auto ptr = image_allocator.allocate<Image>();
-        const auto new_ptr = new (ptr) Image(img);
-        images.insert({path, new_ptr});
+        images.push_back(img);
+        const auto new_ptr = &images.back();
+        images_by_name.insert({path, new_ptr});
         return new_ptr;
     }
 }
@@ -170,7 +168,7 @@ Scene::add_instance(const InstanceId instance, const SquareMatrix4 &world_from_i
 
 Scene::~
 Scene() {
-    for (const auto &[_, img] : images) {
+    for (const auto &[_, img] : images_by_name) {
         img->free();
     }
 }
