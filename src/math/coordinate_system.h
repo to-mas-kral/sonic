@@ -8,12 +8,12 @@
 
 inline std::tuple<vec3, vec3, vec3>
 coordinate_system(norm_vec3 v1) {
-    f32 sign = std::copysign(1.f, v1.z);
-    f32 a = -1.f / (sign + v1.z);
-    f32 b = v1.x * v1.y * a;
+    const f32 sign = std::copysign(1.f, v1.z);
+    const f32 a = -1.f / (sign + v1.z);
+    const f32 b = v1.x * v1.y * a;
 
-    vec3 v2 = vec3(1.f + sign * sqr(v1.x) * a, sign * b, -sign * v1.x);
-    vec3 v3 = vec3(b, sign + sqr(v1.y) * a, -v1.y);
+    const auto v2 = vec3(1.f + sign * sqr(v1.x) * a, sign * b, -sign * v1.x);
+    const auto v3 = vec3(b, sign + sqr(v1.y) * a, -v1.y);
 
     assert(std::abs(vec3::dot(v1, v2)) < 0.00001f);
     assert(std::abs(vec3::dot(v1, v3)) < 0.00001f);

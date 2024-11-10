@@ -92,7 +92,7 @@ TEST_CASE("params various", "[params various]") {
 }
 
 TEST_CASE("params duplicated param name") {
-    auto input = std::string(R"("arc_rosetta_red-kd" "spectrum" "scale"
+    const auto input = std::string(R"("arc_rosetta_red-kd" "spectrum" "scale"
     "float scale" [ 0.620968 ])");
 
     auto loader = PbrtLoader(input);

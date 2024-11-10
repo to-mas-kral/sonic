@@ -4,9 +4,11 @@
 #include "../utils/basic_types.h"
 #include "spectrum_consts.h"
 
+#include <array>
+
 /// CIE X function values
 /// https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer
-const std::array<f32, LAMBDA_RANGE> CIE_X_RAW = {
+constexpr std::array<f32, LAMBDA_RANGE> CIE_X_RAW = {
     0.0001299000,   0.0001638021,   0.0001458470,   0.0001840037,   0.0002066902,
     0.0002321000,   0.0002607280,   0.0002930750,   0.0003293880,   0.0003699140,
     0.0004149000,   0.0004641587,   0.0005189860,   0.0005818540,   0.0006552347,
@@ -106,7 +108,7 @@ const std::array<f32, LAMBDA_RANGE> CIE_X_RAW = {
 
 /// CIE Y function values
 /// https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer
-const std::array<f32, LAMBDA_RANGE> CIE_Y_RAW = {
+constexpr std::array<f32, LAMBDA_RANGE> CIE_Y_RAW = {
     0.000003917000,  0.000004393581,  0.000004929604,  0.000005532136,  0.000006208245,
     0.000006965000,  0.000007813219,  0.000008767336,  0.000009839844,  0.00001104323,
     0.00001239000,   0.00001388641,   0.00001555728,   0.00001744296,   0.00001958375,
@@ -206,7 +208,7 @@ const std::array<f32, LAMBDA_RANGE> CIE_Y_RAW = {
 
 /// CIE Z function values
 /// https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer
-const std::array<f32, LAMBDA_RANGE> CIE_Z_RAW = {
+constexpr std::array<f32, LAMBDA_RANGE> CIE_Z_RAW = {
     0.0006061000,   0.0006808792,   0.0007651456,   0.0008600124,   0.0009665928,
     0.001086000,    0.001220586,    0.001372729,    0.001543579,    0.001734286,
     0.001946000,    0.002177777,    0.002435809,    0.002731953,    0.003078064,
@@ -306,7 +308,7 @@ const std::array<f32, LAMBDA_RANGE> CIE_Z_RAW = {
 
 /// CIE D65 illuminant spectral data
 /// https://cie.co.at/datatable/cie-standard-illuminant-d65
-const std::array<f32, LAMBDA_RANGE> CIE_D65_RAW = {
+constexpr std::array<f32, LAMBDA_RANGE> CIE_D65_RAW = {
     46.6383, 47.1834, 47.7285, 48.2735, 48.8186, 49.3637, 49.9088, 50.4539, 50.9989,
     51.544,  52.0891, 51.8777, 51.6664, 51.455,  51.2437, 51.0323, 50.8209, 50.6096,
     50.3982, 50.1869, 49.9755, 50.4428, 50.91,   51.3773, 51.8446, 52.3118, 52.7791,

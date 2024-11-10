@@ -87,9 +87,9 @@ private:
 
     void skip_whitespace_and_comments();
 
-    std::optional<char> peek_char();
+    std::optional<char> peek_char() const;
 
-    void advance();
+    void advance() const;
 
     StackFileStream *src;
     std::optional<Lexeme> lexeme_buf{};

@@ -10,8 +10,6 @@
 #include <fmt/core.h>
 #include <tinyexr.h>
 
-#include "../utils/chunk_allocator.h"
-
 void
 check_texture_dimensions(i32 width, i32 height) {
     if (width < 1 || height < 1 || width > 0x10'00'00 || height > 0x10'00'00) {

@@ -15,13 +15,13 @@ struct Tile {
 };
 
 Tile
-Tile::make_from_tile_index(u32 tile_index, uvec2 dimensions) {
-    u32 tiles_per_row = dimensions.x / TILE_SIZE;
-    u32 tile_on_column = tile_index % tiles_per_row;
-    u32 tile_on_row = tile_index / tiles_per_row;
+Tile::make_from_tile_index(const u32 tile_index, const uvec2 dimensions) {
+    const u32 tiles_per_row = dimensions.x / TILE_SIZE;
+    const u32 tile_on_column = tile_index % tiles_per_row;
+    const u32 tile_on_row = tile_index / tiles_per_row;
 
-    u32 start_x = tile_on_column * TILE_SIZE;
-    u32 start_y = tile_on_row * TILE_SIZE;
+    const u32 start_x = tile_on_column * TILE_SIZE;
+    const u32 start_y = tile_on_row * TILE_SIZE;
 
     u32 end_x = start_x + TILE_SIZE - 1;
     u32 end_y = start_y + TILE_SIZE - 1;
@@ -70,8 +70,8 @@ RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
         threads.push_back(std::move(t));
     }
 
-    u64 frame_area = scene_attribs.film.resx * scene_attribs.film.resy;
-    u64 tile_area = TILE_SIZE * TILE_SIZE;
+    const u64 frame_area = scene_attribs.film.resx * scene_attribs.film.resy;
+    constexpr u64 tile_area = TILE_SIZE * TILE_SIZE;
 
     tiles_per_frame = (frame_area + tile_area - 1) / tile_area;
     tile_counter = tiles_per_frame;
@@ -108,7 +108,7 @@ RenderThreads::render(u32 thread_id) {
             const u32 tile_index = tile_counter.fetch_add(1, std::memory_order::relaxed);
 
             if (tile_index < tiles_per_frame) {
-                auto tile = Tile::make_from_tile_index(tile_index, dimensions);
+                const auto tile = Tile::make_from_tile_index(tile_index, dimensions);
 
                 for (int x = tile.start_x; x <= tile.end_x; ++x) {
                     for (int y = tile.start_y; y <= tile.end_y; ++y) {

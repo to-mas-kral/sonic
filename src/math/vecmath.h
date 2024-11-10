@@ -145,7 +145,7 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
     }
 
     T
-    operator[](u32 index) const {
+    operator[](const u32 index) const {
         assert(index < 2);
         if (index == 0) {
             return x;
@@ -155,7 +155,7 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
     }
 
     T &
-    operator[](u32 index) {
+    operator[](const u32 index) {
         assert(index < 2);
         if (index == 0) {
             return x;
@@ -359,7 +359,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
     }
 
     T
-    operator[](u32 index) const {
+    operator[](const u32 index) const {
         assert(index < 3);
         if (index == 0) {
             return x;
@@ -371,7 +371,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
     }
 
     T &
-    operator[](u32 index) {
+    operator[](const u32 index) {
         assert(index < 3);
         if (index == 0) {
             return x;
@@ -453,12 +453,12 @@ struct NormalizedVector3 : Vector3<f32> {
     NormalizedVector3() : Vector3(0.f, 0.f, 1.f) {}
 
     explicit
-    NormalizedVector3(f32 val)
+    NormalizedVector3(const f32 val)
         : Vector3(val) {
         assert(std::abs(Vector3::length() - 1.f) < 0.0001f);
     }
 
-    NormalizedVector3(f32 x, f32 y, f32 z) : Vector3(x, y, z) {
+    NormalizedVector3(const f32 x, const f32 y, const f32 z) : Vector3(x, y, z) {
         assert(std::abs(Vector3::length() - 1.f) < 0.0001f);
     }
 
@@ -493,10 +493,10 @@ Vector3<T>::reflect(const Vector3 &vec, const NormalizedVector3 &normal) {
 
 template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
     explicit
-    Point3(f32 val)
+    Point3(const f32 val)
         : Tuple3Base(val) {}
 
-    Point3(f32 x, f32 y, f32 z) : Tuple3Base(x, y, z) {}
+    Point3(const f32 x, const f32 y, const f32 z) : Tuple3Base(x, y, z) {}
 
     explicit
     Point3(Vector3<T> vec)

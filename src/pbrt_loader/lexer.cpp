@@ -101,7 +101,7 @@ Lexer::skip_whitespace_and_comments() {
 }
 
 std::optional<char>
-Lexer::peek_char() {
+Lexer::peek_char() const {
     if (!src->is_eof()) {
         return src->peek();
     } else {
@@ -110,7 +110,7 @@ Lexer::peek_char() {
 }
 
 void
-Lexer::advance() {
+Lexer::advance() const {
     if (!src->is_eof()) {
         const auto ch = src->get();
         if (ch == '\n') {

@@ -3,7 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("loader camera", "[loader camera]") {
-    auto input = std::string(R"(Camera "perspective" "float fov" [23] WorldBegin)");
+    const auto input = std::string(R"(Camera "perspective" "float fov" [23] WorldBegin)");
 
     auto loader = PbrtLoader(input);
     Scene scene{};
@@ -14,7 +14,7 @@ TEST_CASE("loader camera", "[loader camera]") {
 }
 
 TEST_CASE("loader film", "[loader camera]") {
-    auto input = std::string(R"(Film "rgb" "string filename" "simple.png"
+    const auto input = std::string(R"(Film "rgb" "string filename" "simple.png"
      "integer xresolution" [400] "integer yresolution" [600] WorldBegin)");
 
     auto loader = PbrtLoader(input);
@@ -30,7 +30,7 @@ TEST_CASE("loader film", "[loader camera]") {
 // TODO: transform tests
 
 TEST_CASE("loader_screenwide") {
-    auto input = std::string(R"(
+    const auto input = std::string(R"(
 Scale -1 1 1
 Film "rgb"
     "string filename" [ "foo.exr" ]

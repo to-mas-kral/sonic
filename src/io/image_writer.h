@@ -14,11 +14,11 @@
 namespace ImageWriter {
 
 inline void
-write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples) {
-    auto width = fb.get_res_x();
-    auto height = fb.get_res_y();
+write_framebuffer(const std::string &filename, Framebuffer &fb, const u32 num_samples) {
+    const auto width = fb.get_res_x();
+    const auto height = fb.get_res_y();
 
-    std::vector<vec3> &pixels = fb.get_pixels();
+    const std::vector<vec3> &pixels = fb.get_pixels();
 
     EXRHeader header;
     InitEXRHeader(&header);
@@ -34,7 +34,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     images[2].resize(width * height);
 
     for (int i = 0; i < width * height; i++) {
-        vec3 xyz = pixels[i] / static_cast<float>(num_samples);
+        const vec3 xyz = pixels[i] / static_cast<float>(num_samples);
         tuple3 rgb = xyz_to_srgb(tuple3(xyz.x, xyz.y, xyz.z));
 
         if (rgb.x < 0.f) {
@@ -84,7 +84,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, u32 num_samples)
     }
 
     const char *err;
-    int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
+    const int ret = SaveEXRImageToFile(&image, &header, filename.c_str(), &err);
     if (ret != TINYEXR_SUCCESS) {
         spdlog::error("Error when saving output image file: {}\n", err);
     }

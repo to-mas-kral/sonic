@@ -8,11 +8,11 @@
 
 #include <cassert>
 
-static const RGB2Spec rgb2spec = RGB2Spec("rgb2spec.out");
+static const auto rgb2spec = RGB2Spec("rgb2spec.out");
 
 RgbSpectrum
 RgbSpectrum::make(const tuple3 &rgb) {
-    RgbSpectrum spectrum{
+    const RgbSpectrum spectrum{
         .sigmoid_coeff = rgb2spec.fetch(rgb),
     };
 
@@ -34,7 +34,7 @@ RgbSpectrum::make_empty() {
 }
 
 f32
-RgbSpectrum::eval_single(f32 lambda) const {
+RgbSpectrum::eval_single(const f32 lambda) const {
     return RGB2Spec::eval(sigmoid_coeff, lambda);
 }
 
@@ -49,10 +49,9 @@ RgbSpectrum::eval(const SampledLambdas &lambdas) const {
 }
 
 RgbSpectrumUnbounded
-RgbSpectrumUnbounded::make(const tuple3 &_rgb) {
-    f32 scale = 2.f * _rgb.max_component();
+RgbSpectrumUnbounded::make(tuple3 rgb) {
+    const f32 scale = 2.f * rgb.max_component();
 
-    tuple3 rgb = _rgb;
     if (scale != 0.f) {
         rgb /= scale;
     } else {
@@ -67,7 +66,7 @@ RgbSpectrumUnbounded::make(const tuple3 &_rgb) {
 }
 
 f32
-RgbSpectrumUnbounded::eval_single(f32 lambda) const {
+RgbSpectrumUnbounded::eval_single(const f32 lambda) const {
     return scale * RGB2Spec::eval(sigmoid_coeff, lambda);
 }
 
@@ -82,8 +81,8 @@ RgbSpectrumUnbounded::eval(const SampledLambdas &lambdas) const {
 }
 
 RgbSpectrumIlluminant
-RgbSpectrumIlluminant::make(const tuple3 &_rgb, ColorSpace color_space) {
-    auto spectrum_unbounded = RgbSpectrumUnbounded::make(_rgb);
+RgbSpectrumIlluminant::make(const tuple3 &rgb, const ColorSpace color_space) {
+    const auto spectrum_unbounded = RgbSpectrumUnbounded::make(rgb);
     RgbSpectrumIlluminant spectrum{};
     spectrum.sigmoid_coeff = spectrum_unbounded.sigmoid_coeff;
     spectrum.scale = spectrum_unbounded.scale;
@@ -93,7 +92,7 @@ RgbSpectrumIlluminant::make(const tuple3 &_rgb, ColorSpace color_space) {
 }
 
 f32
-RgbSpectrumIlluminant::eval_single(f32 lambda) const {
+RgbSpectrumIlluminant::eval_single(const f32 lambda) const {
     f32 res = scale * RGB2Spec::eval(sigmoid_coeff, lambda);
     const DenseSpectrum *illuminant = nullptr;
     switch (color_space) {
@@ -129,13 +128,13 @@ BlackbodySpectrum::make(const i32 temp) {
 f32
 BlackbodySpectrum::eval_single(const f32 lambda) const {
     // taken from PBRT-v4
-    const auto blackbody = [this](const f32 lambda) {
+    const auto blackbody = [this](const f32 inner_lambda) {
         constexpr auto kb = 1.3806488e-23f;
 
         constexpr auto h = 6.62606957e-34f;
         constexpr auto c = 299792458.f;
 
-        const auto l = lambda * 1e-9f;
+        const auto l = inner_lambda * 1e-9f;
         const auto lambda5 = sqr(l) * sqr(l) * l;
 
         return 2.f * h * sqr(c) / (lambda5 * std::expm1(h * c / (l * kb * temp)));
@@ -160,9 +159,9 @@ BlackbodySpectrum::eval(const SampledLambdas &lambdas) const {
 }
 
 f32
-DenseSpectrum::eval_single(f32 lambda) const {
+DenseSpectrum::eval_single(const f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
-    u32 index = lround(lambda) - LAMBDA_MIN;
+    const u32 index = lround(lambda) - LAMBDA_MIN;
     return vals[index];
 }
 
@@ -195,12 +194,12 @@ PiecewiseSpectrum::eval(const SampledLambdas &sl) const {
 }
 
 f32
-ConstantSpectrum::eval_single(f32 lambda) const {
+ConstantSpectrum::eval_single() const {
     return val;
 }
 
 SampledSpectrum
-ConstantSpectrum::eval(const SampledLambdas &sl) const {
+ConstantSpectrum::eval() const {
     return SampledSpectrum::make_constant(val);
 }
 
@@ -208,7 +207,7 @@ SampledSpectrum
 Spectrum::eval(const SampledLambdas &lambdas) const {
     switch (type) {
     case SpectrumType::Constant:
-        return constant_spectrum.eval(lambdas);
+        return constant_spectrum.eval();
     case SpectrumType::Dense:
         return dense_spectrum.eval(lambdas);
     case SpectrumType::PiecewiseLinear:
@@ -227,10 +226,10 @@ Spectrum::eval(const SampledLambdas &lambdas) const {
 }
 
 f32
-Spectrum::eval_single(f32 lambda) const {
+Spectrum::eval_single(const f32 lambda) const {
     switch (type) {
     case SpectrumType::Constant:
-        return constant_spectrum.eval_single(lambda);
+        return constant_spectrum.eval_single();
     case SpectrumType::Dense:
         return dense_spectrum.eval_single(lambda);
     case SpectrumType::PiecewiseLinear:
@@ -257,10 +256,10 @@ Spectrum::power() const {
     constexpr f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
     constexpr f32 h = (lambda_max - lambda_min) / static_cast<f32>(num_steps);
     for (u32 i = 0; i < num_steps; i++) {
-        f32 lambda = lambda_min + (static_cast<f32>(i) * h) + h / 2.f;
+        const f32 lambda = lambda_min + (static_cast<f32>(i) * h) + h / 2.f;
         sum += eval_single(lambda);
     }
 
-    f32 integral = sum * h;
+    const f32 integral = sum * h;
     return integral / (lambda_max - lambda_min);
 }

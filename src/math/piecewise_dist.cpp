@@ -4,7 +4,7 @@
 #include <numeric>
 
 PiecewiseDist2D::
-PiecewiseDist2D(const std::vector<f32> &grid, int width, int height) {
+PiecewiseDist2D(const std::vector<f32> &grid, const int width, const int height) {
     conditionals.reserve(height);
     std::vector<f32> marginals_sums{};
     marginals_sums.reserve(height);
@@ -27,8 +27,8 @@ PiecewiseDist2D::sample(const vec2 &xi) const {
     auto [y, im] = marginals.sample_continuous(xi.x);
     auto [x, ic] = conditionals[im].sample_continuous(xi.y);
 
-    f32 pdf0 = marginals.pdf(im);
-    f32 pdf1 = conditionals[im].pdf(ic);
+    const f32 pdf0 = marginals.pdf(im);
+    const f32 pdf1 = conditionals[im].pdf(ic);
 
     return {vec2(x, y), pdf0 * pdf1};
 }

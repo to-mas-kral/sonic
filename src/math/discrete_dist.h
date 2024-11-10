@@ -55,7 +55,7 @@ public:
         pmf.reserve(vals.size());
 
         const f32 sum = std::accumulate(vals.begin(), vals.end(), 0.f);
-        for (auto v : vals) {
+        for (const auto v : vals) {
             pmf.push_back(v / sum);
         }
 

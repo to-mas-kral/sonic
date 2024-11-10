@@ -18,7 +18,7 @@ fresnel_conductor(std::complex<f32> rel_ior, f32 cos_theta_i);
 
 /// Adapted from PBRTv4
 std::optional<vec3>
-refract(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo, f32 rel_ior);
+refract(const norm_vec3 &wo, f32 rel_ior);
 
 inline f32
 fetch_alpha(const FloatTexture *texture, const vec2 &uv) {

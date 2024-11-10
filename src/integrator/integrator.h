@@ -7,7 +7,6 @@
 #include "../settings.h"
 #include "../utils/basic_types.h"
 #include "../utils/sampler.h"
-#include "sobol_sampler.h"
 
 class Integrator {
 public:
@@ -24,8 +23,8 @@ public:
         sampler.init_frame(pixel, dim, frame, settings.spp);
 
         const auto cam_sample = sampler.sample2();
-        auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam,
-                           rc->attribs.camera.camera_to_world);
+        const auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam,
+                                 rc->attribs.camera.camera_to_world);
 
         if (settings.render_normals) {
             const auto aov = render_aov(ray);
@@ -56,8 +55,8 @@ public:
               const SampledLambdas &lambdas) const;
 
     vec3
-    render_aov(Ray ray) const {
-        auto opt_its = device->cast_ray(ray);
+    render_aov(const Ray &ray) const {
+        const auto opt_its = device->cast_ray(ray);
         if (opt_its.has_value()) {
             return opt_its->normal;
         } else {
@@ -69,16 +68,16 @@ public:
 
 private:
     static Ray
-    gen_ray(u32 x, u32 y, u32 res_x, u32 res_y, const vec2 &sample, const Camera &cam,
-            const mat4 &cam_to_world) {
-        f32 image_x = static_cast<f32>(res_x - 1U);
-        f32 image_y = static_cast<f32>(res_y - 1U);
+    gen_ray(const u32 x, const u32 y, const u32 res_x, const u32 res_y,
+            const vec2 &sample, const Camera &cam, const mat4 &cam_to_world) {
+        const f32 image_x = static_cast<f32>(res_x - 1U);
+        const f32 image_y = static_cast<f32>(res_y - 1U);
 
-        f32 s_offset = sample.x;
-        f32 t_offset = sample.y;
+        const f32 s_offset = sample.x;
+        const f32 t_offset = sample.y;
 
-        f32 s = (static_cast<f32>(x) + s_offset) / image_x;
-        f32 t = (static_cast<f32>(y) + t_offset) / image_y;
+        const f32 s = (static_cast<f32>(x) + s_offset) / image_x;
+        const f32 t = (static_cast<f32>(y) + t_offset) / image_y;
 
         Ray ray = cam.get_ray(s, t);
         ray.transform(cam_to_world);

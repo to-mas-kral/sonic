@@ -136,7 +136,7 @@ Mesh::calc_uvs(const u32 triangle_index, const vec3 &bar) const {
 }
 
 ShapeLightSample
-Meshes::sample(ShapeIndex si, const vec3 &sample) const {
+Meshes::sample(const ShapeIndex si, const vec3 &sample) const {
     const auto &mesh = meshes[si.index];
 
     const auto bar = sample_uniform_triangle(vec2(sample.y, sample.z));
@@ -155,7 +155,7 @@ Meshes::sample(ShapeIndex si, const vec3 &sample) const {
 }
 
 void
-Spheres::add_sphere(const SphereParams &sp, std::optional<u32> light_id) {
+Spheres::add_sphere(const SphereParams &sp, const std::optional<u32> light_id) {
     vertices.push_back(SphereVertex{
         .pos = sp.center,
         .radius = sp.radius,
@@ -168,13 +168,14 @@ Spheres::add_sphere(const SphereParams &sp, std::optional<u32> light_id) {
 }
 
 ShapeLightSample
-Spheres::sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) const {
-    vec3 sample_dir = sample_uniform_sphere(vec2(sample.x, sample.y));
-    point3 center = vertices[index].pos;
-    f32 radius = vertices[index].radius;
+Spheres::sample(const u32 index, const point3 &illuminated_pos,
+                const vec3 &sample) const {
+    const vec3 sample_dir = sample_uniform_sphere(vec2(sample.x, sample.y));
+    const point3 center = vertices[index].pos;
+    const f32 radius = vertices[index].radius;
 
-    point3 pos = center + radius * sample_dir;
-    f32 area = calc_sphere_area(radius);
+    const point3 pos = center + radius * sample_dir;
+    const f32 area = calc_sphere_area(radius);
 
     return ShapeLightSample{
         .pos = pos,
@@ -184,13 +185,13 @@ Spheres::sample(u32 index, const point3 &illuminated_pos, const vec3 &sample) co
 }
 
 f32
-Spheres::calc_sphere_area(f32 radius) {
+Spheres::calc_sphere_area(const f32 radius) {
     return 4.f * M_PIf * sqr(radius);
 }
 
 f32
-Spheres::calc_sphere_area(u32 sphere_id) const {
-    f32 radius = vertices[sphere_id].radius;
+Spheres::calc_sphere_area(const u32 sphere_id) const {
+    const f32 radius = vertices[sphere_id].radius;
     return calc_sphere_area(radius);
 }
 
@@ -205,8 +206,8 @@ vec2
 Spheres::calc_uvs(const vec3 &normal) {
     // TODO: Sphere UV mapping could be wrong, test...
     // (1 / 2pi, 1 / pi)
-    const vec2 pi_reciprocals = vec2(0.1591f, 0.3183f);
-    vec2 uv = vec2(std::atan2(-normal.z, -normal.x), std::asin(normal.y));
+    const auto pi_reciprocals = vec2(0.1591f, 0.3183f);
+    auto uv = vec2(std::atan2(-normal.z, -normal.x), std::asin(normal.y));
     uv *= pi_reciprocals;
     uv += 0.5;
     return uv;

@@ -213,7 +213,7 @@ PbrtLoader::load_lookat() {
 void
 PbrtLoader::load_transform() {
     // Some files can have the numbers in brackets...
-    auto p = parse_param("float", std::move(std::string("")));
+    const auto p = parse_param("float", std::move(std::string("")));
     const auto &array = std::get<std::vector<f32>>(p.inner);
 
     if (array.size() != 16) {
@@ -235,7 +235,7 @@ PbrtLoader::load_transform() {
 void
 PbrtLoader::load_concat_transform() {
     // Some files can have the numbers in brackets...
-    auto p = parse_param("float", std::move(std::string("")));
+    const auto p = parse_param("float", std::move(std::string("")));
     const auto &array = std::get<std::vector<f32>>(p.inner);
 
     if (array.size() != 16) {
@@ -385,7 +385,7 @@ PbrtLoader::load_light_source(Scene &sc) {
 
     const auto &type = params.expect(ParamType::Simple).name;
     if (type == "infinite") {
-        f32 scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
+        const f32 scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
 
         const auto filename_p = params.get_optional("filename", ValueType::String);
         if (!filename_p.has_value()) {
@@ -457,7 +457,6 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
     num_verts = pos_array.size();
     pos = static_cast<point3 *>(std::malloc(pos_array.size() * sizeof(point3)));
     std::uninitialized_copy(pos_array.begin(), pos_array.end(), pos);
-
     const auto indices_p = params.get_optional("indices", ValueType::Int);
     if (indices_p.has_value()) {
         const auto &array = std::get<std::vector<i32>>(indices_p.value()->inner);
@@ -583,6 +582,7 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
                 num_indices = reader.num_triangles(indexes[0]) * 3;
                 indices = static_cast<u32 *>(std::malloc(num_indices * sizeof(u32)));
 
+                assert(pos != nullptr);
                 reader.extract_triangles(indexes[0], &pos[0].x, num_verts,
                                          miniply::PLYPropertyType::Int, indices);
             } else {
@@ -830,8 +830,8 @@ PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
 Material
 PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
     // TODO: dielectric rough material not implemented
-    const auto ext_ior = Spectrum(ConstantSpectrum::make(1.f));
-    const auto trans = Spectrum(ConstantSpectrum::make(1.f));
+    const auto ext_ior = Spectrum(ConstantSpectrum(1.f));
+    const auto trans = Spectrum(ConstantSpectrum(1.f));
     const auto int_ior =
         get_texture_or_default<SpectrumTexture>(sc, params, "eta", "eta-dielectric");
 
@@ -861,7 +861,7 @@ PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) {
         return sc.builtin_spectrum_textures.at(std::get<std::string>(param.inner));
     } else if (param.value_type == ValueType::Float) {
         return sc.add_texture(SpectrumTexture::make(
-            Spectrum(ConstantSpectrum::make(std::get<f32>(param.inner)))));
+            Spectrum(ConstantSpectrum(std::get<f32>(param.inner)))));
     } else {
         spdlog::warn("Spectrum texture '{}' unimplemented, getting default", param.name);
         return sc.add_texture(SpectrumTexture::make(RgbSpectrum::make(tuple3(0.5))));

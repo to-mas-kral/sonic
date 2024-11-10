@@ -8,9 +8,10 @@
 
 class Framebuffer {
 public:
-    Framebuffer() : image_x{0}, image_y{0} {};
+    Framebuffer() : image_x{0}, image_y{0} {}
 
-    Framebuffer(u32 image_x, u32 image_y) : image_x{image_x}, image_y{image_y} {
+    Framebuffer(const u32 image_x, const u32 image_y)
+        : image_x{image_x}, image_y{image_y} {
         pixels = std::vector<vec3>(num_pixels(), vec3(0.f));
     }
 

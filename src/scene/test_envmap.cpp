@@ -111,8 +111,8 @@ TEST_CASE("envmap pdf integrates to 1") {
     std::uniform_real_distribution<f32> distribution{};
 
     auto image = Image::make("../resources/test/envmap_test.exr");
-    auto texture = ImageTexture(&image);
-    auto envmap = Envmap(texture, 1.f, mat4::identity());
+    const auto texture = ImageTexture(&image);
+    const auto envmap = Envmap(texture, 1.f, mat4::identity());
 
     f32 sumpdf = 0.f;
 

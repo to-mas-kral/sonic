@@ -14,8 +14,8 @@ TEST_CASE("sobol sampler basic") {
     SobolSampler s{};
 
     for (int i = 0; i < 256; i += 1) {
-        auto xs = s.sobol_sample(i, 4);
-        auto ys = s.sobol_sample(i, 5);
+        const auto xs = s.sobol_sample(i, 4);
+        const auto ys = s.sobol_sample(i, 5);
 
         x.push_back(xs);
         y.push_back(ys);

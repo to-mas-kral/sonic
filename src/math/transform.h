@@ -96,7 +96,7 @@ struct SquareMatrix3 {
     }*/
 
     SquareMatrix3
-    operator*(f32 mul);;
+    operator*(f32 mul)const;
 
     /// *this* transform is performed first
     SquareMatrix3

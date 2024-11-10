@@ -256,7 +256,7 @@ TEST_CASE("piecewise2d pdf roundtrip image") {
 
 TEST_CASE("piecewise2d sampling") {
     // clang-format off
-    std::vector<f32> func = {
+    const std::vector<f32> func = {
         0.f, 0.f, 0.f, 0.f, 0.f,
         0.f, 0.f, 0.f, 1.f, 0.f,
         0.f, 0.f, 0.f, 0.f, 0.f,
@@ -308,7 +308,7 @@ TEST_CASE("piecewise1d pdf integrates to 1") {
 
 TEST_CASE("piecewise2d pdf integrates to 1") {
     // clang-format off
-    std::vector<f32> func = {
+    const std::vector<f32> func = {
         1.f, 2.f, 4.f, 2.f,
         1.5f, 8.f, 4.f, 2.8f,
         17.f, 2.f, 3.f, 21.f,

@@ -96,6 +96,7 @@ private:
     std::deque<SpectrumTexture> spectrum_textures{};
 
     std::unordered_map<std::filesystem::path, Image *> images_by_name{};
+    // Store the images in a deque, because it provides pointer stability
     std::deque<Image> images{};
 
     std::unordered_map<std::string, Spectrum> builtin_spectra{};

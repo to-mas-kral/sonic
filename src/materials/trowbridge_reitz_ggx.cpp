@@ -5,12 +5,12 @@
 #include <algorithm>
 
 bool
-TrowbridgeReitzGGX::is_alpha_effectively_zero(f32 alpha) {
+TrowbridgeReitzGGX::is_alpha_effectively_zero(const f32 alpha) {
     return alpha < 0.001f;
 }
 
 vec3
-TrowbridgeReitzGGX::sample_vndf_hemisphere(vec2 u, vec3 wi) {
+TrowbridgeReitzGGX::sample_vndf_hemisphere(const vec2 u, const vec3 wi) {
     // sample a spherical cap in (-wi.z, 1]
     const float phi = 2.f * M_PIf * u.x;
     const float z = std::fma((1.f - u.y), (1.f + wi.z), -wi.z);

@@ -24,7 +24,6 @@ add_library(pt_lib
         src/utils/basic_types.h
         src/utils/sampler.h
         src/utils/algs.h
-        src/utils/chunk_allocator.h
         src/utils/render_threads.h
         src/utils/render_threads.cpp
 

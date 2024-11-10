@@ -48,7 +48,7 @@ DielectricMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3
     if (sample.x < fresnel_refl) {
         return reflect();
     } else {
-        auto refr = refract(sframe, wo, rel_ior);
+        const auto refr = refract(wo, rel_ior);
         if (refr.has_value()) {
             const auto wi = refr.value().normalized();
             const auto sframe_complete = ShadingFrame(sframe, wi, wo, true);

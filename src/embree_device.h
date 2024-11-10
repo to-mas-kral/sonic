@@ -11,7 +11,7 @@
 #include <limits>
 
 inline void
-errorFunction(void *userPtr, enum RTCError error, const char *str) {
+errorFunction(void *userPtr, const RTCError error, const char *str) {
     spdlog::error(fmt::format("Embree error {}: {}", (i32)error, str));
 }
 
@@ -26,14 +26,14 @@ filter_intersect_mesh(const RTCFilterFunctionNArguments *args) {
         return;
     }
 
-    const auto *mesh = (Mesh *)args->geometryUserPtr;
+    const auto *mesh = static_cast<Mesh *>(args->geometryUserPtr);
 
     const auto bary = vec2(hit->u, hit->v);
     const auto bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
     const auto uv = mesh->calc_uvs(hit->primID, bar);
 
     const auto alpha = mesh->alpha->fetch(uv);
-    const auto alpha_rand = 0.5f;
+    constexpr auto alpha_rand = 0.5f;
 
     if (alpha_rand > alpha) {
         args->valid[0] = 0;
@@ -52,7 +52,7 @@ filter_intersect_sphere(const RTCFilterFunctionNArguments *args) {
         return;
     }
 
-    const auto *spheres = (Spheres *)args->geometryUserPtr;
+    const auto *spheres = static_cast<Spheres *>(args->geometryUserPtr);
 
     const auto orig = point3(ray->org_x, ray->org_y, ray->org_z);
     const auto dir = vec3(ray->dir_x, ray->dir_y, ray->dir_z);
@@ -64,7 +64,7 @@ filter_intersect_sphere(const RTCFilterFunctionNArguments *args) {
     const auto &attribs = &spheres->attribs[hit->primID];
 
     const auto alpha = attribs->alpha->fetch(uv);
-    const auto alpha_rand = 0.3f;
+    constexpr auto alpha_rand = 0.3f;
 
     if (alpha_rand < alpha) {
         args->valid[0] = 0;
@@ -157,13 +157,14 @@ public:
     }
 
     std::optional<Intersection>
-    intersect_non_instance(const point3 &orig, const vec3 &dir, RTCRayHit rayhit) const {
+    intersect_non_instance(const point3 &orig, const vec3 &dir,
+                           const RTCRayHit &rayhit) const {
         if (rayhit.hit.geomID < mesh_geom_count) {
             return get_triangle_its(scene->geometry.meshes.meshes.data(),
                                     rayhit.hit.geomID, rayhit.hit.primID,
                                     vec2(rayhit.hit.u, rayhit.hit.v));
         } else {
-            point3 pos = orig + rayhit.ray.tfar * dir;
+            const point3 pos = orig + rayhit.ray.tfar * dir;
             return get_sphere_its(scene->geometry.spheres, rayhit.hit.primID, pos);
         }
     }
@@ -208,7 +209,7 @@ public:
         const point3 orig = a;
 
         // tfar is relative to the ray length
-        const f32 tfar = 0.999f;
+        constexpr f32 tfar = 0.999f;
 
         RTCRay rtc_ray{};
         rtc_ray.org_x = orig.x;
@@ -401,7 +402,8 @@ public:
         sphere_geom_count = spheres.num_spheres();
 
         for (int i = 0; i < sphere_geom_count; ++i) {
-            RTCGeometry geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
+            const RTCGeometry geom =
+                rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT4,
                                        &vertices[i], 0, sizeof(SphereVertex), 1);

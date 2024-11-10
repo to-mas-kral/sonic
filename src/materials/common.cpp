@@ -37,7 +37,7 @@ fresnel_conductor(const std::complex<f32> rel_ior, const f32 cos_theta_i) {
 }
 
 std::optional<vec3>
-refract(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo, f32 rel_ior) {
+refract(const norm_vec3 &wo, const f32 rel_ior) {
     const f32 cos_theta_i = ShadingFrameIncomplete::cos_theta(wo);
     const f32 sin2_theta_i = std::max(0.f, 1.f - sqr(cos_theta_i));
     const f32 sin2_theta_t = sin2_theta_i / sqr(rel_ior);

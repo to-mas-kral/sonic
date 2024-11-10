@@ -41,8 +41,7 @@ public:
     sample_camera() {
         return sample2();
     }
-
-public:
+    
     /// Brent Burley, Practical Hash-based Owen Scrambling, Journal of Computer Graphics
     /// Techniques (JCGT), vol. 9, no. 4, 1-20, 2020
     /// Available online http : jcgt.org/published/0009/04/01/
@@ -90,8 +89,8 @@ public:
     }
 
     /// This was taken from PBRTv-4, but Cycles has almost the same code...
-    f32
-    sobol_sample(u64 a, i32 p_dimension) const {
+    static f32
+    sobol_sample(u64 a, i32 p_dimension) {
         if (p_dimension >= N_SOBOL_DIMENSIONS) {
             p_dimension = 0;
         }

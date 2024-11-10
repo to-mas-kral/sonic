@@ -11,9 +11,9 @@
 /// Roulette is only applied after the first 3 bounces.
 /// Returns true if path should be terminated. If not, also returns roulette compensation.
 inline std::optional<f32>
-russian_roulette(u32 depth, f32 u, const spectral &throughput) {
+russian_roulette(const u32 depth, const f32 u, const spectral &throughput) {
     if (depth > 3) {
-        f32 survival_prob = 1.f - std::max(throughput.max_component(), 0.05f);
+        const f32 survival_prob = 1.f - std::max(throughput.max_component(), 0.05f);
 
         if (u < survival_prob) {
             return {};
@@ -28,7 +28,7 @@ russian_roulette(u32 depth, f32 u, const spectral &throughput) {
 
 /// Specific case where 1 sample is taken from each distribution.
 inline f32
-mis_power_heuristic(f32 fpdf, f32 gpdf) {
+mis_power_heuristic(const f32 fpdf, const f32 gpdf) {
     return sqr(fpdf) / (sqr(fpdf) + sqr(gpdf));
 }
 

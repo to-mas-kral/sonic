@@ -50,9 +50,9 @@ int_scale() {
 /// Normal points outward for rays exiting the surface, else is flipped.
 inline point3
 offset_ray(const point3 &p, const norm_vec3 &n) {
-    ivec3 of_i(int_scale() * n.x, int_scale() * n.y, int_scale() * n.z);
+    const ivec3 of_i(int_scale() * n.x, int_scale() * n.y, int_scale() * n.z);
 
-    point3 p_i(
+    const point3 p_i(
         std::bit_cast<f32>(std::bit_cast<i32>(p.x) + ((p.x < 0) ? -of_i.x : of_i.x)),
         std::bit_cast<f32>(std::bit_cast<i32>(p.y) + ((p.y < 0) ? -of_i.y : of_i.y)),
         std::bit_cast<f32>(std::bit_cast<i32>(p.z) + ((p.z < 0) ? -of_i.z : of_i.z)));
@@ -64,7 +64,7 @@ offset_ray(const point3 &p, const norm_vec3 &n) {
 
 inline Ray
 spawn_ray(const point3 &pos, const norm_vec3 &spawn_ray_normal, const norm_vec3 &wi) {
-    point3 offset_orig = offset_ray(pos, spawn_ray_normal);
+    const point3 offset_orig = offset_ray(pos, spawn_ray_normal);
     return Ray(offset_orig, wi);
 }
 

@@ -9,7 +9,7 @@ SampledSpectrum(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals)
     : vals(p_vals) {}
 
 SampledSpectrum
-SampledSpectrum::make_constant(f32 constant) {
+SampledSpectrum::make_constant(const f32 constant) {
     SampledSpectrum sq{};
     sq.vals.fill(constant);
     return sq;
@@ -18,7 +18,7 @@ SampledSpectrum::make_constant(f32 constant) {
 f32
 SampledSpectrum::average() const {
     f32 sum = 0.f;
-    for (auto v : vals) {
+    for (const auto v : vals) {
         sum += v;
     }
 
@@ -28,7 +28,7 @@ SampledSpectrum::average() const {
 f32
 SampledSpectrum::max_component() const {
     f32 max = std::numeric_limits<f32>::min();
-    for (f32 v : vals) {
+    for (const f32 v : vals) {
         if (v > max) {
             max = v;
         }
@@ -94,7 +94,7 @@ SampledSpectrum::is_zero() const {
 }
 
 void
-SampledSpectrum::div_pdf(f32 pdf) {
+SampledSpectrum::div_pdf(const f32 pdf) {
     for (f32 &v : vals) {
         if (pdf != 0.f) {
             v /= pdf;
@@ -194,7 +194,7 @@ SampledSpectrum::operator*=(const SampledSpectrum &other) {
 }
 
 SampledSpectrum
-SampledSpectrum::operator*(f32 val) const {
+SampledSpectrum::operator*(const f32 val) const {
     SampledSpectrum sq{};
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
         sq.vals[i] = vals[i] * val;
@@ -204,7 +204,7 @@ SampledSpectrum::operator*(f32 val) const {
 }
 
 SampledSpectrum &
-SampledSpectrum::operator*=(f32 val) {
+SampledSpectrum::operator*=(const f32 val) {
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
         vals[i] *= val;
     }
@@ -213,7 +213,7 @@ SampledSpectrum::operator*=(f32 val) {
 }
 
 SampledSpectrum
-SampledSpectrum::operator/(f32 div) const {
+SampledSpectrum::operator/(const f32 div) const {
     SampledSpectrum sq{};
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
         sq.vals[i] = vals[i] / div;
@@ -243,18 +243,19 @@ SampledSpectrum::operator[](const u32 index) const {
 }
 
 SampledLambdas
-SampledLambdas::new_sample_uniform(f32 rand) {
+SampledLambdas::new_sample_uniform(const f32 rand) {
     SampledLambdas sl{};
 
-    f32 lambda_min = static_cast<f32>(LAMBDA_MIN);
-    f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
+    constexpr f32 lambda_min = static_cast<f32>(LAMBDA_MIN);
+    constexpr f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
 
     // Sample first wavelength
     sl.lambdas[0] = lerp(rand, lambda_min, lambda_max);
 
     if constexpr (N_SPECTRUM_SAMPLES > 1) {
         // Initialize remaining wavelenghts
-        f32 delta = (lambda_max - lambda_min) / static_cast<f32>(N_SPECTRUM_SAMPLES);
+        constexpr f32 delta =
+            (lambda_max - lambda_min) / static_cast<f32>(N_SPECTRUM_SAMPLES);
 
         for (int i = 1; i < N_SPECTRUM_SAMPLES; i++) {
             sl.lambdas[i] = sl.lambdas[i - 1] + delta;
@@ -307,6 +308,6 @@ SampledLambdas::new_mock() {
 }
 
 const f32 &
-SampledLambdas::operator[](u32 index) const {
+SampledLambdas::operator[](const u32 index) const {
     return lambdas[index];
 }

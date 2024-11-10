@@ -31,7 +31,7 @@ Scene() {
     builtin_float_textures.insert({"roughness", add_texture(FloatTexture::make(0.f))});
     builtin_spectrum_textures.insert(
         {"eta-dielectric",
-         add_texture(SpectrumTexture::make(Spectrum(ConstantSpectrum::make(1.5f))))});
+         add_texture(SpectrumTexture::make(Spectrum(ConstantSpectrum(1.5f))))});
     builtin_spectrum_textures.insert(
         {"eta-conductor",
          add_texture(SpectrumTexture::make(builtin_spectra.at("metal-Cu-eta")))});

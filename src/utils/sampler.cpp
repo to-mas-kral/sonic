@@ -12,13 +12,13 @@ jenkins_hash(u32 x) {
 }
 
 u32
-init_rng(const uvec2 &pixel, const uvec2 &resolution, u32 frame) {
-    u32 rngState = (pixel.x + (pixel.y * resolution.x)) ^ jenkins_hash(frame);
+init_rng(const uvec2 &pixel, const uvec2 &resolution, const u32 frame) {
+    const u32 rngState = (pixel.x + (pixel.y * resolution.x)) ^ jenkins_hash(frame);
     return jenkins_hash(rngState);
 }
 
 f32
-rng_uint_to_float(u32 x) {
+rng_uint_to_float(const u32 x) {
     return std::bit_cast<f32>(0x3f800000 | (x >> 9)) - 1.f;
 }
 
@@ -37,7 +37,8 @@ rng(u32 &rngState) {
 }
 
 void
-Sampler::init_frame(const uvec2 &pixel, const uvec2 &resolution, const u32 p_frame, const u32 spp) {
+Sampler::init_frame(const uvec2 &pixel, const uvec2 &resolution, const u32 p_frame,
+                    const u32 spp) {
     rand_state = init_rng(pixel, resolution, p_frame);
     frame = p_frame;
 }

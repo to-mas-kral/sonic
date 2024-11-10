@@ -331,7 +331,7 @@ public:
 
     TextureType texture_type{};
     union {
-        Spectrum constant_spectrum{ConstantSpectrum::make(0.f)};
+        Spectrum constant_spectrum{ConstantSpectrum(0.f)};
         ImageTexture image;
         SpectrumScaleTexture scale_texture;
         SpectrumMixTexture mix_texture;
