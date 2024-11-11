@@ -16,7 +16,7 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
 
     Tuple2Base(T x, T y) : x{x}, y{y} {}
 
-    Tuple2Base() : x{0.f}, y{0.f} {}
+    Tuple2Base() : x{0.F}, y{0.F} {}
 
     T
     max_component() const {
@@ -204,7 +204,7 @@ template <typename T> struct Vector2 : Tuple2Base<Vector2, T> {
 
     static T
     dot(const Vector2 &a, const Vector2 &b) {
-        return a.x * b.x + a.y * b.y;
+        return (a.x * b.x) + (a.y * b.y);
     }
 };
 
@@ -217,7 +217,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
 
     Tuple3Base(T x, T y, T z) : x{x}, y{y}, z{z} {}
 
-    Tuple3Base() : x{0.f}, y{0.f}, z{0.f} {}
+    Tuple3Base() : x{0.F}, y{0.F}, z{0.F} {}
 
     T
     max_component() const {
@@ -226,7 +226,7 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
 
     Child<T>
     clamp_negative() {
-        return Child<T>(std::max(x, 0.f), std::max(y, 0.f), std::max(z, 0.f));
+        return Child<T>(std::max(x, 0.F), std::max(y, 0.F), std::max(z, 0.F));
     }
 
     bool
@@ -411,7 +411,7 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
 
     Vector3(T x, T y, T z) : Tuple3Base<Vector3, T>(x, y, z) {}
 
-    Vector3() : Tuple3Base<Vector3, T>(0.f) {}
+    Vector3() : Tuple3Base<Vector3, T>(0.F) {}
 
     T
     length_squared() const {
@@ -428,13 +428,13 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
 
     static f32
     dot(const Vector3 &a, const Vector3 &b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
+        return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
     }
 
     static Vector3
     cross(const Vector3 &a, const Vector3 &b) {
-        return Vector3((a.y * b.z - a.z * b.y), (a.z * b.x - a.x * b.z),
-                       (a.x * b.y - a.y * b.x));
+        return Vector3(((a.y * b.z) - (a.z * b.y)), ((a.z * b.x) - (a.x * b.z)),
+                       ((a.x * b.y) - (a.y * b.x)));
     }
 
     static Vector3
@@ -450,21 +450,21 @@ template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
 };
 
 struct NormalizedVector3 : Vector3<f32> {
-    NormalizedVector3() : Vector3(0.f, 0.f, 1.f) {}
+    NormalizedVector3() : Vector3(0.F, 0.F, 1.F) {}
 
     explicit
     NormalizedVector3(const f32 val)
         : Vector3(val) {
-        assert(std::abs(Vector3::length() - 1.f) < 0.0001f);
+        assert(std::abs(Vector3::length() - 1.F) < 0.0001F);
     }
 
     NormalizedVector3(const f32 x, const f32 y, const f32 z) : Vector3(x, y, z) {
-        assert(std::abs(Vector3::length() - 1.f) < 0.0001f);
+        assert(std::abs(Vector3::length() - 1.F) < 0.0001F);
     }
 
     f32
     length() const {
-        return 1.f;
+        return 1.F;
     }
 
     static NormalizedVector3
@@ -488,7 +488,7 @@ Vector3<T>::normalized() const {
 template <typename T>
 Vector3<T>
 Vector3<T>::reflect(const Vector3 &vec, const NormalizedVector3 &normal) {
-    return -vec + normal * dot(normal, vec) * 2.f;
+    return -vec + (normal * dot(normal, vec) * 2.F);
 }
 
 template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {

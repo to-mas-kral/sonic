@@ -100,7 +100,7 @@ PbrtLoader::load_camera(Scene &sc) {
     sc.attribs.camera.camera_to_world = current_astate.ctm.inverse();
 
     if (type.name == "perspective") {
-        const auto fov = params.get_optional_or_default("fov", ValueType::Float, 90.f);
+        const auto fov = params.get_optional_or_default("fov", ValueType::Float, 90.F);
         sc.attribs.camera.fov = fov;
     } else {
         spdlog::warn("Camera type '{}' unimplemented, using default", type.name);
@@ -123,7 +123,7 @@ PbrtLoader::load_film(Scene &sc) {
     const auto resy = params.get_optional_or_default("yresolution", ValueType::Int, 720);
     const auto filename =
         params.get_optional_or_default<std::string>("filename", ValueType::String, "out");
-    const auto iso = params.get_optional_or_default("iso", ValueType::Float, 100.f);
+    const auto iso = params.get_optional_or_default("iso", ValueType::Float, 100.F);
 
     sc.attribs.film.resx = resx;
     sc.attribs.film.resy = resy;
@@ -176,11 +176,11 @@ PbrtLoader::load_rotate() {
     const auto z = parse_float();
 
     mat4 trans;
-    if (std::abs(x) == 1.0f && std::abs(y) == 0.0f && std::abs(z) == 0.0f) {
+    if (std::abs(x) == 1.F && std::abs(y) == 0.F && std::abs(z) == 0.F) {
         trans = mat4::from_euler_x(angle * x);
-    } else if (std::abs(x) == 0.0f && std::abs(y) == 1.0f && std::abs(z) == 0.0f) {
+    } else if (std::abs(x) == 0.F && std::abs(y) == 1.F && std::abs(z) == 0.F) {
         trans = mat4::from_euler_y(angle * y);
-    } else if (std::abs(x) == 0.0f && std::abs(y) == 0.0f && std::abs(z) == 1.0f) {
+    } else if (std::abs(x) == 0.F && std::abs(y) == 0.F && std::abs(z) == 1.F) {
         trans = mat4::from_euler_z(angle * z);
     } else {
         throw std::runtime_error("Arbitrary euler angles rotate is unimplemented");
@@ -345,7 +345,7 @@ PbrtLoader::load_shape(Scene &sc) {
     auto params = parse_param_list();
 
     const auto alpha_t = get_texture_opt<FloatTexture>(sc, params, "alpha");
-    const auto alpha = alpha_t.value_or(nullptr);
+    auto *const alpha = alpha_t.value_or(nullptr);
 
     const auto &type = params.next_param();
     if (type.name == "trianglemesh") {
@@ -385,7 +385,7 @@ PbrtLoader::load_light_source(Scene &sc) {
 
     const auto &type = params.expect(ParamType::Simple).name;
     if (type == "infinite") {
-        const f32 scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
+        const f32 scale = params.get_optional_or_default("scale", ValueType::Float, 1.F);
 
         const auto filename_p = params.get_optional("filename", ValueType::String);
         if (!filename_p.has_value()) {
@@ -399,7 +399,7 @@ PbrtLoader::load_light_source(Scene &sc) {
         } else {
             const auto filename = std::get<std::string>(filename_p.value()->inner);
             const auto filepath = std::filesystem::path(base_directory).append(filename);
-            const auto image = sc.make_or_get_image(filepath);
+            auto *const image = sc.make_or_get_image(filepath);
             const auto tex = ImageTexture(image, TextureSpectrumType::Illuminant);
 
             sc.set_envmap(Envmap(tex, scale, current_astate.ctm));
@@ -413,7 +413,7 @@ PbrtLoader::load_light_source(Scene &sc) {
 
 void
 PbrtLoader::normals_reverse_orientation(const u32 num_verts, vec3 *normals) const {
-    if (current_astate.reverse_orientation && normals) {
+    if (current_astate.reverse_orientation && (normals != nullptr)) {
         for (int i = 0; i < num_verts; ++i) {
             normals[i] = -normals[i];
         }
@@ -430,7 +430,7 @@ PbrtLoader::transform_mesh(point3 *pos, const u32 num_verts, vec3 *normals) cons
     const auto ctm_inv_trans = current_astate.ctm.inverse().transpose();
     for (int i = 0; i < num_verts; ++i) {
         pos[i] = current_astate.ctm.transform_point(pos[i]);
-        if (normals) {
+        if (normals != nullptr) {
             normals[i] = ctm_inv_trans.transform_vec(normals[i]);
         }
     }
@@ -499,7 +499,9 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
     if (num_indices == 0) {
         if (num_verts == 3) {
             indices = static_cast<u32 *>(std::malloc(3 * sizeof(u32)));
-            std::vector{0u, 1u, 2u};
+            indices[0] = 0;
+            indices[1] = 1;
+            indices[2] = 2;
         } else {
             throw std::runtime_error("'trianglemesh' Shape without indices");
         }
@@ -508,17 +510,8 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
     normals_reverse_orientation(num_verts, normals);
     transform_mesh(pos, num_verts, normals);
 
-    const auto mp = MeshParams{
-        .indices = indices,
-        .num_indices = num_indices,
-        .pos = pos,
-        .normals = normals,
-        .uvs = uvs,
-        .num_verts = num_verts,
-        .material_id = current_astate.material,
-        .emitter = current_astate.emitter,
-        .alpha = alpha,
-    };
+    const auto mp = MeshParams(indices, num_indices, pos, normals, uvs, num_verts,
+                               current_astate.material, current_astate.emitter, alpha);
 
     sc.add_mesh(mp, current_astate.instance);
 
@@ -544,34 +537,35 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
     u32 *indices = nullptr;
     u32 num_indices = 0;
 
-    u32 indexes[3];
+    std::array<u32, 3> indexes{};
     bool gotVerts = false;
     bool gotFaces = false;
 
     // Taken from the GitHub readme
     while (reader.has_element() && (!gotVerts || !gotFaces)) {
         if (reader.element_is(miniply::kPLYVertexElement) && reader.load_element() &&
-            reader.find_pos(indexes)) {
+            reader.find_pos(indexes.data())) {
 
             num_verts = reader.num_rows();
             pos = static_cast<point3 *>(std::malloc(num_verts * sizeof(point3)));
 
-            reader.extract_properties(indexes, 3, miniply::PLYPropertyType::Float, pos);
+            reader.extract_properties(indexes.data(), 3, miniply::PLYPropertyType::Float,
+                                      pos);
 
-            if (reader.find_texcoord(indexes)) {
+            if (reader.find_texcoord(indexes.data())) {
                 uvs = static_cast<vec2 *>(std::malloc(num_verts * sizeof(vec2)));
-                reader.extract_properties(indexes, 2, miniply::PLYPropertyType::Float,
-                                          uvs);
+                reader.extract_properties(indexes.data(), 2,
+                                          miniply::PLYPropertyType::Float, uvs);
             }
 
-            if (reader.find_normal(indexes)) {
+            if (reader.find_normal(indexes.data())) {
                 normals = static_cast<vec3 *>(std::malloc(num_verts * sizeof(vec3)));
-                reader.extract_properties(indexes, 3, miniply::PLYPropertyType::Float,
-                                          normals);
+                reader.extract_properties(indexes.data(), 3,
+                                          miniply::PLYPropertyType::Float, normals);
             }
             gotVerts = true;
         } else if (reader.element_is(miniply::kPLYFaceElement) && reader.load_element() &&
-                   reader.find_indices(indexes)) {
+                   reader.find_indices(indexes.data())) {
             const bool polys = reader.requires_triangulation(indexes[0]);
             if (polys && !gotVerts) {
                 throw std::runtime_error(fmt::format(
@@ -607,17 +601,8 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
     normals_reverse_orientation(num_verts, normals);
     transform_mesh(pos, num_verts, normals);
 
-    const auto mp = MeshParams{
-        .indices = indices,
-        .num_indices = num_indices,
-        .pos = pos,
-        .normals = normals,
-        .uvs = uvs,
-        .num_verts = num_verts,
-        .material_id = current_astate.material,
-        .emitter = current_astate.emitter,
-        .alpha = alpha,
-    };
+    const auto mp = MeshParams(indices, num_indices, pos, normals, uvs, num_verts,
+                               current_astate.material, current_astate.emitter, alpha);
 
     sc.add_mesh(mp, current_astate.instance);
 
@@ -626,15 +611,12 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
 
 void
 PbrtLoader::load_sphere(Scene &sc, ParamsList &params, FloatTexture *alpha) const {
-    const auto radius = params.get_optional_or_default("radius", ValueType::Float, 1.f);
+    const auto radius = params.get_optional_or_default("radius", ValueType::Float, 1.F);
 
-    const auto center = current_astate.ctm.transform_point(point3(0.f));
+    const auto center = current_astate.ctm.transform_point(point3(0.F));
 
-    sc.add_sphere(SphereParams{.center = center,
-                               .radius = radius,
-                               .material_id = current_astate.material,
-                               .emitter = current_astate.emitter,
-                               .alpha = alpha},
+    sc.add_sphere(SphereParams(center, radius, current_astate.material,
+                               current_astate.emitter, alpha),
                   current_astate.instance);
 
     params.warn_unused_params("Shape Sphere"sv);
@@ -652,16 +634,16 @@ PbrtLoader::area_light_source(Scene &sc) {
             fmt::format("Invalid area light source type", type.name));
     }
 
-    auto radiance = Spectrum(RgbSpectrumIlluminant::make(tuple3(1.0f, 1.0f, 1.0f),
-                                                         current_astate.color_space));
+    auto radiance = Spectrum(
+        RgbSpectrumIlluminant::make(tuple3(1.F, 1.F, 1.F), current_astate.color_space));
 
     const auto twosided =
         params.get_optional_or_default("twosided", ValueType::Bool, false);
-    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
+    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.F);
 
     const auto l_p = params.get_optional("L");
     if (l_p.has_value()) {
-        const auto p = l_p.value();
+        const auto *const p = l_p.value();
         // TODO: will need some general spectrum-loader later
         if (p->value_type == ValueType::Rgb) {
             radiance = Spectrum(RgbSpectrumIlluminant::make(std::get<tuple3>(p->inner),
@@ -737,7 +719,7 @@ PbrtLoader::parse_material_roughness(Scene &sc, ParamsList &params) {
     const auto roughness_p = params.get_optional("roughness");
     if (roughness_p.has_value()) {
         const auto &roughness = *roughness_p.value();
-        const auto tex = parse_inline_float_texture(roughness, sc);
+        auto *const tex = parse_inline_float_texture(roughness, sc);
         return RoughnessDescription{
             .type = RoughnessDescription::RoughnessType::Isotropic,
             .roughness = tex,
@@ -762,7 +744,7 @@ PbrtLoader::parse_material_roughness(Scene &sc, ParamsList &params) {
                 spdlog::warn("Roughness Anisotropy isn't implemented yet");
             }
 
-            const auto tex = sc.add_texture(FloatTexture::make(uroughness));
+            auto *const tex = sc.add_texture(FloatTexture::make(uroughness));
 
             return RoughnessDescription{
                 .type = RoughnessDescription::RoughnessType::Isotropic,
@@ -772,7 +754,7 @@ PbrtLoader::parse_material_roughness(Scene &sc, ParamsList &params) {
             };
         } else {
             spdlog::warn("Roughness Anisotropy isn't implemented yet");
-            const auto tex = get_texture_or_default<FloatTexture>(
+            auto *const tex = get_texture_or_default<FloatTexture>(
                 sc, params, "uroughness", "roughness");
             return RoughnessDescription{
                 .type = RoughnessDescription::RoughnessType::Isotropic,
@@ -783,7 +765,7 @@ PbrtLoader::parse_material_roughness(Scene &sc, ParamsList &params) {
         }
     }
 
-    const auto tex =
+    auto *const tex =
         get_texture_or_default<FloatTexture>(sc, params, "uroughness", "roughness");
     return RoughnessDescription{
         .type = RoughnessDescription::RoughnessType::Isotropic,
@@ -798,7 +780,7 @@ PbrtLoader::parse_coateddiffuse_material(Scene &sc, ParamsList &params) {
     const auto ext_ior = Spectrum(AIR_ETA);
     // TODO: get coateddiffuse IOR
     const auto int_ior = Spectrum(POLYPROPYLENE_ETA);
-    const auto reflectance =
+    auto *const reflectance =
         get_texture_or_default<SpectrumTexture>(sc, params, "reflectance", "reflectance");
 
     const auto roughness = parse_material_roughness(sc, params);
@@ -809,20 +791,20 @@ PbrtLoader::parse_coateddiffuse_material(Scene &sc, ParamsList &params) {
 
 Material
 PbrtLoader::parse_diffuse_material(Scene &sc, ParamsList &params) {
-    const auto texture =
+    auto *const texture =
         get_texture_or_default<SpectrumTexture>(sc, params, "reflectance", "reflectance");
     return Material::make_diffuse(texture);
 }
 
 Material
 PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
-    const auto reflectance =
+    auto *const reflectance =
         get_texture_or_default<SpectrumTexture>(sc, params, "reflectance", "reflectance");
 
-    const auto transmittace = get_texture_or_default<SpectrumTexture>(
+    auto *const transmittace = get_texture_or_default<SpectrumTexture>(
         sc, params, "transmittance", "reflectance");
 
-    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
+    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.F);
 
     return Material::make_diffuse_transmission(reflectance, transmittace, scale);
 }
@@ -830,9 +812,9 @@ PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
 Material
 PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
     // TODO: dielectric rough material not implemented
-    const auto ext_ior = Spectrum(ConstantSpectrum(1.f));
-    const auto trans = Spectrum(ConstantSpectrum(1.f));
-    const auto int_ior =
+    const auto ext_ior = Spectrum(ConstantSpectrum(1.F));
+    const auto trans = Spectrum(ConstantSpectrum(1.F));
+    auto *const int_ior =
         get_texture_or_default<SpectrumTexture>(sc, params, "eta", "eta-dielectric");
 
     return Material::make_dielectric(ext_ior, int_ior, trans);
@@ -840,9 +822,9 @@ PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
 
 Material
 PbrtLoader::parse_conductor_material(Scene &sc, ParamsList &params) {
-    const auto eta =
+    auto *const eta =
         get_texture_or_default<SpectrumTexture>(sc, params, "eta", "eta-conductor");
-    const auto k =
+    auto *const k =
         get_texture_or_default<SpectrumTexture>(sc, params, "k", "k-conductor");
     const auto roughness = parse_material_roughness(sc, params);
 
@@ -878,7 +860,7 @@ PbrtLoader::parse_inline_float_texture(const Param &param, Scene &sc) const {
         return float_textures.at(texture_name);
     } else {
         spdlog::warn("Float texture '{}' unimplemented, getting default", param.name);
-        return sc.add_texture(FloatTexture::make(1.f));
+        return sc.add_texture(FloatTexture::make(1.F));
     }
 }
 
@@ -896,11 +878,11 @@ PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList
 
     const auto path = absolute(base_directory).append(filename);
 
-    const auto uscale = params.get_optional_or_default("uscale", ValueType::Float, 1.f);
-    const auto vscale = params.get_optional_or_default("vscale", ValueType::Float, 1.f);
-    const auto udelta = params.get_optional_or_default("udelta", ValueType::Float, 0.f);
-    const auto vdelta = params.get_optional_or_default("vdelta", ValueType::Float, 0.f);
-    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.f);
+    const auto uscale = params.get_optional_or_default("uscale", ValueType::Float, 1.F);
+    const auto vscale = params.get_optional_or_default("vscale", ValueType::Float, 1.F);
+    const auto udelta = params.get_optional_or_default("udelta", ValueType::Float, 0.F);
+    const auto vdelta = params.get_optional_or_default("vdelta", ValueType::Float, 0.F);
+    const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.F);
     const auto invert = params.get_optional_or_default("invert", ValueType::Bool, false);
 
     const auto imagetex_params = ImageTextureParams{.scale = scale,
@@ -910,14 +892,14 @@ PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList
                                                     .vdelta = vdelta,
                                                     .invert = invert};
 
-    const auto img = sc.make_or_get_image(path);
+    auto *const img = sc.make_or_get_image(path);
 
     if (type == "spectrum") {
-        const auto tex = sc.add_texture(SpectrumTexture::make(
+        auto *const tex = sc.add_texture(SpectrumTexture::make(
             ImageTexture(img, TextureSpectrumType::Rgb, imagetex_params)));
         spectrum_textures.insert({name, tex});
     } else if (type == "float") {
-        const auto tex =
+        auto *const tex =
             sc.add_texture(FloatTexture::make(ImageTexture(img, imagetex_params)));
         float_textures.insert({name, tex});
     }
@@ -927,16 +909,16 @@ PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList
 void
 PbrtLoader::load_scale_texture(Scene &sc, const std::string &name, ParamsList &params,
                                const std::string &type) {
-    const auto scale = get_texture_required<FloatTexture>(sc, params, "scale");
+    auto *const scale = get_texture_required<FloatTexture>(sc, params, "scale");
 
     if (type == "spectrum") {
-        const auto tex = get_texture_required<SpectrumTexture>(sc, params, "tex");
-        const auto scaled_tex =
+        auto *const tex = get_texture_required<SpectrumTexture>(sc, params, "tex");
+        auto *const scaled_tex =
             sc.add_texture(SpectrumTexture::make(SpectrumScaleTexture(tex, scale)));
         spectrum_textures.insert({name, scaled_tex});
     } else if (type == "float") {
-        const auto tex = get_texture_required<FloatTexture>(sc, params, "tex");
-        const auto scaled_tex =
+        auto *const tex = get_texture_required<FloatTexture>(sc, params, "tex");
+        auto *const scaled_tex =
             sc.add_texture(FloatTexture::make(FloatScaleTexture(tex, scale)));
         float_textures.insert({name, scaled_tex});
     }
@@ -945,20 +927,20 @@ PbrtLoader::load_scale_texture(Scene &sc, const std::string &name, ParamsList &p
 void
 PbrtLoader::load_mix_texture(Scene &sc, const std::string &name, ParamsList &params,
                              const std::string &type) {
-    const auto amount = params.get_optional_or_default("amount", ValueType::Float, 0.5f);
+    const auto amount = params.get_optional_or_default("amount", ValueType::Float, 0.5F);
 
     if (type == "spectrum") {
-        const auto tex_1 = get_texture_required<SpectrumTexture>(sc, params, "tex1");
-        const auto tex_2 = get_texture_required<SpectrumTexture>(sc, params, "tex2");
+        auto *const tex_1 = get_texture_required<SpectrumTexture>(sc, params, "tex1");
+        auto *const tex_2 = get_texture_required<SpectrumTexture>(sc, params, "tex2");
 
-        const auto new_tex = sc.add_texture(
+        auto *const new_tex = sc.add_texture(
             SpectrumTexture::make(SpectrumMixTexture(tex_1, tex_2, amount)));
         spectrum_textures.insert({name, new_tex});
     } else if (type == "float") {
-        const auto tex_1 = get_texture_required<FloatTexture>(sc, params, "tex1");
-        const auto tex_2 = get_texture_required<FloatTexture>(sc, params, "tex2");
+        auto *const tex_1 = get_texture_required<FloatTexture>(sc, params, "tex1");
+        auto *const tex_2 = get_texture_required<FloatTexture>(sc, params, "tex2");
 
-        const auto new_tex =
+        auto *const new_tex =
             sc.add_texture(FloatTexture::make(FloatMixTexture(tex_1, tex_2, amount)));
         float_textures.insert({name, new_tex});
     }
@@ -970,10 +952,10 @@ PbrtLoader::load_constant_texture(Scene &sc, const std::string &name, ParamsList
     const auto &value_p = params.get_required("value");
 
     if (type == "spectrum") {
-        const auto tex = parse_inline_spectrum_texture(value_p, sc);
+        auto *const tex = parse_inline_spectrum_texture(value_p, sc);
         spectrum_textures.insert({name, tex});
     } else if (type == "float") {
-        const auto tex = parse_inline_float_texture(value_p, sc);
+        auto *const tex = parse_inline_float_texture(value_p, sc);
         float_textures.insert({name, tex});
     }
 }

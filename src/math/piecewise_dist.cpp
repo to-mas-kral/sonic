@@ -10,11 +10,11 @@ PiecewiseDist2D(const std::vector<f32> &grid, const int width, const int height)
     marginals_sums.reserve(height);
 
     for (int r = 0; r < height; r++) {
-        auto row = std::span<f32>(const_cast<f32 *>(&grid[r * width]), width);
+        auto row = std::span(&grid[r * width], width);
         auto conditional = PiecewiseDist1D(row);
         conditionals.emplace_back(std::move(conditional));
 
-        f32 sum = std::accumulate(row.begin(), row.end(), 0.f);
+        const f32 sum = std::accumulate(row.begin(), row.end(), 0.F);
         marginals_sums.push_back(sum);
     }
 
@@ -45,7 +45,7 @@ PiecewiseDist2D::pdf(const vec2 &xy) const {
 
 /// Code taken from PBRTv4
 PiecewiseDist1D::
-PiecewiseDist1D(std::span<f32> vals) {
+PiecewiseDist1D(std::span<const f32> vals) {
     function.assign(vals.begin(), vals.end());
     m_cdf = std::vector<f32>(vals.size() + 1);
 
@@ -71,19 +71,19 @@ PiecewiseDist1D(std::span<f32> vals) {
 
 f32
 PiecewiseDist1D::pdf(const u32 index) const {
-    if (func_int == 0.f) {
-        return 0.f;
+    if (func_int == 0.F) {
+        return 0.F;
     }
     return function[index] / func_int;
 }
 
 f32
 PiecewiseDist1D::pdf(const f32 sample) const {
-    if (func_int == 0.f) {
-        return 0.f;
+    if (func_int == 0.F) {
+        return 0.F;
     }
 
-    u32 offset = (u32)(sample * (f32)(function.size()));
+    u32 offset = static_cast<u32>(sample * static_cast<f32>(function.size()));
     if (offset > m_cdf.size() - 1) {
         offset = m_cdf.size();
     }
@@ -110,7 +110,7 @@ PiecewiseDist1D::sample_continuous(const f32 xi) const {
         du /= (m_cdf[offset + 1] - m_cdf[offset]);
     }
 
-    f32 res = (offset + du) / (f32)(size());
+    const f32 res = (offset + du) / static_cast<f32>(size());
 
     // offset and calculated offset can wary because of precision issues in extreme cases
     // it's better to return calculated offset ro be consistent with some of the other

@@ -154,7 +154,7 @@ public:
     fetch(const vec2 &uv) const;
 
 private:
-    f32 mix{0.5f};
+    f32 mix{0.5F};
     FloatTexture *tex1{nullptr};
     FloatTexture *tex2{nullptr};
 };
@@ -248,7 +248,7 @@ public:
     fetch(const vec2 &uv, const SampledLambdas &lambdas) const;
 
 private:
-    f32 mix{0.5f};
+    f32 mix{0.5F};
     SpectrumTexture *tex1{nullptr};
     SpectrumTexture *tex2{nullptr};
 };

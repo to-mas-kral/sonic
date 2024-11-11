@@ -59,7 +59,7 @@ public:
     pbrt_permutation(u32 v) {
         v ^= v * 0x3d20adea;
         v += seed;
-        v *= (seed >> 16) | 1;
+        v *= (seed >> 16U) | 1U;
         v ^= v * 0x05526c56;
         v ^= v * 0x53a22864;
         return v;
@@ -96,15 +96,15 @@ public:
         }
 
         u32 v = 0;
-        for (int i = p_dimension * SOBOL_MATRIX_SIZE; a != 0; a >>= 1, i++) {
-            if (a & 1) {
+        for (int i = p_dimension * SOBOL_MATRIX_SIZE; a != 0; a >>= 1U, i++) {
+            if ((a & 1U) != 0U) {
                 v ^= SOBOL_MATRICES[i];
             }
         }
 
         v = scramble(v);
 
-        return std::min(v * 0x1p-32f, ONE_MINUS_EPS);
+        return std::min(v * 0x1p-32F, ONE_MINUS_EPS);
     }
 
     i32 dimension{0};

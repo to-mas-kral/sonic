@@ -6,8 +6,8 @@
 #include "trowbridge_reitz_ggx.h"
 
 f32
-RoughCoatedDiffuseMaterial::pdf(const ShadingFrame &sframe,
-                          const SampledLambdas &lambdas, const vec2 &uv) const {
+RoughCoatedDiffuseMaterial::pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas,
+                                const vec2 &uv) const {
     const f32 int_η = int_ior.eval_single(lambdas[0]);
     const f32 ext_η = ext_ior.eval_single(lambdas[0]);
     const f32 rel_η = int_η / ext_η;
@@ -23,7 +23,7 @@ RoughCoatedDiffuseMaterial::pdf(const ShadingFrame &sframe,
 
 spectral
 RoughCoatedDiffuseMaterial::eval(const ShadingFrame &sframe,
-                           const SampledLambdas &lambdas, const vec2 &uv) const {
+                                 const SampledLambdas &lambdas, const vec2 &uv) const {
     const f32 int_ior_s = int_ior.eval_single(lambdas[0]);
     const f32 ext_ior_s = ext_ior.eval_single(lambdas[0]);
     /// This is external / internal !
@@ -76,9 +76,9 @@ RoughCoatedDiffuseMaterial::eval(const ShadingFrame &sframe,
 }
 
 std::optional<BSDFSample>
-RoughCoatedDiffuseMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo,
-                             const vec3 &xi, const SampledLambdas &lambdas,
-                             const vec2 &uv) const {
+RoughCoatedDiffuseMaterial::sample(const ShadingFrameIncomplete &sframe,
+                                   const norm_vec3 &wo, const vec3 &xi,
+                                   const SampledLambdas &lambdas, const vec2 &uv) const {
     const f32 int_η = int_ior.eval_single(lambdas[0]);
     const f32 ext_η = ext_ior.eval_single(lambdas[0]);
     const f32 rel_η = int_η / ext_η;
@@ -97,11 +97,8 @@ RoughCoatedDiffuseMaterial::sample(const ShadingFrameIncomplete &sframe, const n
 
         const auto sframe_complete = ShadingFrame(sframe, wi, wo);
 
-        return BSDFSample{
-            .bsdf = eval(sframe_complete, lambdas, uv),
-            .pdf = pdf(sframe_complete, lambdas, uv),
-            .sframe = sframe_complete,
-        };
+        return BSDFSample(eval(sframe_complete, lambdas, uv),
+                          pdf(sframe_complete, lambdas, uv), false, sframe_complete);
     } else {
         // sample diffuse
         const norm_vec3 wi = sample_cosine_hemisphere(vec2(xi.x, xi.y));
@@ -111,10 +108,7 @@ RoughCoatedDiffuseMaterial::sample(const ShadingFrameIncomplete &sframe, const n
             return {};
         }
 
-        return BSDFSample{
-            .bsdf = eval(sframe_complete, lambdas, uv),
-            .pdf = pdf(sframe_complete, lambdas, uv),
-            .sframe = sframe_complete,
-        };
+        return BSDFSample(eval(sframe_complete, lambdas, uv),
+                          pdf(sframe_complete, lambdas, uv), false, sframe_complete);
     }
 }

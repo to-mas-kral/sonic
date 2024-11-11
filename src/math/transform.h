@@ -80,7 +80,7 @@ struct SquareMatrix3 {
                     f32 m20, f32 m21, f32 m22);
 
     static SquareMatrix3
-    from_columns(const tuple3 &c0, const tuple3 &c1, const tuple3 &c2);
+    from_columns(const tuple3 &c0, const tuple3 &c1, const tuple3 &c2)noexcept;
 
     /// Column-major order !
     static SquareMatrix3

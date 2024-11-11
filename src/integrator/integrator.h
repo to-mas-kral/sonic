@@ -42,7 +42,7 @@ public:
         }
 
         rc->fb.get_pixels()[pixel_index] +=
-            lambdas.to_xyz(radiance) * rc->scene.attribs.film.iso / 100.f;
+            lambdas.to_xyz(radiance) * rc->scene.attribs.film.iso / 100.F;
     }
 
     spectral
@@ -60,7 +60,7 @@ public:
         if (opt_its.has_value()) {
             return opt_its->normal;
         } else {
-            return vec3(0.f);
+            return vec3(0.F);
         }
     }
 

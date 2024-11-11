@@ -10,7 +10,7 @@ TEST_CASE("loader camera", "[loader camera]") {
 
     loader.load_scene(scene);
 
-    REQUIRE(scene.attribs.camera.fov == 23.0f);
+    REQUIRE(scene.attribs.camera.fov == 23.F);
 }
 
 TEST_CASE("loader film", "[loader camera]") {
@@ -62,7 +62,7 @@ WorldBegin
     REQUIRE(scene.attribs.film.resy == 1400);
     REQUIRE(scene.attribs.film.resx == 1000);
 
-    REQUIRE(scene.attribs.camera.fov == 47.f);
+    REQUIRE(scene.attribs.camera.fov == 47.F);
 }
 
 TEST_CASE("loader trianglemesh") {

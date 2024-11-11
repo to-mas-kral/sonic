@@ -170,10 +170,10 @@ SquareMatrix4
 SquareMatrix4::identity() {
     // clang-format off
     return SquareMatrix4(
-        1.f, 0.f, 0.f, 0.f,
-        0.f, 1.f, 0.f, 0.f,
-        0.f, 0.f, 1.f, 0.f,
-        0.f, 0.f, 0.f, 1.f
+        1.F, 0.F, 0.F, 0.F,
+        0.F, 1.F, 0.F, 0.F,
+        0.F, 0.F, 1.F, 0.F,
+        0.F, 0.F, 0.F, 1.F
     );
     // clang-format on
 }
@@ -182,10 +182,10 @@ SquareMatrix4
 SquareMatrix4::from_euler_x(const f32 a) {
     // clang-format off
     return SquareMatrix4(
-        1.f,  0.f,    0.f,    0.f,
-        0.f,  std::cos(a), std::sin(a), 0.f,
-        0.f, -std::sin(a), std::cos(a), 0.f,
-        0.f,  0.f,    0.f,    1.f
+        1.F,  0.F,    0.F,    0.F,
+        0.F,  std::cos(a), std::sin(a), 0.F,
+        0.F, -std::sin(a), std::cos(a), 0.F,
+        0.F,  0.F,    0.F,    1.F
     );
     // clang-format on
 }
@@ -194,10 +194,10 @@ SquareMatrix4
 SquareMatrix4::from_euler_y(const f32 a) {
     // clang-format off
     return SquareMatrix4(
-        std::cos(a), 0.f, -std::sin(a), 0.f,
-        0.f,    1.f,  0.f,    0.f,
-        std::sin(a), 0.f,  std::cos(a), 0.f,
-        0.f,    0.f,  0.f,    1.f
+        std::cos(a), 0.F, -std::sin(a), 0.F,
+        0.F,    1.F,  0.F,    0.F,
+        std::sin(a), 0.F,  std::cos(a), 0.F,
+        0.F,    0.F,  0.F,    1.F
     );
     // clang-format on
 }
@@ -206,10 +206,10 @@ SquareMatrix4
 SquareMatrix4::from_euler_z(const f32 a) {
     // clang-format off
     return SquareMatrix4(
-        std::cos(a), std::sin(a), 0.f, 0.f,
-        -std::sin(a), std::cos(a), 0.f, 0.f,
-        0.f,    0.f,    1.f, 0.f,
-        0.f,    0.f,    0.f, 1.f
+        std::cos(a), std::sin(a), 0.F, 0.F,
+        -std::sin(a), std::cos(a), 0.F, 0.F,
+        0.F,    0.F,    1.F, 0.F,
+        0.F,    0.F,    0.F, 1.F
     );
     // clang-format on
 }
@@ -218,10 +218,10 @@ SquareMatrix4
 SquareMatrix4::from_translate(const f32 x, const f32 y, const f32 z) {
     // clang-format off
     return SquareMatrix4(
-        1.f, 0.f, 0.f, 0.f,
-        0.f, 1.f, 0.f, 0.f,
-        0.f, 0.f, 1.f, 0.f,
-        x,   y,   z,   1.f
+        1.F, 0.F, 0.F, 0.F,
+        0.F, 1.F, 0.F, 0.F,
+        0.F, 0.F, 1.F, 0.F,
+        x,   y,   z,   1.F
     );
     // clang-format on
 }
@@ -230,10 +230,10 @@ SquareMatrix4
 SquareMatrix4::from_scale(const f32 x, const f32 y, const f32 z) {
     // clang-format off
     return SquareMatrix4(
-        x,   0.f, 0.f, 0.f,
-        0.f, y,   0.f, 0.f,
-        0.f, 0.f, z,   0.f,
-        0.f, 0.f, 0.f, 1.f
+        x,   0.F, 0.F, 0.F,
+        0.F, y,   0.F, 0.F,
+        0.F, 0.F, z,   0.F,
+        0.F, 0.F, 0.F, 1.F
     );
     // clang-format on
 }
@@ -247,10 +247,10 @@ SquareMatrix4::from_lookat(const vec3 eye, const vec3 look, const vec3 up) {
 
     // clang-format off
     return SquareMatrix4(
-        right.x, new_up.x, dir.x, 0.f,
-        right.y, new_up.y, dir.y, 0.f,
-        right.z, new_up.z, dir.z, 0.f,
-        -vec3::dot(right, eye), -vec3::dot(new_up, eye), -vec3::dot(dir, eye), 1.f
+        right.x, new_up.x, dir.x, 0.F,
+        right.y, new_up.y, dir.y, 0.F,
+        right.z, new_up.z, dir.z, 0.F,
+        -vec3::dot(right, eye), -vec3::dot(new_up, eye), -vec3::dot(dir, eye), 1.F
     );
     // clang-format on
 }
@@ -304,7 +304,8 @@ SquareMatrix3(const f32 m00, const f32 m01, const f32 m02, const f32 m10, const 
 }
 
 SquareMatrix3
-SquareMatrix3::from_columns(const tuple3 &c0, const tuple3 &c1, const tuple3 &c2) {
+SquareMatrix3::from_columns(const tuple3 &c0, const tuple3 &c1,
+                            const tuple3 &c2) noexcept {
     // clang-format off
     return SquareMatrix3(c0.x,  c0.y,  c0.z,
                          c1.x,  c1.y,  c1.z,
@@ -373,7 +374,7 @@ SquareMatrix3::operator*(const SquareMatrix3 &other) const {
 
 tuple3
 SquareMatrix3::operator*(const tuple3 &other) const {
-    tuple3 res = tuple3(0.f);
+    auto res = tuple3(0.F);
 
     for (u32 i = 0; i < 3; i++) {
         res[i] = mat[0][i] * other[0] + mat[1][i] * other[1] + mat[2][i] * other[2];
@@ -386,9 +387,9 @@ SquareMatrix3
 SquareMatrix3::identity() {
     // clang-format off
     return SquareMatrix3(
-        1.f, 0.f, 0.f,
-        0.f, 1.f, 0.f,
-        0.f, 0.f, 1.f
+        1.F, 0.F, 0.F,
+        0.F, 1.F, 0.F,
+        0.F, 0.F, 1.F
     );
     // clang-format on
 }

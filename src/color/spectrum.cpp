@@ -8,6 +8,7 @@
 
 #include <cassert>
 
+// TODO: FIXME - can't catch exceptions in static init
 static const auto rgb2spec = RGB2Spec("rgb2spec.out");
 
 RgbSpectrum
@@ -29,7 +30,7 @@ RgbSpectrum::from_coeff(const tuple3 &sigmoig_coeff) {
 RgbSpectrum
 RgbSpectrum::make_empty() {
     return RgbSpectrum{
-        .sigmoid_coeff = tuple3(0.f),
+        .sigmoid_coeff = tuple3(0.F),
     };
 }
 
@@ -50,12 +51,12 @@ RgbSpectrum::eval(const SampledLambdas &lambdas) const {
 
 RgbSpectrumUnbounded
 RgbSpectrumUnbounded::make(tuple3 rgb) {
-    const f32 scale = 2.f * rgb.max_component();
+    const f32 scale = 2.F * rgb.max_component();
 
-    if (scale != 0.f) {
+    if (scale != 0.F) {
         rgb /= scale;
     } else {
-        rgb = tuple3(0.f);
+        rgb = tuple3(0.F);
     }
 
     RgbSpectrumUnbounded spectrum{};
@@ -105,7 +106,7 @@ RgbSpectrumIlluminant::eval_single(const f32 lambda) const {
 
     /// TODO: this is a hack for normalizing the D65 illuminant to having a luminance
     /// of 1
-    res *= illuminant->eval_single(lambda) * (CIE_Y_INTEGRAL / 10789.7637f);
+    res *= illuminant->eval_single(lambda) * (CIE_Y_INTEGRAL / 10789.7637F);
 
     return res;
 }
@@ -129,20 +130,20 @@ f32
 BlackbodySpectrum::eval_single(const f32 lambda) const {
     // taken from PBRT-v4
     const auto blackbody = [this](const f32 inner_lambda) {
-        constexpr auto kb = 1.3806488e-23f;
+        constexpr auto kb = 1.3806488e-23F;
 
-        constexpr auto h = 6.62606957e-34f;
-        constexpr auto c = 299792458.f;
+        constexpr auto h = 6.62606957e-34F;
+        constexpr auto c = 299792458.F;
 
-        const auto l = inner_lambda * 1e-9f;
+        const auto l = inner_lambda * 1e-9F;
         const auto lambda5 = sqr(l) * sqr(l) * l;
 
-        return 2.f * h * sqr(c) / (lambda5 * std::expm1(h * c / (l * kb * temp)));
+        return 2.F * h * sqr(c) / (lambda5 * std::expm1(h * c / (l * kb * temp)));
     };
 
     const auto le = blackbody(lambda);
 
-    const auto lambda_max = 2.8977721e-3f / temp * 1e9f;
+    const auto lambda_max = 2.8977721e-3F / temp * 1e9F;
     const auto max_l = blackbody(lambda_max);
 
     return le / max_l;
@@ -180,7 +181,7 @@ PiecewiseSpectrum::eval_single(const f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
     const auto index =
         binary_search_interval(size, [&](const size_t i) { return vals[2 * i]; }, lambda);
-    return vals[2 * index + 1];
+    return vals[(2 * index) + 1];
 }
 
 SampledSpectrum
@@ -250,13 +251,13 @@ Spectrum::eval_single(const f32 lambda) const {
 f32
 Spectrum::power() const {
     // Just use the rectangle rule...
-    f32 sum = 0.f;
+    f32 sum = 0.F;
     constexpr u32 num_steps = 100;
     constexpr f32 lambda_min = static_cast<f32>(LAMBDA_MIN);
     constexpr f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
     constexpr f32 h = (lambda_max - lambda_min) / static_cast<f32>(num_steps);
     for (u32 i = 0; i < num_steps; i++) {
-        const f32 lambda = lambda_min + (static_cast<f32>(i) * h) + h / 2.f;
+        const f32 lambda = lambda_min + (static_cast<f32>(i) * h) + (h / 2.F);
         sum += eval_single(lambda);
     }
 

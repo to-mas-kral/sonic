@@ -16,7 +16,7 @@ public:
     }
 
     point3
-    at(f32 t) const {
+    at(const f32 t) const {
         return o + (t * dir);
     }
 

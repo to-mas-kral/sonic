@@ -32,12 +32,12 @@ public:
 
     static f32
     sin_2_theta(const norm_vec3 &w) {
-        return std::max(0.f, 1.f - sqr(cos_theta(w)));
+        return std::max(0.F, 1.F - sqr(cos_theta(w)));
     }
 
     static f32
     sin_theta(const norm_vec3 &w) {
-        return sqrt(sin_2_theta(w));
+        return sqrtf(sin_2_theta(w));
     }
 
     static norm_vec3
@@ -67,11 +67,11 @@ public:
                  const norm_vec3 &wo, const bool refracts = false)
         : sframe{sframe}, wi{wi}, wo{wo}, h{norm_vec3::halfway(wi, wo)} {
 
-        assert(nowo() >= 0.f);
+        assert(nowo() >= 0.F);
         if (!refracts) {
-            assert(nowi() >= 0.f);
+            assert(nowi() >= 0.F);
         } else {
-            assert(nowi() <= 0.f);
+            assert(nowi() <= 0.F);
         }
     }
 
@@ -88,7 +88,7 @@ public:
 
     bool
     is_degenerate() const {
-        return nowi() == 0.f || nowo() == 0.f;
+        return nowi() == 0.F || nowo() == 0.F;
     }
 
     static f32
@@ -103,12 +103,12 @@ public:
 
     static f32
     sin_2_theta(const norm_vec3 &w) {
-        return std::max(0.f, 1.f - sqr(cos_theta(w)));
+        return std::max(0.F, 1.F - sqr(cos_theta(w)));
     }
 
     static f32
     sin_theta(const norm_vec3 &w) {
-        return sqrt(sin_2_theta(w));
+        return sqrtf(sin_2_theta(w));
     }
 
     static norm_vec3

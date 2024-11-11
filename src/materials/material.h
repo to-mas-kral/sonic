@@ -24,6 +24,7 @@ enum class MaterialType : u8 {
     Dielectric,
 };
 
+// TODO: make this a proper class...
 struct Material {
     static Material
     make_diffuse(SpectrumTexture *reflectance);

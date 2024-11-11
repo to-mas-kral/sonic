@@ -2,7 +2,6 @@
 #define PT_SPECTRAL_DATA_H
 
 #include "../utils/basic_types.h"
-#include "sampled_spectrum.h"
 
 /// Data from: https://refractiveindex.info/ (public domain)
 
@@ -221,47 +220,47 @@ inline constexpr auto TIO2_K_RAW = std::array<f32, 68>{
     0.000000,   879.915039, 0.000000,   899.709961, 0.000000,
 };
 
-constexpr PiecewiseSpectrum GLASS_BAF10_ETA = PiecewiseSpectrum(
+constexpr auto GLASS_BAF10_ETA = PiecewiseSpectrum(
     std::span<const f32>(GLASS_BAF10_ETA_RAW.data(), GLASS_BAF10_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum GLASS_BK7_ETA = PiecewiseSpectrum(
+constexpr auto GLASS_BK7_ETA = PiecewiseSpectrum(
     std::span<const f32>(GLASS_BK7_ETA_RAW.data(), GLASS_BK7_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum GLASS_F11_ETA = PiecewiseSpectrum(
+constexpr auto GLASS_F11_ETA = PiecewiseSpectrum(
     std::span<const f32>(GLASS_F11_ETA_RAW.data(), GLASS_F11_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum AU_ETA =
+constexpr auto AU_ETA =
     PiecewiseSpectrum(std::span<const f32>(AU_ETA_RAW.data(), AU_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum AU_K =
+constexpr auto AU_K =
     PiecewiseSpectrum(std::span<const f32>(AU_K_RAW.data(), AU_K_RAW.size()));
 
-constexpr PiecewiseSpectrum AL_ETA =
+constexpr auto AL_ETA =
     PiecewiseSpectrum(std::span<const f32>(AL_ETA_RAW.data(), AL_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum AL_K =
+constexpr auto AL_K =
     PiecewiseSpectrum(std::span<const f32>(AL_K_RAW.data(), AL_K_RAW.size()));
 
-constexpr PiecewiseSpectrum AG_ETA =
+constexpr auto AG_ETA =
     PiecewiseSpectrum(std::span<const f32>(AG_ETA_RAW.data(), AG_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum AG_K =
+constexpr auto AG_K =
     PiecewiseSpectrum(std::span<const f32>(AG_K_RAW.data(), AG_K_RAW.size()));
 
-constexpr PiecewiseSpectrum CU_ETA =
+constexpr auto CU_ETA =
     PiecewiseSpectrum(std::span<const f32>(CU_ETA_RAW.data(), CU_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum CU_K =
+constexpr auto CU_K =
     PiecewiseSpectrum(std::span<const f32>(CU_K_RAW.data(), CU_K_RAW.size()));
 
-constexpr PiecewiseSpectrum TIO2_ETA =
+constexpr auto TIO2_ETA =
     PiecewiseSpectrum(std::span<const f32>(TIO2_ETA_RAW.data(), TIO2_ETA_RAW.size()));
 
-constexpr PiecewiseSpectrum TIO2_K =
+constexpr auto TIO2_K =
     PiecewiseSpectrum(std::span<const f32>(TIO2_K_RAW.data(), TIO2_K_RAW.size()));
 
-constexpr ConstantSpectrum AIR_ETA = ConstantSpectrum(1.000277f);
+constexpr auto AIR_ETA = ConstantSpectrum(1.000277F);
 
-constexpr ConstantSpectrum POLYPROPYLENE_ETA = ConstantSpectrum(1.49f);
+constexpr auto POLYPROPYLENE_ETA = ConstantSpectrum(1.49F);
 
 #endif // PT_SPECTRAL_DATA_H

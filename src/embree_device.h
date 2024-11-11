@@ -12,7 +12,7 @@
 
 inline void
 errorFunction(void *userPtr, const RTCError error, const char *str) {
-    spdlog::error(fmt::format("Embree error {}: {}", (i32)error, str));
+    spdlog::error(fmt::format("Embree error {}: {}", static_cast<i32>(error), str));
 }
 
 inline void
@@ -29,11 +29,11 @@ filter_intersect_mesh(const RTCFilterFunctionNArguments *args) {
     const auto *mesh = static_cast<Mesh *>(args->geometryUserPtr);
 
     const auto bary = vec2(hit->u, hit->v);
-    const auto bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
+    const auto bar = vec3(1.F - bary.x - bary.y, bary.x, bary.y);
     const auto uv = mesh->calc_uvs(hit->primID, bar);
 
     const auto alpha = mesh->alpha->fetch(uv);
-    constexpr auto alpha_rand = 0.5f;
+    constexpr auto alpha_rand = 0.5F;
 
     if (alpha_rand > alpha) {
         args->valid[0] = 0;
@@ -64,7 +64,7 @@ filter_intersect_sphere(const RTCFilterFunctionNArguments *args) {
     const auto &attribs = &spheres->attribs[hit->primID];
 
     const auto alpha = attribs->alpha->fetch(uv);
-    constexpr auto alpha_rand = 0.3f;
+    constexpr auto alpha_rand = 0.3F;
 
     if (alpha_rand < alpha) {
         args->valid[0] = 0;
@@ -75,8 +75,7 @@ class EmbreeDevice {
 public:
     explicit
     EmbreeDevice(Scene &scene)
-        : scene(&scene) {
-        device = initialize_device();
+        : scene(&scene), device(initialize_device()) {
         initialize_scene();
     }
 
@@ -85,7 +84,7 @@ public:
                      const vec2 &bary) const {
         const auto &mesh = meshes[mesh_index];
 
-        const auto bar = vec3(1.f - bary.x - bary.y, bary.x, bary.y);
+        const auto bar = vec3(1.F - bary.x - bary.y, bary.x, bary.y);
 
         const auto indices = mesh.get_tri_indices(triangle_index);
         const auto pos_arr = mesh.get_tri_pos(indices);
@@ -95,15 +94,8 @@ public:
         const auto geometric_normal = mesh.calc_normal(triangle_index, bar, true);
         const auto uv = mesh.calc_uvs(triangle_index, bar);
 
-        return Intersection{
-            .material_id = mesh.material_id,
-            .light_id = mesh.lights_start_id + triangle_index,
-            .has_light = mesh.has_light,
-            .normal = normal,
-            .geometric_normal = geometric_normal,
-            .pos = pos,
-            .uv = uv,
-        };
+        return Intersection(mesh.material_id, mesh.lights_start_id + triangle_index,
+                            mesh.has_light, normal, geometric_normal, pos, uv);
     }
 
     Intersection
@@ -113,15 +105,9 @@ public:
 
         const auto &attribs = spheres.attribs[sphere_id];
 
-        return Intersection{
-            .material_id = attribs.material_id,
-            .light_id = attribs.light_id,
-            .has_light = attribs.has_light,
-            .normal = normal,
-            .geometric_normal = Spheres::calc_normal(pos, center, true),
-            .pos = pos,
-            .uv = Spheres::calc_uvs(normal),
-        };
+        return Intersection(attribs.material_id, attribs.light_id, attribs.has_light,
+                            normal, Spheres::calc_normal(pos, center, true), pos,
+                            Spheres::calc_uvs(normal));
     }
 
     std::optional<Intersection>
@@ -133,15 +119,18 @@ public:
         const auto &instanced_obj =
             scene->geometry.instances.instanced_objs[instance_indice];
 
-        auto its = Intersection::make_empty();
+        auto get_its = [&]() -> Intersection {
+            if (rayhit.hit.geomID < mesh_geom_counts[instance_indice]) {
+                return get_triangle_its(instanced_obj.meshes.meshes.data(),
+                                        rayhit.hit.geomID, rayhit.hit.primID,
+                                        vec2(rayhit.hit.u, rayhit.hit.v));
+            } else {
+                const point3 pos = orig + rayhit.ray.tfar * dir;
+                return get_sphere_its(instanced_obj.spheres, rayhit.hit.primID, pos);
+            }
+        };
 
-        if (rayhit.hit.geomID < mesh_geom_counts[instance_indice]) {
-            its = get_triangle_its(instanced_obj.meshes.meshes.data(), rayhit.hit.geomID,
-                                   rayhit.hit.primID, vec2(rayhit.hit.u, rayhit.hit.v));
-        } else {
-            const point3 pos = orig + rayhit.ray.tfar * dir;
-            its = get_sphere_its(instanced_obj.spheres, rayhit.hit.primID, pos);
-        }
+        auto its = get_its();
 
         const auto &transform =
             scene->geometry.instances.world_from_instances[rayhit.hit.instPrimID[0]];
@@ -209,7 +198,7 @@ public:
         const point3 orig = a;
 
         // tfar is relative to the ray length
-        constexpr f32 tfar = 0.999f;
+        constexpr f32 tfar = 0.999F;
 
         RTCRay rtc_ray{};
         rtc_ray.org_x = orig.x;
@@ -218,7 +207,7 @@ public:
         rtc_ray.dir_x = dir.x;
         rtc_ray.dir_y = dir.y;
         rtc_ray.dir_z = dir.z;
-        rtc_ray.tnear = 0.001f;
+        rtc_ray.tnear = 0.001F;
         rtc_ray.tfar = tfar;
         rtc_ray.mask = -1;
         rtc_ray.flags = 0;
@@ -226,18 +215,14 @@ public:
 
         rtcOccluded1(main_scene, &rtc_ray);
 
-        if (rtc_ray.tfar == -INFINITY) {
-            return false;
-        } else {
-            return true;
-        }
+        return rtc_ray.tfar != -INFINITY;
     }
 
     static RTCDevice
     initialize_device() {
-        const RTCDevice device = rtcNewDevice(nullptr);
+        auto *const device = rtcNewDevice(nullptr);
 
-        if (!device) {
+        if (device == nullptr) {
             spdlog::error(fmt::format("Cannot create Embree device, error: {}\n",
                                       static_cast<i32>(rtcGetDeviceError(nullptr))));
         }
@@ -272,7 +257,7 @@ public:
         auto &meshes = scene->geometry.meshes.meshes;
         mesh_geom_count = meshes.size();
         for (const auto &mesh : meshes) {
-            const auto geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
+            auto *const geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3,
                                        mesh.pos, 0, sizeof(point3), mesh.num_verts);
@@ -281,7 +266,7 @@ public:
                                        mesh.indices, 0, 3 * sizeof(u32),
                                        mesh.num_indices / 3);
 
-            if (mesh.alpha) {
+            if (mesh.alpha != nullptr) {
                 rtcSetGeometryIntersectFilterFunction(geom, filter_intersect_mesh);
                 rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_mesh);
                 rtcSetGeometryUserData(geom, (void *)(&mesh));
@@ -310,13 +295,13 @@ public:
 
         instance_scenes.reserve(instance_count);
         for (const auto &instance : instances.instanced_objs) {
-            auto instance_scene = rtcNewScene(device);
+            auto *instance_scene = rtcNewScene(device);
 
             {
                 mesh_geom_counts.push_back(instance.meshes.meshes.size());
 
                 for (const auto &mesh : instance.meshes.meshes) {
-                    const auto geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
+                    auto *const geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
 
                     rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0,
                                                RTC_FORMAT_FLOAT3, mesh.pos, 0,
@@ -326,7 +311,7 @@ public:
                                                RTC_FORMAT_UINT3, mesh.indices, 0,
                                                3 * sizeof(u32), mesh.num_indices / 3);
 
-                    if (mesh.alpha) {
+                    if (mesh.alpha != nullptr) {
                         rtcSetGeometryIntersectFilterFunction(geom,
                                                               filter_intersect_mesh);
                         rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_mesh);
@@ -347,14 +332,14 @@ public:
                 const auto &vertices = spheres.vertices;
 
                 for (int i = 0; i < spheres.num_spheres(); ++i) {
-                    const auto geom =
+                    auto *const geom =
                         rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
 
                     rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0,
                                                RTC_FORMAT_FLOAT4, &vertices[i], 0,
                                                sizeof(SphereVertex), 1);
 
-                    if (spheres.attribs[i].alpha) {
+                    if (spheres.attribs[i].alpha != nullptr) {
                         rtcSetGeometryIntersectFilterFunction(geom,
                                                               filter_intersect_sphere);
                         rtcSetGeometryOccludedFilterFunction(geom,
@@ -374,7 +359,7 @@ public:
             instance_scenes.push_back(instance_scene);
         }
 
-        const auto instance_array =
+        auto *const instance_array =
             rtcNewGeometry(device, RTC_GEOMETRY_TYPE_INSTANCE_ARRAY);
 
         rtcSetGeometryInstancedScenes(instance_array, instance_scenes.data(),
@@ -402,13 +387,13 @@ public:
         sphere_geom_count = spheres.num_spheres();
 
         for (int i = 0; i < sphere_geom_count; ++i) {
-            const RTCGeometry geom =
+            auto *const geom =
                 rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT4,
                                        &vertices[i], 0, sizeof(SphereVertex), 1);
 
-            if (spheres.attribs[i].alpha) {
+            if (spheres.attribs[i].alpha != nullptr) {
                 rtcSetGeometryIntersectFilterFunction(geom, filter_intersect_sphere);
                 rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_sphere);
                 rtcSetGeometryUserData(geom, (void *)(&spheres));
@@ -420,6 +405,16 @@ public:
             rtcReleaseGeometry(geom);
         }
     }
+
+    EmbreeDevice(const EmbreeDevice &other) = delete;
+
+    EmbreeDevice(EmbreeDevice &&other) noexcept = delete;
+
+    EmbreeDevice &
+    operator=(const EmbreeDevice &other) = delete;
+
+    EmbreeDevice &
+    operator=(EmbreeDevice &&other) noexcept = delete;
 
     ~
     EmbreeDevice() {
@@ -441,9 +436,9 @@ private:
     u32 sphere_geom_count{0};
 
     u32 instance_count{0};
-    std::vector<RTCScene> instance_scenes{};
+    std::vector<RTCScene> instance_scenes;
     // TODO: refactor later when multilevel instancing is added
-    std::vector<u32> mesh_geom_counts{};
+    std::vector<u32> mesh_geom_counts;
 
     RTCDevice device;
     RTCScene main_scene;

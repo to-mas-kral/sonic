@@ -15,15 +15,15 @@
 struct AttributeState {
     SquareMatrix4 ctm = SquareMatrix4::identity();
     bool reverse_orientation = false;
-    std::optional<Emitter> emitter{};
+    std::optional<Emitter> emitter;
     MaterialId material{0};
     ColorSpace color_space{ColorSpace::sRGB};
-    std::optional<InstanceId> instance{};
+    std::optional<InstanceId> instance;
 };
 
 // Only used in a private function... not sure if it could be moved somewhere else ?
 struct RoughnessDescription {
-    enum class RoughnessType {
+    enum class RoughnessType : u8 {
         Isotropic,
         Anisotropic,
     } type;
@@ -155,7 +155,7 @@ private:
             return sc.get_builtin_texture<T>(default_tex);
         }
 
-        const auto p = opt_p.value();
+        const auto *const p = opt_p.value();
         if (p->value_type == ValueType::Texture) {
             const auto &tex_name = std::get<std::string>(p->inner);
             if constexpr (std::is_same<T, FloatTexture>()) {
@@ -185,7 +185,7 @@ private:
             return {};
         }
 
-        const auto p = opt_p.value();
+        const auto *const p = opt_p.value();
         if (p->value_type == ValueType::Texture) {
             const auto &tex_name = std::get<std::string>(p->inner);
             if constexpr (std::is_same<T, FloatTexture>()) {
@@ -335,16 +335,16 @@ private:
     std::string
     parse_quoted_string();
 
-    std::filesystem::path file_path{};
-    std::filesystem::path base_directory{};
+    std::filesystem::path file_path;
+    std::filesystem::path base_directory;
     StackFileStream stack_file_stream;
     Lexer lexer;
 
-    std::unordered_map<std::string, MaterialId> materials{};
-    std::unordered_map<std::string, FloatTexture *> float_textures{};
-    std::unordered_map<std::string, SpectrumTexture *> spectrum_textures{};
-    std::unordered_map<std::string, InstanceId> instances{};
-    std::vector<AttributeState> astates{};
+    std::unordered_map<std::string, MaterialId> materials;
+    std::unordered_map<std::string, FloatTexture *> float_textures;
+    std::unordered_map<std::string, SpectrumTexture *> spectrum_textures;
+    std::unordered_map<std::string, InstanceId> instances;
+    std::vector<AttributeState> astates;
     AttributeState current_astate{};
 };
 

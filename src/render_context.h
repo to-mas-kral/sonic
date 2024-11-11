@@ -20,7 +20,7 @@ public:
     }
 
     SceneAttribs attribs;
-    Scene scene{};
+    Scene scene;
     Camera cam;
     Framebuffer fb;
 };

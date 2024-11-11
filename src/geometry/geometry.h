@@ -23,8 +23,8 @@ struct ShapeIndex {
 
 struct ShapeLightSample {
     point3 pos;
-    norm_vec3 normal{1.f, 0.f, 0.f};
-    f32 pdf;
+    norm_vec3 normal;
+    f32 pdf{};
     spectral emission;
 };
 
@@ -57,8 +57,7 @@ struct Mesh {
         : num_verts(other.num_verts), num_indices(other.num_indices), pos(other.pos),
           normals(other.normals), uvs(other.uvs), indices(other.indices),
           alpha{other.alpha}, has_light(other.has_light),
-          lights_start_id(other.lights_start_id),
-          material_id(std::move(other.material_id)) {
+          lights_start_id(other.lights_start_id), material_id(other.material_id) {
         other.pos = nullptr;
         other.normals = nullptr;
         other.uvs = nullptr;
@@ -70,8 +69,9 @@ struct Mesh {
 
     Mesh &
     operator=(Mesh &&other) noexcept {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         num_verts = other.num_verts;
         num_indices = other.num_indices;
         pos = other.pos;
@@ -81,7 +81,7 @@ struct Mesh {
         indices = other.indices;
         has_light = other.has_light;
         lights_start_id = other.lights_start_id;
-        material_id = std::move(other.material_id);
+        material_id = other.material_id;
 
         other.pos = nullptr;
         other.normals = nullptr;
@@ -93,20 +93,20 @@ struct Mesh {
 
     ~
     Mesh() {
-        // This will be moved elsewhere once geometry is cached
-        if (pos) {
+        // TODO: This will be moved elsewhere once geometry is cached
+        if (pos != nullptr) {
             std::free(pos);
         }
 
-        if (normals) {
+        if (normals != nullptr) {
             std::free(normals);
         }
 
-        if (uvs) {
+        if (uvs != nullptr) {
             std::free(uvs);
         }
 
-        if (indices) {
+        if (indices != nullptr) {
             std::free(indices);
         }
     }
@@ -120,13 +120,21 @@ struct Mesh {
     FloatTexture *alpha{nullptr};
 
     bool has_light = false;
-    u32 lights_start_id;
+    u32 lights_start_id{0};
     MaterialId material_id;
 };
 
 // TODO: refactor to norm_vec3... ?
 // Used only for mesh creation
 struct MeshParams {
+    MeshParams(u32 *const indices, const u32 num_indices, point3 *const pos,
+               vec3 *const normals, vec2 *const uvs, const u32 num_verts,
+               const MaterialId &material_id, const std::optional<Emitter> &emitter,
+               FloatTexture *const alpha)
+        : indices(indices), num_indices(num_indices), pos(pos), normals(normals),
+          uvs(uvs), num_verts(num_verts), material_id(material_id), emitter(emitter),
+          alpha(alpha) {}
+
     u32 *indices;
     u32 num_indices;
     point3 *pos;
@@ -134,13 +142,13 @@ struct MeshParams {
     vec2 *uvs = nullptr;     // may be null
     u32 num_verts;
     MaterialId material_id;
-    std::optional<Emitter> emitter{};
+    std::optional<Emitter> emitter;
     FloatTexture *alpha{nullptr};
 };
 
 // SOA layout
 struct Meshes {
-    std::vector<Mesh> meshes{};
+    std::vector<Mesh> meshes;
 
     ShapeLightSample
     sample(ShapeIndex si, const vec3 &sample) const;
@@ -148,14 +156,21 @@ struct Meshes {
 
 // Used only for sphere creation
 struct SphereParams {
+    SphereParams(const point3 &center, const f32 radius, const MaterialId &material_id,
+                 const std::optional<Emitter> &emitter, FloatTexture *const alpha)
+        : center(center), radius(radius), material_id(material_id), emitter(emitter),
+          alpha(alpha) {}
+
     point3 center;
     f32 radius;
     MaterialId material_id;
-    std::optional<Emitter> emitter{};
+    std::optional<Emitter> emitter;
     FloatTexture *alpha{nullptr};
 };
 
 struct SphereVertex {
+    SphereVertex(const point3 &pos, const f32 radius) : pos(pos), radius(radius) {}
+
     point3 pos;
     f32 radius;
 };
@@ -169,8 +184,8 @@ struct SphereAttribs {
 
 // semi-SOA layout...
 struct Spheres {
-    std::vector<SphereVertex> vertices{};
-    std::vector<SphereAttribs> attribs{};
+    std::vector<SphereVertex> vertices;
+    std::vector<SphereAttribs> attribs;
 
     void
     add_sphere(const SphereParams &sp, std::optional<u32> light_id);
@@ -207,10 +222,10 @@ struct InstancedObj {
 /// with Embree.
 /// 'indices' maps from the instances themselves to the instanced objects.
 struct Instances {
-    std::vector<InstancedObj> instanced_objs{};
-    std::vector<SquareMatrix4> world_from_instances{};
-    std::vector<SquareMatrix4> wfi_inv_trans{};
-    std::vector<u32> indices{};
+    std::vector<InstancedObj> instanced_objs;
+    std::vector<SquareMatrix4> world_from_instances;
+    std::vector<SquareMatrix4> wfi_inv_trans;
+    std::vector<u32> indices;
 };
 
 struct Geometry {

@@ -22,10 +22,10 @@ private:
     const f32 *vals;
 };
 
-constexpr DenseSpectrum CIE_X = DenseSpectrum(CIE_X_RAW);
-constexpr DenseSpectrum CIE_Y = DenseSpectrum(CIE_Y_RAW);
-constexpr DenseSpectrum CIE_Z = DenseSpectrum(CIE_Z_RAW);
-constexpr DenseSpectrum CIE_65 = DenseSpectrum(CIE_D65_RAW);
+constexpr auto CIE_X = DenseSpectrum(CIE_X_RAW);
+constexpr auto CIE_Y = DenseSpectrum(CIE_Y_RAW);
+constexpr auto CIE_Z = DenseSpectrum(CIE_Z_RAW);
+constexpr auto CIE_65 = DenseSpectrum(CIE_D65_RAW);
 
 class PiecewiseSpectrum {
 public:
@@ -82,7 +82,7 @@ struct RgbSpectrum {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
-    tuple3 sigmoid_coeff = tuple3(0.f);
+    tuple3 sigmoid_coeff = tuple3(0.F);
 };
 
 struct RgbSpectrumUnbounded : RgbSpectrum {
@@ -95,7 +95,7 @@ struct RgbSpectrumUnbounded : RgbSpectrum {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
-    f32 scale = 1.f;
+    f32 scale = 1.F;
 };
 
 struct RgbSpectrumIlluminant : RgbSpectrumUnbounded {
@@ -124,7 +124,7 @@ struct BlackbodySpectrum {
     i32 temp{0};
 };
 
-enum class SpectrumType {
+enum class SpectrumType : u8 {
     Constant,
     Dense,
     PiecewiseLinear,
@@ -141,9 +141,7 @@ struct Spectrum {
 
     explicit
     Spectrum(PiecewiseSpectrum ps)
-        : type{SpectrumType::PiecewiseLinear} {
-        piecewise_spectrum = ps;
-    }
+        : type{SpectrumType::PiecewiseLinear}, piecewise_spectrum{ps} {}
 
     explicit
     Spectrum(ConstantSpectrum cs)
@@ -151,27 +149,19 @@ struct Spectrum {
 
     explicit
     Spectrum(RgbSpectrum rs)
-        : type{SpectrumType::Rgb} {
-        rgb_spectrum = rs;
-    }
+        : type{SpectrumType::Rgb}, rgb_spectrum{rs} {}
 
     explicit
     Spectrum(RgbSpectrumUnbounded rs)
-        : type{SpectrumType::RgbUnbounded} {
-        rgb_spectrum_unbounded = rs;
-    }
+        : type{SpectrumType::RgbUnbounded}, rgb_spectrum_unbounded(rs) {}
 
     explicit
     Spectrum(RgbSpectrumIlluminant rs)
-        : type{SpectrumType::RgbIlluminant} {
-        rgb_spectrum_illuminant = rs;
-    }
+        : type{SpectrumType::RgbIlluminant}, rgb_spectrum_illuminant(rs) {}
 
     explicit
     Spectrum(BlackbodySpectrum bs)
-        : type{SpectrumType::Blackbody} {
-        blackbody_spectrum = bs;
-    }
+        : type{SpectrumType::Blackbody}, blackbody_spectrum{bs} {}
 
     SampledSpectrum
     eval(const SampledLambdas &lambdas) const;

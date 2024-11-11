@@ -9,13 +9,13 @@
 #include "../utils/basic_types.h"
 
 struct SourceLocation {
-    std::filesystem::path file_path{};
+    std::filesystem::path file_path;
     u32 line_counter{1};
 };
 
 struct CurrentFileStream {
     std::vector<char> buf = std::vector<char>(8192 * 1000);
-    std::ifstream file_stream{};
+    std::ifstream file_stream;
     SourceLocation src_location{};
 };
 
@@ -84,7 +84,7 @@ public:
             return string_stream.eof();
         }
     }
-
+    
     std::optional<char>
     peek() {
         if (!is_string_input) {
@@ -136,7 +136,7 @@ private:
     bool is_string_input = false;
     std::istringstream string_stream;
     SourceLocation string_source_location{};
-    std::vector<CurrentFileStream> file_streams{};
+    std::vector<CurrentFileStream> file_streams;
 };
 
 #endif // STACK_FILE_STREAM_H

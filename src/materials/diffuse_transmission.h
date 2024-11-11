@@ -25,7 +25,7 @@ struct DiffuseTransmissionMaterial {
 private:
     SpectrumTexture *reflectance{nullptr};
     SpectrumTexture *transmittace{nullptr};
-    f32 scale{1.f};
+    f32 scale{1.F};
 };
 
 #endif // DIFFUSETRANSMISSION_H

@@ -16,16 +16,11 @@ DiffuseTransmissionMaterial::eval(const SampledLambdas &lambdas, const vec2 &uv)
 }
 
 BSDFSample
-DiffuseTransmissionMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3 &wo,
-                                    const vec2 &sample, const SampledLambdas &lambdas,
-                                    const vec2 &uv) const {
+DiffuseTransmissionMaterial::sample(const ShadingFrameIncomplete &sframe,
+                                    const norm_vec3 &wo, const vec2 &sample,
+                                    const SampledLambdas &lambdas, const vec2 &uv) const {
     const norm_vec3 wi = sample_cosine_hemisphere(sample);
     const auto sframe_complete = ShadingFrame(sframe, wi, wo);
 
-    return BSDFSample{
-        .bsdf = eval(lambdas, uv),
-        .pdf = pdf(sframe_complete),
-        .did_refract = false,
-        .sframe = sframe_complete,
-    };
+    return BSDFSample(eval(lambdas, uv), pdf(sframe_complete), false, sframe_complete);
 }

@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <utility>
 
-enum class LexemeType {
+enum class LexemeType : u8 {
     String,
     Quotes,
     OpenBracket,
@@ -24,7 +24,7 @@ struct Lexeme {
     bool operator==(const Lexeme &other) const { return type == other.type && src == other.src; }
 
     LexemeType type;
-    std::string src{};
+    std::string src;
 };
 
 class Lexer {
@@ -92,7 +92,7 @@ private:
     void advance() const;
 
     StackFileStream *src;
-    std::optional<Lexeme> lexeme_buf{};
+    std::optional<Lexeme> lexeme_buf;
 };
 
 #endif // LEXER_H

@@ -12,7 +12,7 @@ struct LightSample {
     point3 pos{};
     norm_vec3 normal{1.f, 0.f, 0.f};
     f32 pdf{};
-    Light const *light{nullptr};
+    const Light *light{nullptr};
     spectral emission;
 };
 

@@ -6,6 +6,7 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
+#include <algorithm>
 #include <vector>
 
 #include <spdlog/spdlog.h>
@@ -28,7 +29,9 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, const u32 num_sa
 
     image.num_channels = 3;
 
-    std::vector<f32> images[3];
+    // Taken from examples
+
+    std::array<std::vector<f32>, 3> images{};
     images[0].resize(width * height);
     images[1].resize(width * height);
     images[2].resize(width * height);
@@ -37,17 +40,9 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, const u32 num_sa
         const vec3 xyz = pixels[i] / static_cast<float>(num_samples);
         tuple3 rgb = xyz_to_srgb(tuple3(xyz.x, xyz.y, xyz.z));
 
-        if (rgb.x < 0.f) {
-            rgb.x = 0.f;
-        }
-
-        if (rgb.y < 0.f) {
-            rgb.y = 0.f;
-        }
-
-        if (rgb.z < 0.f) {
-            rgb.z = 0.f;
-        }
+        rgb.x = std::max(rgb.x, 0.F);
+        rgb.y = std::max(rgb.y, 0.F);
+        rgb.z = std::max(rgb.z, 0.F);
 
         images[0][i] = rgb.x;
         images[1][i] = rgb.y;

@@ -2,6 +2,7 @@
 #include "sampled_spectrum.h"
 #include "spectrum.h"
 
+#include <algorithm>
 #include <limits>
 
 SampledSpectrum::
@@ -17,9 +18,9 @@ SampledSpectrum::make_constant(const f32 constant) {
 
 f32
 SampledSpectrum::average() const {
-    f32 sum = 0.f;
-    for (const auto v : vals) {
-        sum += v;
+    f32 sum = 0.F;
+    for (const auto val : vals) {
+        sum += val;
     }
 
     return sum / static_cast<f32>(N_SPECTRUM_SAMPLES);
@@ -28,10 +29,8 @@ SampledSpectrum::average() const {
 f32
 SampledSpectrum::max_component() const {
     f32 max = std::numeric_limits<f32>::min();
-    for (const f32 v : vals) {
-        if (v > max) {
-            max = v;
-        }
+    for (const f32 val : vals) {
+        max = std::max(val, max);
     }
 
     return max;
@@ -39,8 +38,8 @@ SampledSpectrum::max_component() const {
 
 bool
 SampledSpectrum::isnan() const {
-    for (const auto &v : vals) {
-        if (std::isnan(v)) {
+    for (const auto &val : vals) {
+        if (std::isnan(val)) {
             return true;
         }
     }
@@ -50,8 +49,8 @@ SampledSpectrum::isnan() const {
 
 bool
 SampledSpectrum::isinf() const {
-    for (const auto &v : vals) {
-        if (std::isinf(v)) {
+    for (const auto &val : vals) {
+        if (std::isinf(val)) {
             return true;
         }
     }
@@ -61,8 +60,8 @@ SampledSpectrum::isinf() const {
 
 bool
 SampledSpectrum::is_negative() const {
-    for (const auto &v : vals) {
-        if (v < 0.f) {
+    for (const auto &val : vals) {
+        if (val < 0.F) {
             return true;
         }
     }
@@ -85,7 +84,7 @@ SampledSpectrum::is_constant() const {
 bool
 SampledSpectrum::is_zero() const {
     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-        if (vals[i] != 0.f) {
+        if (vals[i] != 0.F) {
             return false;
         }
     }
@@ -95,9 +94,9 @@ SampledSpectrum::is_zero() const {
 
 void
 SampledSpectrum::div_pdf(const f32 pdf) {
-    for (f32 &v : vals) {
-        if (pdf != 0.f) {
-            v /= pdf;
+    for (f32 &val : vals) {
+        if (pdf != 0.F) {
+            val /= pdf;
         }
     }
 }
@@ -125,14 +124,14 @@ SampledSpectrum::clamp(const f32 low, const f32 high) {
 SampledSpectrum
 SampledSpectrum::ONE() {
     SampledSpectrum sq{};
-    sq.vals.fill(1.f);
+    sq.vals.fill(1.F);
     return sq;
 }
 
 SampledSpectrum
 SampledSpectrum::ZERO() {
     SampledSpectrum sq{};
-    sq.vals.fill(0.f);
+    sq.vals.fill(0.F);
     return sq;
 }
 
@@ -268,7 +267,7 @@ SampledLambdas::new_sample_uniform(const f32 rand) {
     return sl;
 }
 
-constexpr f32 PDF = 1.f / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
+static constexpr f32 PDF = 1.F / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
 vec3
 SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
@@ -276,7 +275,7 @@ SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
     auto pdf = PDF;
     if (is_secondary_terminated) {
         for (int i = 1; i < N_SPECTRUM_SAMPLES; ++i) {
-            rad[i] = 0.f;
+            rad[i] = 0.F;
         }
         pdf /= N_SPECTRUM_SAMPLES;
     }
@@ -292,7 +291,7 @@ SampledLambdas::to_xyz(const SampledSpectrum &radiance) const {
     const f32 x_xyz = x.average() / CIE_Y_INTEGRAL;
     const f32 y_xyz = y.average() / CIE_Y_INTEGRAL;
     const f32 z_xyz = z.average() / CIE_Y_INTEGRAL;
-    return vec3(x_xyz, y_xyz, z_xyz);
+    return {x_xyz, y_xyz, z_xyz};
 }
 
 void
@@ -303,7 +302,7 @@ SampledLambdas::terminate_secondary() {
 SampledLambdas
 SampledLambdas::new_mock() {
     SampledLambdas sl{};
-    sl.lambdas.fill(400.f);
+    sl.lambdas.fill(400.F);
     return sl;
 }
 

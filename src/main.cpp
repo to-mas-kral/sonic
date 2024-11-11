@@ -28,7 +28,7 @@ main(int argc, char **argv) {
     CLI::App app{"A path-tracer by Tomáš Král, 2023-2024."};
     // argv = app.ensure_utf8(argv);
 
-    std::map<std::string, IntegratorType> map{
+    const std::map<std::string, IntegratorType> map{
         {"naive", IntegratorType::Naive},
         {"mis_nee", IntegratorType::MISNEE},
     };

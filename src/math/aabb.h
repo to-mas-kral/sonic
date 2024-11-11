@@ -13,7 +13,7 @@ struct AABB {
 
     std::tuple<vec3, f32>
     bounding_sphere() const {
-        const auto center = (high + low) / 2.f;
+        const auto center = (high + low) / 2.F;
         const auto radius = (high - center).length();
         return {center, radius};
     }
@@ -51,15 +51,15 @@ struct AABB {
     right_of_split_axis(const point3 &pos, const Axis axis) const {
         switch (axis) {
         case Axis::X: {
-            const auto middle = low.x + 0.5f * (high.x - low.x);
+            const auto middle = low.x + 0.5F * (high.x - low.x);
             return pos.x >= middle;
         }
         case Axis::Y: {
-            const auto middle = low.y + 0.5f * (high.y - low.y);
+            const auto middle = low.y + 0.5F * (high.y - low.y);
             return pos.y >= middle;
         }
         case Axis::Z: {
-            const auto middle = low.z + 0.5f * (high.z - low.z);
+            const auto middle = low.z + 0.5F * (high.z - low.z);
             return pos.z >= middle;
         }
         default:
@@ -70,19 +70,19 @@ struct AABB {
     AABB right_half(const Axis axis) const {
         switch (axis) {
         case Axis::X: {
-            const auto middle = low.x + 0.5f * (high.x - low.x);
+            const auto middle = low.x + 0.5F * (high.x - low.x);
             auto next_low = low;
             next_low.x = middle;
             return AABB(next_low, high);
         }
         case Axis::Y: {
-            const auto middle = low.y + 0.5f * (high.y - low.y);
+            const auto middle = low.y + 0.5F * (high.y - low.y);
             auto next_low = low;
             next_low.y = middle;
             return AABB(next_low, high);
         }
         case Axis::Z: {
-            const auto middle = low.z + 0.5f * (high.z - low.z);
+            const auto middle = low.z + 0.5F * (high.z - low.z);
             auto next_low = low;
             next_low.z = middle;
             return AABB(next_low, high);
@@ -95,19 +95,19 @@ struct AABB {
     AABB left_half(const Axis axis) const {
         switch (axis) {
         case Axis::X: {
-            const auto middle = low.x + 0.5f * (high.x - low.x);
+            const auto middle = low.x + 0.5F * (high.x - low.x);
             auto next_high = high;
             next_high.x = middle;
             return AABB(low, next_high);
         }
         case Axis::Y: {
-            const auto middle = low.y + 0.5f * (high.y - low.y);
+            const auto middle = low.y + 0.5F * (high.y - low.y);
             auto next_high = high;
             next_high.y = middle;
             return AABB(low, next_high);
         }
         case Axis::Z: {
-            const auto middle = low.z + 0.5f * (high.z - low.z);
+            const auto middle = low.z + 0.5F * (high.z - low.z);
             auto next_high = high;
             next_high.z = middle;
             return AABB(low, next_high);
@@ -117,8 +117,8 @@ struct AABB {
         }
     }
 
-    vec3 low{};
-    vec3 high{};
+    vec3 low;
+    vec3 high;
 };
 
 #endif // AABB_H

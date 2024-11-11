@@ -92,7 +92,7 @@ Mesh::tri_area(const u32 triangle) const {
     const auto v1 = p1 - p0;
     const auto v2 = p2 - p0;
     const auto cross = vec3::cross(v1, v2);
-    return cross.length() / 2.f;
+    return cross.length() / 2.F;
 }
 
 norm_vec3
@@ -100,7 +100,7 @@ Mesh::calc_normal(const u32 triangle, const vec3 bar,
                   const bool want_geometric_normal) const {
     const auto tri_indices = get_tri_indices(triangle);
 
-    if (normals && !want_geometric_normal) {
+    if (normals != nullptr && !want_geometric_normal) {
         const auto n0 = normals[tri_indices[0]];
         const auto n1 = normals[tri_indices[1]];
         const auto n2 = normals[tri_indices[2]];
@@ -113,7 +113,7 @@ Mesh::calc_normal(const u32 triangle, const vec3 bar,
         norm_vec3 normal = vec3::cross(v0, v1).normalized();
         if (normal.any_nan()) {
             // TODO: Degenerate triangle hack...
-            normal = vec3(0.0f, 0.0f, 1.0f).normalized();
+            normal = vec3(0.0F, 0.0F, 1.0F).normalized();
         }
 
         return normal;
@@ -125,7 +125,7 @@ Mesh::calc_uvs(const u32 triangle_index, const vec3 &bar) const {
     // Idk what's suppossed to happen here without explicit UVs..
     const auto tri_indices = get_tri_indices(triangle_index);
     auto uv = vec2(0.);
-    if (uvs) {
+    if (uvs != nullptr) {
         const auto uv0 = uvs[tri_indices[0]];
         const auto uv1 = uvs[tri_indices[1]];
         const auto uv2 = uvs[tri_indices[2]];
@@ -150,16 +150,13 @@ Meshes::sample(const ShapeIndex si, const vec3 &sample) const {
     return ShapeLightSample{
         .pos = sampled_pos,
         .normal = normal,
-        .pdf = 1.f / area,
+        .pdf = 1.F / area,
     };
 }
 
 void
 Spheres::add_sphere(const SphereParams &sp, const std::optional<u32> light_id) {
-    vertices.push_back(SphereVertex{
-        .pos = sp.center,
-        .radius = sp.radius,
-    });
+    vertices.push_back(SphereVertex(sp.center, sp.radius));
 
     attribs.emplace_back(SphereAttribs{.has_light = light_id.has_value(),
                                        .light_id = light_id.value_or(0),
@@ -180,13 +177,13 @@ Spheres::sample(const u32 index, const point3 &illuminated_pos,
     return ShapeLightSample{
         .pos = pos,
         .normal = calc_normal(pos, center),
-        .pdf = 1.f / area,
+        .pdf = 1.F / area,
     };
 }
 
 f32
 Spheres::calc_sphere_area(const f32 radius) {
-    return 4.f * M_PIf * sqr(radius);
+    return 4.F * M_PIf * sqr(radius);
 }
 
 f32
@@ -206,7 +203,7 @@ vec2
 Spheres::calc_uvs(const vec3 &normal) {
     // TODO: Sphere UV mapping could be wrong, test...
     // (1 / 2pi, 1 / pi)
-    const auto pi_reciprocals = vec2(0.1591f, 0.3183f);
+    const auto pi_reciprocals = vec2(0.1591F, 0.3183F);
     auto uv = vec2(std::atan2(-normal.z, -normal.x), std::asin(normal.y));
     uv *= pi_reciprocals;
     uv += 0.5;

@@ -9,7 +9,7 @@ class Envmap;
 
 struct LightIndexSample {
     f32 pdf;
-    Light const *light;
+    const Light *light;
 };
 
 class LightSampler {
@@ -29,7 +29,7 @@ public:
 
 private:
     bool has_lights = false;
-    DiscreteDist sampling_dist{};
+    DiscreteDist sampling_dist;
 };
 
 #endif // PT_LIGHT_SAMPLER_H

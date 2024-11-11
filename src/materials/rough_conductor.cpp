@@ -8,8 +8,8 @@ RoughConductorMaterial::pdf(const ShadingFrame &sframe, const vec2 &uv) const {
 }
 
 spectral
-RoughConductorMaterial::eval(const ShadingFrame &sframe,
-                             const SampledLambdas &lambdas, const vec2 &uv) const {
+RoughConductorMaterial::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
+                             const vec2 &uv) const {
     // TODO: have to store the current IOR... when it isn't 1...
     auto rel_ior = m_eta->fetch(uv, lambdas);
     auto k = m_k->fetch(uv, lambdas);
@@ -46,10 +46,6 @@ RoughConductorMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_
 
     const auto sframe_complete = ShadingFrame(sframe, wi, wo);
 
-    return BSDFSample{
-        .bsdf = eval(sframe_complete, lambdas, uv),
-        .pdf = pdf(sframe_complete, uv),
-        .did_refract = false,
-        .sframe = sframe_complete,
-    };
+    return BSDFSample(eval(sframe_complete, lambdas, uv), pdf(sframe_complete, uv), false,
+                      sframe_complete);
 }

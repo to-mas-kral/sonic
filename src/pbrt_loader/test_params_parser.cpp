@@ -31,7 +31,7 @@ TEST_CASE("params single", "[params single]") {
     REQUIRE(params[0].type == ParamType::Single);
     REQUIRE(params[0].name == "a");
     REQUIRE(params[0].value_type == ValueType::Float);
-    REQUIRE(std::get<f32>(params[0].inner) == 1.0f);
+    REQUIRE(std::get<f32>(params[0].inner) == 1.F);
 
     REQUIRE(params[1].type == ParamType::Single);
     REQUIRE(params[1].name == "b");
@@ -56,7 +56,7 @@ TEST_CASE("params list", "[params list]") {
     REQUIRE(params[1].type == ParamType::List);
     REQUIRE(params[1].name == "a");
     REQUIRE(params[1].value_type == ValueType::Float);
-    REQUIRE(std::get<std::vector<f32>>(params[1].inner) == std::vector{1.0f, 2.0f, 3.0f});
+    REQUIRE(std::get<std::vector<f32>>(params[1].inner) == std::vector{1.F, 2.F, 3.F});
 
     REQUIRE(params[2].type == ParamType::List);
     REQUIRE(params[2].name == "c");
@@ -81,14 +81,14 @@ TEST_CASE("params various", "[params various]") {
     REQUIRE(params[1].value_type == ValueType::Point3);
 
     const auto p = std::get<point3>(params[1].inner);
-    REQUIRE(p.x == -30.0f);
-    REQUIRE(p.y == 40.0f);
-    REQUIRE(p.z == 100.0f);
+    REQUIRE(p.x == -30.F);
+    REQUIRE(p.y == 40.F);
+    REQUIRE(p.z == 100.F);
 
     REQUIRE(params[2].type == ParamType::Single);
     REQUIRE(params[2].name == "scale");
     REQUIRE(params[2].value_type == ValueType::Float);
-    REQUIRE(std::get<f32>(params[2].inner) == 1.5f);
+    REQUIRE(std::get<f32>(params[2].inner) == 1.5F);
 }
 
 TEST_CASE("params duplicated param name") {

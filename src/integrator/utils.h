@@ -13,16 +13,16 @@
 inline std::optional<f32>
 russian_roulette(const u32 depth, const f32 u, const spectral &throughput) {
     if (depth > 3) {
-        const f32 survival_prob = 1.f - std::max(throughput.max_component(), 0.05f);
+        const f32 survival_prob = 1.F - std::max(throughput.max_component(), 0.05F);
 
         if (u < survival_prob) {
             return {};
         } else {
-            f32 roulette_compensation = 1.f - survival_prob;
+            f32 roulette_compensation = 1.F - survival_prob;
             return roulette_compensation;
         }
     } else {
-        return 1.f;
+        return 1.F;
     }
 }
 

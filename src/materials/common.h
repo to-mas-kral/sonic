@@ -22,7 +22,7 @@ refract(const norm_vec3 &wo, f32 rel_ior);
 
 inline f32
 fetch_alpha(const FloatTexture *texture, const vec2 &uv) {
-    return std::max(texture->fetch(uv), 0.01f);
+    return std::max(texture->fetch(uv), 0.01F);
 }
 
 inline spectral
@@ -32,7 +32,7 @@ fetch_reflectance(const SpectrumTexture *texture, const vec2 &uv,
 
     // This has to be done due to the PBRT format accepting textures with reflectance
     // potentially being > 1
-    refl.clamp(0.f, 1.f);
+    refl.clamp(0.F, 1.F);
 
     return refl;
 }

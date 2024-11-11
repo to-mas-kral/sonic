@@ -11,9 +11,9 @@ enum class ColorSpace : u8 {
 
 // clang-format off
 const mat3 XYZ_TO_RGB_MATRIX = mat3::from_columns(
-    tuple3(3.240812398895283f,   -0.9692430170086407f,  0.055638398436112804f),
-    tuple3(-1.5373084456298136f, 1.8759663029085742f,   -0.20400746093241362f),
-    tuple3(-0.4985865229069666f, 0.04155503085668564f,  1.0571295702861434f)
+    tuple3(3.240812398895283F,   -0.9692430170086407F,  0.055638398436112804F),
+    tuple3(-1.5373084456298136F, 1.8759663029085742F,   -0.20400746093241362F),
+    tuple3(-0.4985865229069666F, 0.04155503085668564F,  1.0571295702861434F)
 );
 // clang-format on
 
@@ -24,11 +24,11 @@ xyz_to_srgb(const tuple3 &xyz) {
 
 static tuple3
 srgb_nonlinear_to_linear(const tuple3 &rgb) {
-    const auto transform = [](const f32 c) {
-        if (c <= 0.04045f) {
-            return c / 12.92f;
+    const auto transform = [](const f32 channel) {
+        if (channel <= 0.04045F) {
+            return channel / 12.92F;
         } else {
-            return std::powf((c + 0.055f) / 1.055f, 2.4f);
+            return std::powf((channel + 0.055F) / 1.055F, 2.4F);
         }
     };
 
@@ -36,7 +36,7 @@ srgb_nonlinear_to_linear(const tuple3 &rgb) {
     const auto y = transform(rgb.y);
     const auto z = transform(rgb.z);
 
-    return tuple3(x, y, z);
+    return {x, y, z};
 }
 
 static tuple3

@@ -1,7 +1,6 @@
 #ifndef DISCRETE_DIST_H
 #define DISCRETE_DIST_H
 
-#include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
 #include <numeric>
@@ -22,21 +21,24 @@ public:
     DiscreteDist &
     operator=(DiscreteDist &&other) noexcept = default;
 
+    ~
+    DiscreteDist() = default;
+
     void
     create_cmf() {
         cmf.reserve(pmf.size() + 1);
 
-        f32 cmf_sum = 0.f;
+        f32 cmf_sum = 0.F;
         cmf.push_back(cmf_sum);
         for (const f32 i : pmf) {
             cmf_sum += i;
             cmf.push_back(cmf_sum);
         }
 
-        f32 err = std::abs(cmf[cmf.size() - 1] - 1.f);
-        assert(err < 0.0001f);
+        f32 err = std::abs(cmf[cmf.size() - 1] - 1.F);
+        assert(err < 0.0001F);
 
-        cmf[cmf.size() - 1] = 1.f;
+        cmf[cmf.size() - 1] = 1.F;
     }
 
     /// Expects normalized probabilites !
@@ -54,7 +56,7 @@ public:
     DiscreteDist(std::span<const f32> vals) {
         pmf.reserve(vals.size());
 
-        const f32 sum = std::accumulate(vals.begin(), vals.end(), 0.f);
+        const f32 sum = std::accumulate(vals.begin(), vals.end(), 0.F);
         for (const auto v : vals) {
             pmf.push_back(v / sum);
         }
@@ -91,9 +93,9 @@ public:
 
 private:
     /// Probability mass function
-    std::vector<f32> pmf{};
+    std::vector<f32> pmf;
     /// Cumulative mass function
-    std::vector<f32> cmf{};
+    std::vector<f32> cmf;
 };
 
 #endif // DISCRETE_DIST_H

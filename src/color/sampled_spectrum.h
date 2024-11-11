@@ -114,7 +114,7 @@ struct SampledLambdas {
     operator[](u32 index) const;
 
     bool is_secondary_terminated{false};
-    std::array<f32, N_SPECTRUM_SAMPLES> lambdas;
+    std::array<f32, N_SPECTRUM_SAMPLES> lambdas{};
 };
 
 using spectral = SampledSpectrum;

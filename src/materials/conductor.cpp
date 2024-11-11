@@ -6,7 +6,7 @@
 
 f32
 ConductorMaterial::pdf() {
-    return 0.f;
+    return 0.F;
 }
 
 spectral
@@ -34,10 +34,5 @@ ConductorMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3 
     const norm_vec3 wi = ShadingFrameIncomplete::reflect(wo);
     const auto sframe_complete = ShadingFrame(sframe, wi, wo);
 
-    return BSDFSample{
-        .bsdf = eval(sframe_complete, lambdas, uv),
-        .pdf = 1.f,
-        .did_refract = false,
-        .sframe = sframe_complete,
-    };
+    return BSDFSample(eval(sframe_complete, lambdas, uv), 1.F, false, sframe_complete);
 }

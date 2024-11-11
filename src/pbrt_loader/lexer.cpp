@@ -27,7 +27,7 @@ Lexer::next(const bool accept_any_string) {
     }
 
     const auto ch_maybe_whitespace = next_char_maybe_whitespace.value();
-    if (ch_maybe_whitespace == '#' || std::isspace(ch_maybe_whitespace)) {
+    if (ch_maybe_whitespace == '#' || (std::isspace(ch_maybe_whitespace) != 0)) {
         skip_whitespace_and_comments();
     }
 
@@ -51,9 +51,9 @@ Lexer::next(const bool accept_any_string) {
     } else if (ch == ']') {
         advance();
         return Lexeme(LexemeType::CloseBracket);
-    } else if (ch == '-' || ch == '.' || std::isdigit(ch)) {
+    } else if (ch == '-' || ch == '.' || (std::isdigit(ch) != 0)) {
         return lex_num();
-    } else if (std::isalpha(ch)) {
+    } else if ((std::isalpha(ch) != 0)) {
         return lex_string();
     } else {
         throw std::runtime_error(fmt::format("invalid character: {}", ch));
@@ -92,7 +92,7 @@ Lexer::skip_whitespace_and_comments() {
             skip_while([](const char ch) { return ch != '\n'; });
             // skip the potential newline
             advance();
-        } else if (std::isspace(next_ch)) {
+        } else if (std::isspace(next_ch) != 0) {
             skip_while([](const char ch) { return std::isspace(ch); });
         } else {
             break;

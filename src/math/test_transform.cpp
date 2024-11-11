@@ -3,11 +3,11 @@
 #include "transform.h"
 
 TEST_CASE("transform translate", "[transform translate]") {
-    const auto trans = mat4::from_translate(1.f, 2.f, 3.f);
+    const auto trans = mat4::from_translate(1.F, 2.F, 3.F);
 
-    const auto res = trans.transform_point(point3(0.f, 0.f, 0.f));
+    const auto res = trans.transform_point(point3(0.F, 0.F, 0.F));
 
-    REQUIRE(res.x == 1.f);
-    REQUIRE(res.y == 2.f);
-    REQUIRE(res.z == 3.f);
+    REQUIRE(res.x == 1.F);
+    REQUIRE(res.y == 2.F);
+    REQUIRE(res.z == 3.F);
 }

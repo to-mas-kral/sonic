@@ -19,7 +19,7 @@ struct BlackbodyValue {
     i32 kelvin;
 };
 
-enum class ValueType {
+enum class ValueType : u8 {
     Int,
     Float,
     Point2,
@@ -69,7 +69,7 @@ to_string(const ValueType e) {
     }
 }
 
-enum class ParamType {
+enum class ParamType : u8 {
     Simple,
     Single,
     List,
@@ -82,72 +82,77 @@ struct Param {
 
     explicit
     Param(std::string &&name)
-        : type{ParamType::Simple}, value_type(ValueType::Int), name{name}, inner{0} {}
+        : type{ParamType::Simple}, value_type(ValueType::Int), name{std::move(name)},
+          inner{0} {}
 
     Param(std::string &&name, const i32 value)
-        : type{ParamType::Single}, value_type{ValueType::Int}, name{name}, inner{value} {}
+        : type{ParamType::Single}, value_type{ValueType::Int}, name{std::move(name)},
+          inner{value} {}
 
     Param(std::string &&name, const f32 value)
-        : type{ParamType::Single}, value_type{ValueType::Float}, name{name},
+        : type{ParamType::Single}, value_type{ValueType::Float}, name{std::move(name)},
           inner{value} {}
 
     Param(std::string &&name, const vec2 value)
-        : type{ParamType::Single}, value_type{ValueType::Vector2}, name{name},
+        : type{ParamType::Single}, value_type{ValueType::Vector2}, name{std::move(name)},
           inner{value} {}
 
     Param(std::string &&name, const point3 value)
-        : type{ParamType::Single}, value_type{ValueType::Point3}, name{name},
+        : type{ParamType::Single}, value_type{ValueType::Point3}, name{std::move(name)},
           inner{value} {}
 
     Param(std::string &&name, const vec3 value)
-        : type{ParamType::Single}, value_type{ValueType::Vector3}, name{name},
+        : type{ParamType::Single}, value_type{ValueType::Vector3}, name{std::move(name)},
           inner{value} {}
 
     Param(std::string &&name, const tuple3 value)
-        : type{ParamType::Single}, value_type{ValueType::Rgb}, name{name}, inner{value} {}
-
-    Param(std::string &&name, const bool value)
-        : type{ParamType::Single}, value_type{ValueType::Bool}, name{name}, inner{value} {
-    }
-
-    Param(std::string &&name, std::string &&value)
-        : type{ParamType::Single}, value_type{ValueType::String}, name{name},
+        : type{ParamType::Single}, value_type{ValueType::Rgb}, name{std::move(name)},
           inner{value} {}
 
+    Param(std::string &&name, const bool value)
+        : type{ParamType::Single}, value_type{ValueType::Bool}, name{std::move(name)},
+          inner{value} {}
+
+    Param(std::string &&name, std::string &&value)
+        : type{ParamType::Single}, value_type{ValueType::String}, name{std::move(name)},
+          inner{std::move(value)} {}
+
     Param(std::string &&name, TextureValue &&value)
-        : type{ParamType::Single}, value_type{ValueType::Texture}, name{name},
-          inner{value.str} {}
+        : type{ParamType::Single}, value_type{ValueType::Texture}, name{std::move(name)},
+          inner{std::move(value.str)} {}
 
     Param(std::string &&name, SpectrumValue &&value)
-        : type{ParamType::Single}, value_type{ValueType::Spectrum}, name{name},
-          inner{value.str} {}
+        : type{ParamType::Single}, value_type{ValueType::Spectrum}, name{std::move(name)},
+          inner{std::move(value.str)} {}
 
     Param(std::string &&name, BlackbodyValue value)
-        : type{ParamType::Single}, value_type{ValueType::Blackbody}, name{name},
-          inner{value.kelvin} {}
+        : type{ParamType::Single}, value_type{ValueType::Blackbody},
+          name{std::move(name)}, inner{value.kelvin} {}
 
     Param(std::string &&name, std::vector<i32> &&value)
-        : type{ParamType::List}, value_type{ValueType::Int}, name{name}, inner{value} {}
+        : type{ParamType::List}, value_type{ValueType::Int}, name{std::move(name)},
+          inner{std::move(value)} {}
 
     Param(std::string &&name, std::vector<f32> &&value,
           const ValueType vt = ValueType::Float)
-        : type{ParamType::List}, value_type{vt}, name{name}, inner{value} {}
+        : type{ParamType::List}, value_type{vt}, name{std::move(name)},
+          inner{std::move(value)} {}
 
     Param(std::string &&name, std::vector<vec2> &&value)
-        : type{ParamType::List}, value_type{ValueType::Vector2}, name{name},
-          inner{value} {}
+        : type{ParamType::List}, value_type{ValueType::Vector2}, name{std::move(name)},
+          inner{std::move(value)} {}
 
     Param(std::string &&name, std::vector<point3> &&value)
-        : type{ParamType::List}, value_type{ValueType::Point3}, name{name}, inner{value} {
-    }
+        : type{ParamType::List}, value_type{ValueType::Point3}, name{std::move(name)},
+          inner{std::move(value)} {}
 
     Param(std::string &&name, std::vector<vec3> &&value)
-        : type{ParamType::List}, value_type{ValueType::Vector3}, name{name},
-          inner{value} {}
+        : type{ParamType::List}, value_type{ValueType::Vector3}, name{std::move(name)},
+          inner{std::move(value)} {}
 
     Param(std::string &&name, std::vector<std::string> &&value)
-        : type{ParamType::List}, value_type{ValueType::String}, name{name}, inner{value} {
-    }
+        : type{ParamType::List}, value_type{ValueType::String}, name{std::move(name)},
+          inner{std::move(value)} {}
 
     bool was_accessed{false};
     ParamType type;
@@ -167,8 +172,9 @@ struct Param {
 
     Param &
     operator=(Param &&other) noexcept {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         type = other.type;
         value_type = other.value_type;
         name = std::move(other.name);
@@ -182,6 +188,9 @@ struct Param {
         other.type = ParamType::Simple;
         other.value_type = ValueType::Int;
     }
+
+    ~
+    Param() = default;
 };
 
 struct ParamsList {
@@ -304,7 +313,7 @@ struct ParamsList {
         for (const auto &p : params) {
             if (!p.was_accessed) {
                 // TODO: could provide better diagnostic by printing the whole params list
-                //spdlog::warn("Param '{}' was ignored in directive '{}'", p.name,
+                // spdlog::warn("Param '{}' was ignored in directive '{}'", p.name,
                 //             directive);
             }
         }
@@ -315,10 +324,10 @@ private:
 public:
 #endif
     i32 index = 0;
-    std::vector<Param> params{};
+    std::vector<Param> params;
     /// This only ontains params with values, not "simple" params like "imagmap",
     /// because those can technically be duplicated
-    std::unordered_map<std::string, std::size_t> params_by_name{};
+    std::unordered_map<std::string, std::size_t> params_by_name;
 };
 
 #endif // PARAM_H

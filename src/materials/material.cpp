@@ -63,7 +63,7 @@ Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 
                  const bool is_frontfacing) const {
     wo = sframe.to_local(wo).normalized();
 
-    if (sframe.cos_theta(wo) == 0.f) {
+    if (sframe.cos_theta(wo) == 0.F) {
         return {};
     }
 

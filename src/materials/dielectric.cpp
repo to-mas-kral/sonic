@@ -5,7 +5,7 @@
 
 f32
 DielectricMaterial::pdf() {
-    return 0.f;
+    return 0.F;
 }
 
 spectral
@@ -27,7 +27,7 @@ DielectricMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3
     const f32 ext_ior = m_ext_ior.eval_single(lambdas[0]);
     f32 rel_ior = int_ior / ext_ior;
     if (!is_frontfacing) {
-        rel_ior = 1.f / rel_ior;
+        rel_ior = 1.F / rel_ior;
     }
 
     const f32 cos_theta_i = ShadingFrameIncomplete::cos_theta(wo);
@@ -37,12 +37,8 @@ DielectricMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3
         const auto wi = ShadingFrameIncomplete::reflect(wo);
         const auto sframe_complete = ShadingFrame(sframe, wi, wo);
 
-        return BSDFSample{
-            .bsdf = spectral::make_constant(fresnel_refl) / sframe_complete.nowi(),
-            .pdf = fresnel_refl,
-            .did_refract = false,
-            .sframe = sframe_complete,
-        };
+        return BSDFSample(spectral::make_constant(fresnel_refl) / sframe_complete.nowi(),
+                          fresnel_refl, false, sframe_complete);
     };
 
     if (sample.x < fresnel_refl) {
@@ -55,13 +51,9 @@ DielectricMaterial::sample(const ShadingFrameIncomplete &sframe, const norm_vec3
 
             const f32 transmittance = m_transmittance.eval_single(lambdas[0]);
 
-            return BSDFSample{
-                .bsdf = spectral::make_constant(1.f - fresnel_refl) * transmittance /
-                        sframe_complete.abs_nowi(),
-                .pdf = 1.f - fresnel_refl,
-                .did_refract = true,
-                .sframe = sframe_complete,
-            };
+            return BSDFSample(spectral::make_constant(1.F - fresnel_refl) *
+                                  transmittance / sframe_complete.abs_nowi(),
+                              1.F - fresnel_refl, true, sframe_complete);
         } else {
             // Total internal reflection
             return reflect();

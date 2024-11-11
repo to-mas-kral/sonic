@@ -6,6 +6,10 @@
 #include <cstring>
 #include <fmt/core.h>
 
+/*
+ * This is a port of https://github.com/mitsuba-renderer/rgb2spec
+ * */
+
 RGB2Spec::
 RGB2Spec(const std::filesystem::path &path) {
     FILE *f = fopen(path.c_str(), "rb");

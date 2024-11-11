@@ -25,7 +25,7 @@ public:
     /// The function is defined over the range 0-1... if the domain is larger,
     /// the resulting PDF needs to be remapped (a simple lerp).
     explicit
-    PiecewiseDist1D(std::span<f32> vals);
+    PiecewiseDist1D(std::span<const f32> vals);
 
     f32
     pdf(u32 index) const;

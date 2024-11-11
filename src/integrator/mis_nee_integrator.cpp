@@ -23,7 +23,7 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
     }
 
     // Quickly precheck if light is reachable
-    if (sframe_light.nowi() > 0.f && cos_light > 0.f) {
+    if (sframe_light.nowi() > 0.F && cos_light > 0.F) {
         const point3 ray_orig = offset_ray(its.pos, geom_normal);
         const spectral bxdf_light = material->eval(sframe_light, lambdas, its.uv);
         // eval bxdf and check if it's 0 to potentially avoid the raycast
@@ -37,7 +37,7 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
             const f32 weight_light = mis_power_heuristic(light_sample.pdf, mat_pdf);
 
             const auto contrib = bxdf_light * sframe_light.abs_nowi() *
-                                 (1.f / light_sample.pdf) * light_sample.emission *
+                                 (1.F / light_sample.pdf) * light_sample.emission *
                                  weight_light * throughput;
 
             assert(!contrib.is_invalid());
@@ -77,7 +77,7 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 // This is useful for debugging fireflies
 void
 add_radiance_contrib(spectral &radiance, const spectral &contrib) {
-    if (contrib.max_component() > 10000.f) {
+    if (contrib.max_component() > 10000.F) {
         spdlog::warn("potential firefly");
     }
     assert(!contrib.is_invalid());
@@ -87,9 +87,9 @@ add_radiance_contrib(spectral &radiance, const spectral &contrib) {
 
 struct Vertex {
     spectral throughput{spectral::ONE()};
-    f32 pdf_bxdf{0.f};
+    f32 pdf_bxdf{0.F};
     bool is_bxdf_delta{false};
-    point3 pos{0.f};
+    point3 pos{0.F};
 };
 
 spectral
@@ -119,10 +119,10 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
                     const auto contrib = last_vertex.throughput * envrad;
                     add_radiance_contrib(radiance, contrib);
                 } else {
-                    f32 pdf_envmap =
+                    const f32 pdf_envmap =
                         sc.light_sampler.light_sample_pdf(sc.envmap->light_id()) *
                         sc.envmap->pdf(ray.dir);
-                    f32 bxdf_weight =
+                    const f32 bxdf_weight =
                         mis_power_heuristic(last_vertex.pdf_bxdf, pdf_envmap);
 
                     // pdf is already contained in the throughput
@@ -138,8 +138,8 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
         const auto bsdf_xi = sampler.sample3();
         const auto rr_xi = sampler.sample();
 
-        const auto material = &materials[its.material_id.inner];
-        const auto is_frontfacing = vec3::dot(-ray.dir, its.normal) >= 0.f;
+        auto *const material = &materials[its.material_id.inner];
+        const auto is_frontfacing = vec3::dot(-ray.dir, its.normal) >= 0.F;
 
         if (!is_frontfacing && !material->is_twosided) {
             break;
@@ -204,7 +204,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
 
         const auto spawn_ray_normal =
             (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
-        Ray const bxdf_ray =
+        const Ray bxdf_ray =
             spawn_ray(its.pos, spawn_ray_normal,
                       sframe_bsdf.from_local(sframe_bsdf.wi).normalized());
 
@@ -215,7 +215,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
 
         const auto roulette_compensation = rr.value();
         last_vertex.throughput *= bsdf_sample.bsdf * sframe_bsdf.abs_nowi() *
-                                  (1.f / (bsdf_sample.pdf * roulette_compensation));
+                                  (1.F / (bsdf_sample.pdf * roulette_compensation));
         assert(!last_vertex.throughput.is_invalid());
 
         if (last_vertex.throughput.is_zero()) {

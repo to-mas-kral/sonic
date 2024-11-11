@@ -8,15 +8,15 @@
 #include <random>
 
 TEST_CASE("shading frame basis vector e2e") {
-    const auto normal = vec3(0.5, 0.2, 0.7).normalized();
+    const auto normal = vec3(0.5F, 0.2F, 0.7F).normalized();
     const auto sframe = CoordinateSystem(normal);
 
-    REQUIRE(sframe.to_local(normal).approx_eq(vec3(0.f, 0.f, 1.f)));
-    REQUIRE(sframe.from_local(norm_vec3(0.f, 0.f, 1.f)).approx_eq(normal));
+    REQUIRE(sframe.to_local(normal).approx_eq(vec3(0.F, 0.F, 1.F)));
+    REQUIRE(sframe.from_local(norm_vec3(0.F, 0.F, 1.F)).approx_eq(normal));
 }
 
 TEST_CASE("shading frame e2e") {
-    std::mt19937 rng(73927932889);
+    std::mt19937 rng(73927932889); // NOLINT(*-msc51-cpp)
 
     for (int n = 0; n < 64; ++n) {
         const auto nx = std::generate_canonical<f32, 23>(rng);
@@ -24,7 +24,7 @@ TEST_CASE("shading frame e2e") {
         const auto nz = std::generate_canonical<f32, 23>(rng);
 
         const auto normal = vec3(nx, ny, nz).normalized();
-        const auto normal_local = norm_vec3(0.f, 0.f, 1.f);
+        const auto normal_local = norm_vec3(0.F, 0.F, 1.F);
 
         const auto sframe = CoordinateSystem(normal);
 
