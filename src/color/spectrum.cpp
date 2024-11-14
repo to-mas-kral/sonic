@@ -11,27 +11,20 @@
 // TODO: FIXME - can't catch exceptions in static init
 static const auto rgb2spec = RGB2Spec("rgb2spec.out");
 
-RgbSpectrum
-RgbSpectrum::make(const tuple3 &rgb) {
-    const RgbSpectrum spectrum{
-        .sigmoid_coeff = rgb2spec.fetch(rgb),
-    };
+RgbSpectrum::
+RgbSpectrum(const SigmoigCoeff &sigmoig_coeff)
+    : sigmoid_coeff(sigmoig_coeff) {}
 
-    return spectrum;
+RgbSpectrum
+RgbSpectrum::from_rgb(const tuple3 &rgb) {
+    assert(rgb.max_component() <= 1.f);
+    assert(rgb.min_component() >= 0.f);
+    return RgbSpectrum(rgb2spec.fetch(rgb));
 }
 
 RgbSpectrum
-RgbSpectrum::from_coeff(const tuple3 &sigmoig_coeff) {
-    return RgbSpectrum{
-        .sigmoid_coeff = sigmoig_coeff,
-    };
-}
-
-RgbSpectrum
-RgbSpectrum::make_empty() {
-    return RgbSpectrum{
-        .sigmoid_coeff = tuple3(0.F),
-    };
+RgbSpectrum::from_coeff(const SigmoigCoeff &sigmoig_coeff) {
+    return RgbSpectrum(sigmoig_coeff);
 }
 
 f32
@@ -49,21 +42,27 @@ RgbSpectrum::eval(const SampledLambdas &lambdas) const {
     return sq;
 }
 
-RgbSpectrumUnbounded
-RgbSpectrumUnbounded::make(tuple3 rgb) {
-    const f32 scale = 2.F * rgb.max_component();
+namespace {
+
+tuple3
+adjust_rgb(const tuple3 &rgb) {
+    auto rgb_copy = rgb;
+    const f32 scale = 2.F * rgb_copy.max_component();
 
     if (scale != 0.F) {
-        rgb /= scale;
+        rgb_copy /= scale;
     } else {
-        rgb = tuple3(0.F);
+        rgb_copy = tuple3(0.F);
     }
 
-    RgbSpectrumUnbounded spectrum{};
-    spectrum.sigmoid_coeff = rgb2spec.fetch(rgb);
-    spectrum.scale = scale;
+    return rgb_copy;
+}
+} // namespace
 
-    return spectrum;
+RgbSpectrumUnbounded::
+RgbSpectrumUnbounded(const tuple3 &rgb)
+    : RgbSpectrum(rgb2spec.fetch(adjust_rgb(rgb))), scale(2.F * rgb.max_component()) {
+    assert(rgb.min_component() >= 0.f);
 }
 
 f32
@@ -81,16 +80,9 @@ RgbSpectrumUnbounded::eval(const SampledLambdas &lambdas) const {
     return sq;
 }
 
-RgbSpectrumIlluminant
-RgbSpectrumIlluminant::make(const tuple3 &rgb, const ColorSpace color_space) {
-    const auto spectrum_unbounded = RgbSpectrumUnbounded::make(rgb);
-    RgbSpectrumIlluminant spectrum{};
-    spectrum.sigmoid_coeff = spectrum_unbounded.sigmoid_coeff;
-    spectrum.scale = spectrum_unbounded.scale;
-    spectrum.color_space = color_space;
-
-    return spectrum;
-}
+RgbSpectrumIlluminant::
+RgbSpectrumIlluminant(const tuple3 &rgb, const ColorSpace color_space)
+    : RgbSpectrumUnbounded(rgb), color_space(color_space) {}
 
 f32
 RgbSpectrumIlluminant::eval_single(const f32 lambda) const {
@@ -121,9 +113,11 @@ RgbSpectrumIlluminant::eval(const SampledLambdas &lambdas) const {
     return sq;
 }
 
-BlackbodySpectrum
-BlackbodySpectrum::make(const i32 temp) {
-    return BlackbodySpectrum{.temp = temp};
+BlackbodySpectrum::
+BlackbodySpectrum(const i32 temp)
+    : temp(temp) {
+    assert(temp > 0);
+    assert(temp <= 12000);
 }
 
 f32
@@ -151,9 +145,9 @@ BlackbodySpectrum::eval_single(const f32 lambda) const {
 
 spectral
 BlackbodySpectrum::eval(const SampledLambdas &lambdas) const {
-    SampledSpectrum sq{};
+    SpectralQuantity sq{};
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-        sq[i] = eval_single(lambdas.lambdas[i]);
+        sq[i] = eval_single(lambdas[i]);
     }
 
     return sq;
@@ -166,11 +160,11 @@ DenseSpectrum::eval_single(const f32 lambda) const {
     return vals[index];
 }
 
-SampledSpectrum
+SpectralQuantity
 DenseSpectrum::eval(const SampledLambdas &sl) const {
-    SampledSpectrum sq{};
+    SpectralQuantity sq{};
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-        sq[i] = eval_single(sl.lambdas[i]);
+        sq[i] = eval_single(sl[i]);
     }
 
     return sq;
@@ -184,11 +178,11 @@ PiecewiseSpectrum::eval_single(const f32 lambda) const {
     return vals[(2 * index) + 1];
 }
 
-SampledSpectrum
+SpectralQuantity
 PiecewiseSpectrum::eval(const SampledLambdas &sl) const {
-    SampledSpectrum sq{};
+    SpectralQuantity sq{};
     for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
-        sq[i] = eval_single(sl.lambdas[i]);
+        sq[i] = eval_single(sl[i]);
     }
 
     return sq;
@@ -199,12 +193,12 @@ ConstantSpectrum::eval_single() const {
     return val;
 }
 
-SampledSpectrum
+SpectralQuantity
 ConstantSpectrum::eval() const {
-    return SampledSpectrum::make_constant(val);
+    return SpectralQuantity::make_constant(val);
 }
 
-SampledSpectrum
+SpectralQuantity
 Spectrum::eval(const SampledLambdas &lambdas) const {
     switch (type) {
     case SpectrumType::Constant:

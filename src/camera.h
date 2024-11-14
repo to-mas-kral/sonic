@@ -8,7 +8,7 @@ class Camera {
 public:
     Camera() = default;
 
-    Camera(const f32 fov, const f32 aspect) : viewport_height(2.F) {
+    Camera(const f32 fov, const f32 aspect) {
         viewport_width = viewport_height * aspect;
 
         const f32 axis = std::min(viewport_width, viewport_height);
@@ -29,10 +29,11 @@ public:
         return Ray(origin, (screencoord - origin).normalized());
     }
 
+    // TODO: sane default camera settings
     point3 origin{0.F};
     point3 bottom_left{0.F};
-    f32 viewport_width{};
-    f32 viewport_height{};
+    f32 viewport_width{3.F};
+    f32 viewport_height{2.F};
 };
 
 #endif

@@ -10,12 +10,9 @@
  * Some of this code was taken / adapted from PBRTv4:
  * https://www.pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Sampling_Light_Sources#InfiniteAreaLight::Sample_Li
  * */
-
-Envmap::
-Envmap(ImageTexture tex, const f32 scale, const SquareMatrix4 &world_from_light)
-    : tex{tex}, scale{scale}, world_from_light{world_from_light},
-      light_from_world{world_from_light.inverse()} {
-
+Envmap
+Envmap::from_image(const ImageTexture &tex, const f32 scale,
+                   const SquareMatrix4 &world_from_light) {
     std::vector<f32> sampling_grid(tex.width() * tex.height(), 0.f);
 
     const auto lambdas = SampledLambdas::new_sample_uniform(0.4f);
@@ -25,7 +22,7 @@ Envmap(ImageTexture tex, const f32 scale, const SquareMatrix4 &world_from_light)
     for (int x = 0; x < tex.width(); ++x) {
         for (int y = 0; y < tex.height(); ++y) {
             const auto rgb = tex.fetch_rgb_texel(uvec2(x, y));
-            const auto spec_illum = RgbSpectrumIlluminant::make(rgb, ColorSpace::sRGB);
+            const auto spec_illum = RgbSpectrumIlluminant(rgb, ColorSpace::sRGB);
             const auto spec = Spectrum(spec_illum);
             const auto rad = spec.eval(lambdas);
 
@@ -35,19 +32,22 @@ Envmap(ImageTexture tex, const f32 scale, const SquareMatrix4 &world_from_light)
     }
 
     // TODO: power calculation is wrong... this is a hack
-    m_power = 4.f * M_PIf * scale * sum_rad.average() /
-              static_cast<f32>(tex.width() * tex.height());
+    auto power = 4.f * M_PIf * scale * sum_rad.average() /
+                 static_cast<f32>(tex.width() * tex.height());
 
-    sampling_dist = PiecewiseDist2D(sampling_grid, tex.width(), tex.height());
+    auto sampling_dist =
+        PiecewiseDist2D::from_grid(sampling_grid, tex.width(), tex.height());
+
+    return Envmap(tex, scale, power, world_from_light, std::move(sampling_dist));
 }
 
 spectral
 Envmap::get_ray_radiance(const Ray &ray, const SampledLambdas &lambdas) const {
-    const auto transformed_dir = light_from_world.transform_vec(ray.dir).normalized();
+    const auto transformed_dir = light_from_world.transform_vec(ray.dir()).normalized();
     const auto xy = sphere_to_square(transformed_dir);
 
     const auto rgb = tex.fetch_rgb_texel_xycoords(xy);
-    const auto spec_illum = RgbSpectrumIlluminant::make(rgb, ColorSpace::sRGB);
+    const auto spec_illum = RgbSpectrumIlluminant(rgb, ColorSpace::sRGB);
 
     return spec_illum.eval(lambdas) * scale;
 }
@@ -75,7 +75,7 @@ Envmap::sample(const point3 &illum_pos, const vec2 &xi, const SampledLambdas &la
     pdf = pdf / (4.f * M_PIf);
 
     const auto rgb = tex.fetch_rgb_texel_xycoords(xy);
-    const auto spec = RgbSpectrumIlluminant::make(rgb, ColorSpace::sRGB);
+    const auto spec = RgbSpectrumIlluminant(rgb, ColorSpace::sRGB);
 
     const auto hit_pos = illum_pos + world_dir * (2.f * radius);
 

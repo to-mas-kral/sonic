@@ -175,7 +175,7 @@ PbrtLoader::load_rotate() {
     const auto y = parse_float();
     const auto z = parse_float();
 
-    mat4 trans;
+    auto trans = mat4::identity();
     if (std::abs(x) == 1.F && std::abs(y) == 0.F && std::abs(z) == 0.F) {
         trans = mat4::from_euler_x(angle * x);
     } else if (std::abs(x) == 0.F && std::abs(y) == 1.F && std::abs(z) == 0.F) {
@@ -376,7 +376,7 @@ void
 PbrtLoader::object_instance(Scene &sc) {
     const auto &name = parse_quoted_string();
     const auto id = instances.at(name);
-    sc.add_instance(id, current_astate.ctm);
+    sc.add_instanced_instance(id, current_astate.ctm);
 }
 
 void
@@ -402,7 +402,7 @@ PbrtLoader::load_light_source(Scene &sc) {
             auto *const image = sc.make_or_get_image(filepath);
             const auto tex = ImageTexture(image, TextureSpectrumType::Illuminant);
 
-            sc.set_envmap(Envmap(tex, scale, current_astate.ctm));
+            sc.set_envmap(Envmap::from_image(tex, scale, current_astate.ctm));
         }
     } else {
         throw std::runtime_error("analytical light sources aren't implemented");
@@ -419,7 +419,7 @@ PbrtLoader::normals_reverse_orientation(const u32 num_verts, vec3 *normals) cons
         }
     }
 
-    if (current_astate.reverse_orientation && !normals) {
+    if (current_astate.reverse_orientation && (normals == nullptr)) {
         // TODO: fix reverseorientation for this case
         spdlog::warn("ReverseOrientation without specified normals");
     }
@@ -635,7 +635,7 @@ PbrtLoader::area_light_source(Scene &sc) {
     }
 
     auto radiance = Spectrum(
-        RgbSpectrumIlluminant::make(tuple3(1.F, 1.F, 1.F), current_astate.color_space));
+        RgbSpectrumIlluminant(tuple3(1.F, 1.F, 1.F), current_astate.color_space));
 
     const auto twosided =
         params.get_optional_or_default("twosided", ValueType::Bool, false);
@@ -646,10 +646,10 @@ PbrtLoader::area_light_source(Scene &sc) {
         const auto *const p = l_p.value();
         // TODO: will need some general spectrum-loader later
         if (p->value_type == ValueType::Rgb) {
-            radiance = Spectrum(RgbSpectrumIlluminant::make(std::get<tuple3>(p->inner),
-                                                            current_astate.color_space));
+            radiance = Spectrum(RgbSpectrumIlluminant(std::get<tuple3>(p->inner),
+                                                      current_astate.color_space));
         } else if (p->value_type == ValueType::Blackbody) {
-            radiance = Spectrum(BlackbodySpectrum::make(std::get<i32>(p->inner)));
+            radiance = Spectrum(BlackbodySpectrum(std::get<i32>(p->inner)));
         } else {
             throw std::runtime_error("AreaLight with radiance described other than "
                                      "in RGB is not implemented");
@@ -694,7 +694,7 @@ PbrtLoader::load_make_named_material(Scene &sc) {
 Material
 PbrtLoader::parse_material_description(Scene &sc, const std::string &type,
                                        ParamsList &params) {
-    auto mat = Material::make_diffuse(sc.builtin_spectrum_textures.at("reflectance"));
+    auto mat = Material(DiffuseMaterial(sc.builtin_spectrum_textures.at("reflectance")));
 
     if (type == "coateddiffuse") {
         mat = parse_coateddiffuse_material(sc, params);
@@ -744,7 +744,7 @@ PbrtLoader::parse_material_roughness(Scene &sc, ParamsList &params) {
                 spdlog::warn("Roughness Anisotropy isn't implemented yet");
             }
 
-            auto *const tex = sc.add_texture(FloatTexture::make(uroughness));
+            auto *const tex = sc.add_texture(FloatTexture(uroughness));
 
             return RoughnessDescription{
                 .type = RoughnessDescription::RoughnessType::Isotropic,
@@ -785,15 +785,15 @@ PbrtLoader::parse_coateddiffuse_material(Scene &sc, ParamsList &params) {
 
     const auto roughness = parse_material_roughness(sc, params);
 
-    return Material::make_rough_plastic(roughness.roughness, ext_ior, int_ior,
-                                        reflectance);
+    return Material(
+        RoughCoatedDiffuseMaterial(roughness.roughness, ext_ior, int_ior, reflectance));
 }
 
 Material
 PbrtLoader::parse_diffuse_material(Scene &sc, ParamsList &params) {
     auto *const texture =
         get_texture_or_default<SpectrumTexture>(sc, params, "reflectance", "reflectance");
-    return Material::make_diffuse(texture);
+    return Material(DiffuseMaterial(texture));
 }
 
 Material
@@ -806,7 +806,7 @@ PbrtLoader::parse_diffusetransmission_material(Scene &sc, ParamsList &params) {
 
     const auto scale = params.get_optional_or_default("scale", ValueType::Float, 1.F);
 
-    return Material::make_diffuse_transmission(reflectance, transmittace, scale);
+    return Material(DiffuseTransmissionMaterial(reflectance, transmittace, scale));
 }
 
 Material
@@ -817,7 +817,7 @@ PbrtLoader::parse_dielectric_material(Scene &sc, ParamsList &params) {
     auto *const int_ior =
         get_texture_or_default<SpectrumTexture>(sc, params, "eta", "eta-dielectric");
 
-    return Material::make_dielectric(ext_ior, int_ior, trans);
+    return Material(DielectricMaterial(int_ior, ext_ior, trans));
 }
 
 Material
@@ -828,7 +828,7 @@ PbrtLoader::parse_conductor_material(Scene &sc, ParamsList &params) {
         get_texture_or_default<SpectrumTexture>(sc, params, "k", "k-conductor");
     const auto roughness = parse_material_roughness(sc, params);
 
-    return Material::make_rough_conductor(roughness.roughness, eta, k);
+    return Material(RoughConductorMaterial(eta, k, roughness.roughness));
 }
 
 // TODO: probably should validate here, that the texture has correct params
@@ -837,16 +837,16 @@ SpectrumTexture *
 PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) {
     // FIXME: have to handle IlluminantSpectra here...
     if (param.value_type == ValueType::Rgb) {
-        const auto spectrum = RgbSpectrum::make(std::get<tuple3>(param.inner));
-        return sc.add_texture(SpectrumTexture::make(spectrum));
+        const auto spectrum = RgbSpectrum::from_rgb(std::get<tuple3>(param.inner));
+        return sc.add_texture(SpectrumTexture(spectrum));
     } else if (param.value_type == ValueType::String) {
         return sc.builtin_spectrum_textures.at(std::get<std::string>(param.inner));
     } else if (param.value_type == ValueType::Float) {
-        return sc.add_texture(SpectrumTexture::make(
-            Spectrum(ConstantSpectrum(std::get<f32>(param.inner)))));
+        return sc.add_texture(
+            SpectrumTexture(Spectrum(ConstantSpectrum(std::get<f32>(param.inner)))));
     } else {
         spdlog::warn("Spectrum texture '{}' unimplemented, getting default", param.name);
-        return sc.add_texture(SpectrumTexture::make(RgbSpectrum::make(tuple3(0.5))));
+        return sc.add_texture(SpectrumTexture(RgbSpectrum::from_rgb(tuple3(0.5))));
     }
 }
 
@@ -854,13 +854,13 @@ FloatTexture *
 PbrtLoader::parse_inline_float_texture(const Param &param, Scene &sc) const {
     if (param.value_type == ValueType::Float) {
         const auto fl = std::get<f32>(param.inner);
-        return sc.add_texture(FloatTexture::make(fl));
+        return sc.add_texture(FloatTexture(fl));
     } else if (param.value_type == ValueType::Texture) {
         const auto texture_name = std::get<std::string>(param.inner);
         return float_textures.at(texture_name);
     } else {
         spdlog::warn("Float texture '{}' unimplemented, getting default", param.name);
-        return sc.add_texture(FloatTexture::make(1.F));
+        return sc.add_texture(FloatTexture(1.F));
     }
 }
 
@@ -895,12 +895,12 @@ PbrtLoader::load_imagemap_texture(Scene &sc, const std::string &name, ParamsList
     auto *const img = sc.make_or_get_image(path);
 
     if (type == "spectrum") {
-        auto *const tex = sc.add_texture(SpectrumTexture::make(
+        auto *const tex = sc.add_texture(SpectrumTexture(
             ImageTexture(img, TextureSpectrumType::Rgb, imagetex_params)));
         spectrum_textures.insert({name, tex});
     } else if (type == "float") {
         auto *const tex =
-            sc.add_texture(FloatTexture::make(ImageTexture(img, imagetex_params)));
+            sc.add_texture(FloatTexture(ImageTexture(img, imagetex_params)));
         float_textures.insert({name, tex});
     }
 }
@@ -914,12 +914,12 @@ PbrtLoader::load_scale_texture(Scene &sc, const std::string &name, ParamsList &p
     if (type == "spectrum") {
         auto *const tex = get_texture_required<SpectrumTexture>(sc, params, "tex");
         auto *const scaled_tex =
-            sc.add_texture(SpectrumTexture::make(SpectrumScaleTexture(tex, scale)));
+            sc.add_texture(SpectrumTexture(SpectrumScaleTexture(tex, scale)));
         spectrum_textures.insert({name, scaled_tex});
     } else if (type == "float") {
         auto *const tex = get_texture_required<FloatTexture>(sc, params, "tex");
         auto *const scaled_tex =
-            sc.add_texture(FloatTexture::make(FloatScaleTexture(tex, scale)));
+            sc.add_texture(FloatTexture(FloatScaleTexture(tex, scale)));
         float_textures.insert({name, scaled_tex});
     }
 }
@@ -933,15 +933,15 @@ PbrtLoader::load_mix_texture(Scene &sc, const std::string &name, ParamsList &par
         auto *const tex_1 = get_texture_required<SpectrumTexture>(sc, params, "tex1");
         auto *const tex_2 = get_texture_required<SpectrumTexture>(sc, params, "tex2");
 
-        auto *const new_tex = sc.add_texture(
-            SpectrumTexture::make(SpectrumMixTexture(tex_1, tex_2, amount)));
+        auto *const new_tex =
+            sc.add_texture(SpectrumTexture(SpectrumMixTexture(tex_1, tex_2, amount)));
         spectrum_textures.insert({name, new_tex});
     } else if (type == "float") {
         auto *const tex_1 = get_texture_required<FloatTexture>(sc, params, "tex1");
         auto *const tex_2 = get_texture_required<FloatTexture>(sc, params, "tex2");
 
         auto *const new_tex =
-            sc.add_texture(FloatTexture::make(FloatMixTexture(tex_1, tex_2, amount)));
+            sc.add_texture(FloatTexture(FloatMixTexture(tex_1, tex_2, amount)));
         float_textures.insert({name, new_tex});
     }
 }

@@ -44,11 +44,12 @@ RGB2Spec(const std::filesystem::path &path) {
     fclose(f);
 }
 
-tuple3
+SigmoigCoeff
 RGB2Spec::fetch(const tuple3 &rgb_) const {
     // Handle uniform values by setting c0 and c1 to zero and iverting the sigmoid
     if (rgb_[0] == rgb_[1] && rgb_[1] == rgb_[2]) {
-        return tuple3(0, 0, (rgb_[0] - .5f) / std::sqrt(rgb_[0] * (1.f - rgb_[0])));
+        return SigmoigCoeff(
+            tuple3(0, 0, (rgb_[0] - .5f) / std::sqrt(rgb_[0] * (1.f - rgb_[0]))));
     }
 
     // Determine largest RGB component
@@ -96,12 +97,13 @@ RGB2Spec::fetch(const tuple3 &rgb_) const {
         offset++;
     }
 
-    return out;
+    return SigmoigCoeff(out);
 }
 
 f32
-RGB2Spec::eval(const tuple3 &coeff, const f32 lambda) {
-    const f32 x = rgb2spec_fma(rgb2spec_fma(coeff[0], lambda, coeff[1]), lambda, coeff[2]);
+RGB2Spec::eval(const SigmoigCoeff &coeff, const f32 lambda) {
+    const f32 x = rgb2spec_fma(rgb2spec_fma(coeff.inner[0], lambda, coeff.inner[1]),
+                               lambda, coeff.inner[2]);
     // Handle the limit case
     if (std::isinf(x)) {
         return (x > 0.f) ? 1.f : 0.f;

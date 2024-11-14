@@ -32,7 +32,7 @@ filter_intersect_mesh(const RTCFilterFunctionNArguments *args) {
     const auto bar = vec3(1.F - bary.x - bary.y, bary.x, bary.y);
     const auto uv = mesh->calc_uvs(hit->primID, bar);
 
-    const auto alpha = mesh->alpha->fetch(uv);
+    const auto alpha = mesh->alpha()->fetch(uv);
     constexpr auto alpha_rand = 0.5F;
 
     if (alpha_rand > alpha) {
@@ -94,8 +94,8 @@ public:
         const auto geometric_normal = mesh.calc_normal(triangle_index, bar, true);
         const auto uv = mesh.calc_uvs(triangle_index, bar);
 
-        return Intersection(mesh.material_id, mesh.lights_start_id + triangle_index,
-                            mesh.has_light, normal, geometric_normal, pos, uv);
+        return Intersection(mesh.material_id(), mesh.lights_start_id() + triangle_index,
+                            mesh.has_light(), normal, geometric_normal, pos, uv);
     }
 
     Intersection
@@ -114,10 +114,10 @@ public:
     intersect_instance(const point3 &orig, const vec3 &dir,
                        const RTCRayHit &rayhit) const {
         const auto instance_indice =
-            scene->geometry.instances.indices[rayhit.hit.instPrimID[0]];
+            scene->geometry_container.instances().indices[rayhit.hit.instPrimID[0]];
 
         const auto &instanced_obj =
-            scene->geometry.instances.instanced_objs[instance_indice];
+            scene->geometry_container.instances().instanced_objs[instance_indice];
 
         auto get_its = [&]() -> Intersection {
             if (rayhit.hit.geomID < mesh_geom_counts[instance_indice]) {
@@ -133,9 +133,9 @@ public:
         auto its = get_its();
 
         const auto &transform =
-            scene->geometry.instances.world_from_instances[rayhit.hit.instPrimID[0]];
+            scene->geometry_container.instances().world_from_instances[rayhit.hit.instPrimID[0]];
         const auto &transform_inv_trans =
-            scene->geometry.instances.wfi_inv_trans[rayhit.hit.instPrimID[0]];
+            scene->geometry_container.instances().wfi_inv_trans[rayhit.hit.instPrimID[0]];
 
         its.pos = transform.transform_point(its.pos);
         its.normal = transform_inv_trans.transform_vec(its.normal).normalized();
@@ -149,12 +149,12 @@ public:
     intersect_non_instance(const point3 &orig, const vec3 &dir,
                            const RTCRayHit &rayhit) const {
         if (rayhit.hit.geomID < mesh_geom_count) {
-            return get_triangle_its(scene->geometry.meshes.meshes.data(),
+            return get_triangle_its(scene->geometry_container.meshes().meshes.data(),
                                     rayhit.hit.geomID, rayhit.hit.primID,
                                     vec2(rayhit.hit.u, rayhit.hit.v));
         } else {
             const point3 pos = orig + rayhit.ray.tfar * dir;
-            return get_sphere_its(scene->geometry.spheres, rayhit.hit.primID, pos);
+            return get_sphere_its(scene->geometry_container.spheres(), rayhit.hit.primID, pos);
         }
     }
 
@@ -189,7 +189,7 @@ public:
 
     std::optional<Intersection>
     cast_ray(const Ray &ray) const {
-        return cast_ray(ray.o, ray.dir);
+        return cast_ray(ray.orig(), ray.dir());
     }
 
     bool
@@ -254,19 +254,19 @@ public:
 
     void
     initialize_meshes() {
-        auto &meshes = scene->geometry.meshes.meshes;
+        auto &meshes = scene->geometry_container.meshes().meshes;
         mesh_geom_count = meshes.size();
         for (const auto &mesh : meshes) {
             auto *const geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3,
-                                       mesh.pos, 0, sizeof(point3), mesh.num_verts);
+                                       mesh.pos(), 0, sizeof(point3), mesh.num_verts());
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
-                                       mesh.indices, 0, 3 * sizeof(u32),
-                                       mesh.num_indices / 3);
+                                       mesh.indices(), 0, 3 * sizeof(u32),
+                                       mesh.num_indices() / 3);
 
-            if (mesh.alpha != nullptr) {
+            if (mesh.alpha() != nullptr) {
                 rtcSetGeometryIntersectFilterFunction(geom, filter_intersect_mesh);
                 rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_mesh);
                 rtcSetGeometryUserData(geom, (void *)(&mesh));
@@ -285,7 +285,7 @@ public:
 
     void
     initialize_instances() {
-        const auto &instances = scene->geometry.instances;
+        const auto &instances = scene->geometry_container.instances();
 
         if (instances.indices.empty()) {
             return;
@@ -304,14 +304,14 @@ public:
                     auto *const geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
 
                     rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0,
-                                               RTC_FORMAT_FLOAT3, mesh.pos, 0,
-                                               sizeof(point3), mesh.num_verts);
+                                               RTC_FORMAT_FLOAT3, mesh.pos(), 0,
+                                               sizeof(point3), mesh.num_verts());
 
                     rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0,
-                                               RTC_FORMAT_UINT3, mesh.indices, 0,
-                                               3 * sizeof(u32), mesh.num_indices / 3);
+                                               RTC_FORMAT_UINT3, mesh.indices(), 0,
+                                               3 * sizeof(u32), mesh.num_indices() / 3);
 
-                    if (mesh.alpha != nullptr) {
+                    if (mesh.alpha() != nullptr) {
                         rtcSetGeometryIntersectFilterFunction(geom,
                                                               filter_intersect_mesh);
                         rtcSetGeometryOccludedFilterFunction(geom, filter_intersect_mesh);
@@ -381,14 +381,13 @@ public:
 
     void
     initialize_spheres() {
-        const auto &spheres = scene->geometry.spheres;
+        const auto &spheres = scene->geometry_container.spheres();
         const auto &vertices = spheres.vertices;
 
         sphere_geom_count = spheres.num_spheres();
 
         for (int i = 0; i < sphere_geom_count; ++i) {
-            auto *const geom =
-                rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
+            auto *const geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
 
             rtcSetSharedGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT4,
                                        &vertices[i], 0, sizeof(SphereVertex), 1);

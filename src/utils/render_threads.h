@@ -28,7 +28,7 @@ private:
     Integrator *integrator;
 
     u32 num_threads;
-    std::vector<std::jthread> threads{};
+    std::vector<std::jthread> threads;
     bool should_stop = false;
 
     std::barrier<> start_work;

@@ -58,14 +58,15 @@ class ShadingFrame {
 public:
     /// wi and wo are assumed to not be in local space
     ShadingFrame(const norm_vec3 &normal, const norm_vec3 &p_wi, const norm_vec3 &p_wo)
-        : sframe{ShadingFrameIncomplete(normal)}, wi{sframe.to_local(p_wi).normalized()},
-          wo{sframe.to_local(p_wo).normalized()},
-          h{sframe.to_local(norm_vec3::halfway(p_wi, p_wo)).normalized()} {}
+        : m_sframe{ShadingFrameIncomplete(normal)},
+          m_wi{m_sframe.to_local(p_wi).normalized()},
+          m_wo{m_sframe.to_local(p_wo).normalized()},
+          m_h{m_sframe.to_local(norm_vec3::halfway(p_wi, p_wo)).normalized()} {}
 
     /// wi and wo have to be in local space !
     ShadingFrame(const ShadingFrameIncomplete &sframe, const norm_vec3 &wi,
                  const norm_vec3 &wo, const bool refracts = false)
-        : sframe{sframe}, wi{wi}, wo{wo}, h{norm_vec3::halfway(wi, wo)} {
+        : m_sframe{sframe}, m_wi{wi}, m_wo{wo}, m_h{norm_vec3::halfway(wi, wo)} {
 
         assert(nowo() >= 0.F);
         if (!refracts) {
@@ -77,13 +78,13 @@ public:
 
     vec3
     to_local(const norm_vec3 &input) const {
-        return sframe.to_local(input);
+        return m_sframe.to_local(input);
     }
 
     vec3
 
     from_local(const norm_vec3 &input) const {
-        return sframe.from_local(input);
+        return m_sframe.from_local(input);
     }
 
     bool
@@ -118,27 +119,45 @@ public:
 
     f32
     howo() const {
-        return vec3::dot(h, wo);
+        return vec3::dot(m_h, m_wo);
     }
 
     f32
     nowo() const {
-        return wo.z;
+        return m_wo.z;
     }
 
     f32
     nowi() const {
-        return wi.z;
+        return m_wi.z;
     }
 
     f32
     abs_nowi() const {
-        return std::abs(wi.z);
+        return std::abs(m_wi.z);
     }
 
     f32
     noh() const {
-        return h.z;
+        return m_h.z;
+    }
+
+    /// Omega-in
+    norm_vec3
+    wi() const {
+        return m_wi;
+    }
+
+    /// Omega-out
+    norm_vec3
+    wo() const {
+        return m_wo;
+    }
+
+    /// The half-vector
+    norm_vec3
+    h() const {
+        return m_h;
     }
 
     static bool
@@ -147,12 +166,11 @@ public:
     }
 
 private:
-    ShadingFrameIncomplete sframe;
+    ShadingFrameIncomplete m_sframe;
 
-public:
-    norm_vec3 wi;
-    norm_vec3 wo;
-    norm_vec3 h;
+    norm_vec3 m_wi;
+    norm_vec3 m_wo;
+    norm_vec3 m_h;
 };
 
 #endif // SHADING_FRAME_H

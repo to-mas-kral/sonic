@@ -1,52 +1,83 @@
 
-#include "geometry.h"
+#include "geometry_container.h"
 
 #include "../math/sampling.h"
 
 void
-Geometry::add_mesh(const MeshParams &mp, const std::optional<u32> lights_start_id) {
+GeometryContainer::add_mesh(const MeshParams &mp,
+                            const std::optional<u32> lights_start_id,
+                            const std::optional<InstanceId> inst_id) {
     auto mesh = Mesh(mp, lights_start_id);
-    meshes.meshes.push_back(std::move(mesh));
+
+    if (inst_id.has_value()) {
+        m_instances.instanced_objs[inst_id.value().inner].meshes.meshes.push_back(
+            std::move(mesh));
+    } else {
+        m_meshes.meshes.push_back(std::move(mesh));
+    }
 }
 
 void
-Geometry::add_sphere(const SphereParams &sp, const std::optional<u32> light_id) {
-    spheres.add_sphere(sp, light_id);
+GeometryContainer::add_sphere(const SphereParams &sp, const std::optional<u32> light_id,
+                              const std::optional<InstanceId> inst_id) {
+
+    if (inst_id.has_value()) {
+        m_instances.instanced_objs[inst_id.value().inner].spheres.add_sphere(sp,
+                                                                             light_id);
+    } else {
+        m_spheres.add_sphere(sp, light_id);
+    }
+}
+
+InstanceId
+GeometryContainer::init_instance() {
+    const u32 id = m_instances.instanced_objs.size();
+    m_instances.instanced_objs.emplace_back();
+    return InstanceId{id};
+}
+
+void
+GeometryContainer::add_instanced_instance(const InstanceId instance,
+                                          const SquareMatrix4 &world_from_instance) {
+    m_instances.indices.push_back(instance.inner);
+    m_instances.world_from_instances.push_back(world_from_instance);
+    m_instances.wfi_inv_trans.push_back(world_from_instance.inverse().transpose());
 }
 
 u32
-Geometry::get_next_shape_index(const ShapeType type) const {
+GeometryContainer::get_next_shape_index(const ShapeType type) const {
     switch (type) {
     case ShapeType::Mesh:
-        return meshes.meshes.size();
+        return m_meshes.meshes.size();
     case ShapeType::Sphere:
-        return spheres.num_spheres();
+        return m_spheres.num_spheres();
     default:
         panic();
     }
 }
 
 ShapeLightSample
-Geometry::sample_shape(const ShapeIndex si, const point3 &pos, const vec3 &sample) const {
+GeometryContainer::sample_shape(const ShapeIndex si, const point3 &pos,
+                                const vec3 &sample) const {
     switch (si.type) {
     case ShapeType::Mesh:
-        return meshes.sample(si, sample);
+        return m_meshes.sample(si, sample);
     case ShapeType::Sphere:
-        return spheres.sample(si.index, pos, sample);
+        return m_spheres.sample(si.index, pos, sample);
     default:
         panic();
     }
 }
 
 f32
-Geometry::shape_area(const ShapeIndex si) const {
+GeometryContainer::shape_area(const ShapeIndex si) const {
     switch (si.type) {
     case ShapeType::Mesh: {
-        const auto &mesh = meshes.meshes[si.index];
+        const auto &mesh = m_meshes.meshes[si.index];
         return mesh.tri_area(si.triangle_index);
     }
     case ShapeType::Sphere:
-        return spheres.calc_sphere_area(si.index);
+        return m_spheres.calc_sphere_area(si.index);
     default:
         panic();
     }
@@ -54,34 +85,34 @@ Geometry::shape_area(const ShapeIndex si) const {
 
 Mesh::
 Mesh(const MeshParams &mp, const std::optional<u32> p_lights_start_id)
-    : num_verts{mp.num_verts}, num_indices{mp.num_indices}, pos{mp.pos},
-      normals{mp.normals}, uvs{mp.uvs}, indices{mp.indices}, alpha{mp.alpha},
-      material_id{mp.material_id} {
+    : m_num_verts{mp.num_verts}, m_num_indices{mp.num_indices}, m_pos{mp.pos},
+      m_normals{mp.normals}, m_uvs{mp.uvs}, m_indices{mp.indices}, m_alpha{mp.alpha},
+      m_material_id{mp.material_id} {
     if (p_lights_start_id.has_value()) {
-        lights_start_id = p_lights_start_id.value();
-        has_light = true;
+        m_lights_start_id = p_lights_start_id.value();
+        m_has_light = true;
     }
 }
 
 u32
 Mesh::num_triangles() const {
-    return num_indices / 3;
+    return m_num_indices / 3;
 }
 
 uvec3
 Mesh::get_tri_indices(const u32 triangle) const {
     const auto index = triangle * 3;
-    const auto i0 = indices[index];
-    const auto i1 = indices[index + 1];
-    const auto i2 = indices[index + 2];
+    const auto i0 = m_indices[index];
+    const auto i1 = m_indices[index + 1];
+    const auto i2 = m_indices[index + 2];
     return {i0, i1, i2};
 }
 
 std::array<point3, 3>
 Mesh::get_tri_pos(const uvec3 &tri_indices) const {
-    const auto p0 = pos[tri_indices[0]];
-    const auto p1 = pos[tri_indices[1]];
-    const auto p2 = pos[tri_indices[2]];
+    const auto p0 = m_pos[tri_indices[0]];
+    const auto p1 = m_pos[tri_indices[1]];
+    const auto p2 = m_pos[tri_indices[2]];
     return {p0, p1, p2};
 }
 
@@ -100,10 +131,10 @@ Mesh::calc_normal(const u32 triangle, const vec3 bar,
                   const bool want_geometric_normal) const {
     const auto tri_indices = get_tri_indices(triangle);
 
-    if (normals != nullptr && !want_geometric_normal) {
-        const auto n0 = normals[tri_indices[0]];
-        const auto n1 = normals[tri_indices[1]];
-        const auto n2 = normals[tri_indices[2]];
+    if (m_normals != nullptr && !want_geometric_normal) {
+        const auto n0 = m_normals[tri_indices[0]];
+        const auto n1 = m_normals[tri_indices[1]];
+        const auto n2 = m_normals[tri_indices[2]];
         return barycentric_interp(bar, n0, n1, n2).normalized();
     } else {
         const auto [p0, p1, p2] = get_tri_pos(tri_indices);
@@ -125,14 +156,50 @@ Mesh::calc_uvs(const u32 triangle_index, const vec3 &bar) const {
     // Idk what's suppossed to happen here without explicit UVs..
     const auto tri_indices = get_tri_indices(triangle_index);
     auto uv = vec2(0.);
-    if (uvs != nullptr) {
-        const auto uv0 = uvs[tri_indices[0]];
-        const auto uv1 = uvs[tri_indices[1]];
-        const auto uv2 = uvs[tri_indices[2]];
+    if (m_uvs != nullptr) {
+        const auto uv0 = m_uvs[tri_indices[0]];
+        const auto uv1 = m_uvs[tri_indices[1]];
+        const auto uv2 = m_uvs[tri_indices[2]];
         uv = barycentric_interp(bar, uv0, uv1, uv2);
     }
 
     return uv;
+}
+
+Mesh::
+Mesh(Mesh &&other) noexcept
+    : m_num_verts(other.m_num_verts), m_num_indices(other.m_num_indices),
+      m_pos(other.m_pos), m_normals(other.m_normals), m_uvs(other.m_uvs),
+      m_indices(other.m_indices), m_alpha{other.m_alpha}, m_has_light(other.m_has_light),
+      m_lights_start_id(other.m_lights_start_id), m_material_id(other.m_material_id) {
+    other.m_pos = nullptr;
+    other.m_normals = nullptr;
+    other.m_uvs = nullptr;
+    other.m_indices = nullptr;
+}
+
+Mesh &
+Mesh::operator=(Mesh &&other) noexcept {
+    if (this == &other) {
+        return *this;
+    }
+    m_num_verts = other.m_num_verts;
+    m_num_indices = other.m_num_indices;
+    m_pos = other.m_pos;
+    m_normals = other.m_normals;
+    m_alpha = other.m_alpha;
+    m_uvs = other.m_uvs;
+    m_indices = other.m_indices;
+    m_has_light = other.m_has_light;
+    m_lights_start_id = other.m_lights_start_id;
+    m_material_id = other.m_material_id;
+
+    other.m_pos = nullptr;
+    other.m_normals = nullptr;
+    other.m_uvs = nullptr;
+    other.m_indices = nullptr;
+
+    return *this;
 }
 
 ShapeLightSample
@@ -156,7 +223,7 @@ Meshes::sample(const ShapeIndex si, const vec3 &sample) const {
 
 void
 Spheres::add_sphere(const SphereParams &sp, const std::optional<u32> light_id) {
-    vertices.push_back(SphereVertex(sp.center, sp.radius));
+    vertices.emplace_back(sp.center, sp.radius);
 
     attribs.emplace_back(SphereAttribs{.has_light = light_id.has_value(),
                                        .light_id = light_id.value_or(0),

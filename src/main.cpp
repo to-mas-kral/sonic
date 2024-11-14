@@ -112,7 +112,7 @@ main(int argc, char **argv) {
             ImageWriter::write_framebuffer(out_filename, rc.fb, s);
         }
 
-        integrator.frame += 1;
+        integrator.sample += 1;
         if (!settings.silent) {
             pb.print(s, settings.spp, elapsed);
         }

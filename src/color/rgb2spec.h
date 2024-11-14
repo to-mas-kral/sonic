@@ -13,17 +13,26 @@
 
 constexpr u32 RGB2SPEC_N_COEFFS = 3;
 
+struct SigmoigCoeff {
+    explicit
+    SigmoigCoeff(const tuple3 &inner)
+        : inner(inner) {}
+
+    tuple3 inner;
+};
+
 class RGB2Spec {
 public:
     /// Load a RGB2Spec model from disk
-    explicit RGB2Spec(const std::filesystem::path &path);
+    explicit
+    RGB2Spec(const std::filesystem::path &path);
 
     /// Convert an RGB value into a RGB2Spec coefficient representation
-    tuple3
+    SigmoigCoeff
     fetch(const tuple3 &rgb_) const;
 
     static f32
-    eval(const tuple3 &coeff, f32 lambda);
+    eval(const SigmoigCoeff &coeff, f32 lambda);
 
 private:
     i32

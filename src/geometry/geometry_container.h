@@ -1,11 +1,12 @@
-#ifndef PT_GEOMETRY_H
-#define PT_GEOMETRY_H
+#ifndef PT_GEOMETRY_CONTAINER_H
+#define PT_GEOMETRY_CONTAINER_H
 
 #include "../materials/material_id.h"
 #include "../math/vecmath.h"
 #include "../scene/emitter.h"
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"
+#include "instance_id.h"
 
 #include <vector>
 
@@ -14,7 +15,6 @@ enum class ShapeType : u8 {
     Sphere = 1,
 };
 
-// OPTIMIZE: could merge triangle index into type...
 struct ShapeIndex {
     ShapeType type;
     u32 index;
@@ -30,7 +30,8 @@ struct ShapeLightSample {
 
 struct MeshParams;
 
-struct Mesh {
+class Mesh {
+public:
     Mesh(const MeshParams &mp, std::optional<u32> p_lights_start_id);
 
     u32
@@ -53,75 +54,89 @@ struct Mesh {
 
     Mesh(const Mesh &other) = delete;
 
-    Mesh(Mesh &&other) noexcept
-        : num_verts(other.num_verts), num_indices(other.num_indices), pos(other.pos),
-          normals(other.normals), uvs(other.uvs), indices(other.indices),
-          alpha{other.alpha}, has_light(other.has_light),
-          lights_start_id(other.lights_start_id), material_id(other.material_id) {
-        other.pos = nullptr;
-        other.normals = nullptr;
-        other.uvs = nullptr;
-        other.indices = nullptr;
-    }
+    Mesh(Mesh &&other) noexcept;
 
     Mesh &
     operator=(const Mesh &other) = delete;
 
     Mesh &
-    operator=(Mesh &&other) noexcept {
-        if (this == &other) {
-            return *this;
-        }
-        num_verts = other.num_verts;
-        num_indices = other.num_indices;
-        pos = other.pos;
-        normals = other.normals;
-        alpha = other.alpha;
-        uvs = other.uvs;
-        indices = other.indices;
-        has_light = other.has_light;
-        lights_start_id = other.lights_start_id;
-        material_id = other.material_id;
+    operator=(Mesh &&other) noexcept;
 
-        other.pos = nullptr;
-        other.normals = nullptr;
-        other.uvs = nullptr;
-        other.indices = nullptr;
+    u32
+    num_verts() const {
+        return m_num_verts;
+    }
 
-        return *this;
+    u32
+    num_indices() const {
+        return m_num_indices;
+    }
+
+    point3 *
+    pos() const {
+        return m_pos;
+    }
+
+    u32 *
+    indices() const {
+        return m_indices;
+    }
+
+    FloatTexture *
+    alpha() const {
+        return m_alpha;
+    }
+
+    bool
+    has_light() const {
+        return m_has_light;
+    }
+
+    u32
+    lights_start_id() const {
+        return m_lights_start_id;
+    }
+
+    MaterialId
+    material_id() const {
+        return m_material_id;
     }
 
     ~
     Mesh() {
         // TODO: This will be moved elsewhere once geometry is cached
-        if (pos != nullptr) {
-            std::free(pos);
+        if (m_pos != nullptr) {
+            std::free(m_pos);
         }
 
-        if (normals != nullptr) {
-            std::free(normals);
+        if (m_normals != nullptr) {
+            std::free(m_normals);
         }
 
-        if (uvs != nullptr) {
-            std::free(uvs);
+        if (m_uvs != nullptr) {
+            std::free(m_uvs);
         }
 
-        if (indices != nullptr) {
-            std::free(indices);
+        if (m_indices != nullptr) {
+            std::free(m_indices);
         }
     }
 
-    u32 num_verts;
-    u32 num_indices;
-    point3 *pos{nullptr};
-    vec3 *normals{nullptr};
-    vec2 *uvs{nullptr};
-    u32 *indices{nullptr};
-    FloatTexture *alpha{nullptr};
+private:
+#ifdef TEST_PUBLIC
+public:
+#endif
+    u32 m_num_verts;
+    u32 m_num_indices;
+    point3 *m_pos{nullptr};
+    vec3 *m_normals{nullptr};
+    vec2 *m_uvs{nullptr};
+    u32 *m_indices{nullptr};
+    FloatTexture *m_alpha{nullptr};
 
-    bool has_light = false;
-    u32 lights_start_id{0};
-    MaterialId material_id;
+    bool m_has_light = false;
+    u32 m_lights_start_id{0};
+    MaterialId m_material_id;
 };
 
 // TODO: refactor to norm_vec3... ?
@@ -138,20 +153,20 @@ struct MeshParams {
     u32 *indices;
     u32 num_indices;
     point3 *pos;
-    vec3 *normals = nullptr; // may be null
-    vec2 *uvs = nullptr;     // may be null
+    vec3 *normals{nullptr}; // may be null
+    vec2 *uvs{nullptr};     // may be null
     u32 num_verts;
     MaterialId material_id;
     std::optional<Emitter> emitter;
-    FloatTexture *alpha{nullptr};
+    FloatTexture *alpha{nullptr}; // may be null
 };
 
 // SOA layout
 struct Meshes {
-    std::vector<Mesh> meshes;
-
     ShapeLightSample
     sample(ShapeIndex si, const vec3 &sample) const;
+
+    std::vector<Mesh> meshes;
 };
 
 // Used only for sphere creation
@@ -165,7 +180,7 @@ struct SphereParams {
     f32 radius;
     MaterialId material_id;
     std::optional<Emitter> emitter;
-    FloatTexture *alpha{nullptr};
+    FloatTexture *alpha{nullptr}; // may be null
 };
 
 struct SphereVertex {
@@ -184,9 +199,6 @@ struct SphereAttribs {
 
 // semi-SOA layout...
 struct Spheres {
-    std::vector<SphereVertex> vertices;
-    std::vector<SphereAttribs> attribs;
-
     void
     add_sphere(const SphereParams &sp, std::optional<u32> light_id);
 
@@ -210,6 +222,9 @@ struct Spheres {
 
     static vec2
     calc_uvs(const vec3 &normal);
+
+    std::vector<SphereVertex> vertices;
+    std::vector<SphereAttribs> attribs;
 };
 
 struct InstancedObj {
@@ -228,16 +243,23 @@ struct Instances {
     std::vector<u32> indices;
 };
 
-struct Geometry {
-    Meshes meshes{};
-    Spheres spheres{};
-
-    Instances instances{};
+/// GeometryContainer contains all of the geometry in the scene (triangle meshes,
+/// spheres), etc...
+class GeometryContainer {
+public:
+    void
+    add_mesh(const MeshParams &mp, std::optional<u32> lights_start_id,
+             std::optional<InstanceId> inst_id);
 
     void
-    add_mesh(const MeshParams &mp, std::optional<u32> lights_start_id);
+    add_sphere(const SphereParams &sp, std::optional<u32> light_id,
+               std::optional<InstanceId> inst_id);
+
+    InstanceId
+    init_instance();
+
     void
-    add_sphere(const SphereParams &sp, std::optional<u32> light_id);
+    add_instanced_instance(InstanceId instance, const SquareMatrix4 &world_from_instance);
 
     /// Based on the shape type, returns the  index of the *next* shape in that category.
     u32
@@ -248,6 +270,27 @@ struct Geometry {
 
     f32
     shape_area(ShapeIndex si) const;
+
+    const Meshes &
+    meshes() const {
+        return m_meshes;
+    }
+
+    const Spheres &
+    spheres() const {
+        return m_spheres;
+    }
+
+    const Instances &
+    instances() const {
+        return m_instances;
+    }
+
+private:
+    Meshes m_meshes{};
+    Spheres m_spheres{};
+
+    Instances m_instances{};
 };
 
-#endif // PT_GEOMETRY_H
+#endif // PT_GEOMETRY_CONTAINER_H

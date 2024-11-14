@@ -8,10 +8,12 @@
 #include "../utils/basic_types.h"
 #include "../utils/sampler.h"
 
+// TODO: refactor together with RenderContext...
+
 class Integrator {
 public:
     Integrator(const Settings &settings, RenderContext *rc, EmbreeDevice *device)
-        : frame{settings.start_frame}, rc{rc}, settings{settings}, device{device} {}
+        : sample{settings.start_frame}, rc{rc}, settings{settings}, device{device} {}
 
     void
     integrate_pixel(uvec2 pixel) const {
@@ -20,7 +22,7 @@ public:
         const auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
         Sampler sampler{};
-        sampler.init_frame(pixel, dim, frame, settings.spp);
+        sampler.init_frame(pixel, dim, sample, settings.spp);
 
         const auto cam_sample = sampler.sample2();
         const auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam,
@@ -38,7 +40,7 @@ public:
 
         if (radiance.is_invalid()) {
             spdlog::error("Invalid radiance {} at sample {}, pixel: {} x {} y",
-                          radiance.to_str(), frame, pixel.x, pixel.y);
+                          radiance.to_str(), sample, pixel.x, pixel.y);
         }
 
         rc->fb.get_pixels()[pixel_index] +=
@@ -64,7 +66,7 @@ public:
         }
     }
 
-    u32 frame = 0;
+    u32 sample = 0;
 
 private:
     static Ray

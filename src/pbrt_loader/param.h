@@ -154,17 +154,6 @@ struct Param {
         : type{ParamType::List}, value_type{ValueType::String}, name{std::move(name)},
           inner{std::move(value)} {}
 
-    bool was_accessed{false};
-    ParamType type;
-    // Don't care about the value type for Simple Params
-    ValueType value_type;
-    std::string name;
-
-    std::variant<i32, f32, vec2, point3, vec3, tuple3, bool, std::string,
-                 std::vector<i32>, std::vector<f32>, std::vector<vec2>,
-                 std::vector<point3>, std::vector<vec3>, std::vector<std::string>>
-        inner;
-
     Param(const Param &other) = delete;
 
     Param &
@@ -175,6 +164,7 @@ struct Param {
         if (this == &other) {
             return *this;
         }
+        was_accessed = other.was_accessed;
         type = other.type;
         value_type = other.value_type;
         name = std::move(other.name);
@@ -183,7 +173,8 @@ struct Param {
     }
 
     Param(Param &&other) noexcept
-        : type(other.type), value_type(other.value_type), name(std::move(other.name)),
+        : was_accessed(other.was_accessed), type(other.type),
+          value_type(other.value_type), name(std::move(other.name)),
           inner{std::move(other.inner)} {
         other.type = ParamType::Simple;
         other.value_type = ValueType::Int;
@@ -191,6 +182,17 @@ struct Param {
 
     ~
     Param() = default;
+
+    bool was_accessed{false};
+    ParamType type;
+    // Don't care about the value type for Simple Params
+    ValueType value_type;
+    std::string name;
+
+    std::variant<i32, f32, vec2, point3, vec3, tuple3, bool, std::string,
+                 std::vector<i32>, std::vector<f32>, std::vector<vec2>,
+                 std::vector<point3>, std::vector<vec3>, std::vector<std::string>>
+        inner;
 };
 
 struct ParamsList {

@@ -26,15 +26,15 @@ enum class ImageDataType : u8 {
 class Image {
 public:
     Image(const i32 width, const i32 height, u8 *pixels, const u32 num_channels)
-        : data_type{ImageDataType::U8}, num_channels{num_channels}, width{width},
-          height{height}, pixels_u8{pixels} {}
+        : m_data_type{ImageDataType::U8}, m_num_channels{num_channels}, m_width{width},
+          m_height{height}, m_pixels_u8{pixels} {}
 
     Image(const i32 width, const i32 height, f32 *pixels, const u32 num_channels)
-        : data_type{ImageDataType::F32}, num_channels{num_channels}, width{width},
-          height{height}, pixels_f32{pixels} {}
+        : m_data_type{ImageDataType::F32}, m_num_channels{num_channels}, m_width{width},
+          m_height{height}, m_pixels_f32{pixels} {}
 
     static Image
-    make(const std::string &texture_path);
+    from_filepath(const std::string &texture_path);
 
     /// Coordinate system - see above
     tuple3
@@ -62,25 +62,68 @@ public:
 
     const ColorSpace &
     get_scolor_space() const {
-        return color_space;
+        return m_color_space;
     }
 
     i32
-    get_width() const {
-        return width;
+    width() const {
+        return m_width;
     }
 
     i32
-    get_height() const {
-        return height;
+    height() const {
+        return m_height;
     }
 
-    void
-    free() const {
-        if (data_type == ImageDataType::U8) {
-            delete[] pixels_u8;
-        } else if (data_type == ImageDataType::F32) {
-            delete[] pixels_f32;
+    Image(const Image &other) = delete;
+
+    Image &
+    operator=(const Image &other) = delete;
+
+    Image(Image &&other) noexcept
+        : m_data_type(other.m_data_type), m_color_space(other.m_color_space),
+          m_num_channels(other.m_num_channels), m_width(other.m_width),
+          m_height(other.m_height) {
+        if (m_data_type == ImageDataType::U8) {
+            m_pixels_u8 = other.m_pixels_u8;
+            other.m_pixels_u8 = nullptr;
+        } else if (m_data_type == ImageDataType::F32) {
+            m_pixels_f32 = other.m_pixels_f32;
+            other.m_pixels_f32 = nullptr;
+        }
+    }
+
+    Image &
+    operator=(Image &&other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        m_data_type = other.m_data_type;
+        m_color_space = other.m_color_space;
+        m_num_channels = other.m_num_channels;
+        m_width = other.m_width;
+        m_height = other.m_height;
+
+        if (m_data_type == ImageDataType::U8) {
+            m_pixels_u8 = other.m_pixels_u8;
+            other.m_pixels_u8 = nullptr;
+        } else if (m_data_type == ImageDataType::F32) {
+            m_pixels_f32 = other.m_pixels_f32;
+            other.m_pixels_f32 = nullptr;
+        }
+
+        return *this;
+    }
+
+    ~
+    Image() {
+        // TODO: careful about UB, deallocation depends on which allocator (library...)
+        // was used to allocate the memory
+        if (m_data_type == ImageDataType::U8 && m_pixels_u8 != nullptr) {
+            delete[] m_pixels_u8;
+        } else if (m_data_type == ImageDataType::F32 && m_pixels_f32 != nullptr) {
+            delete[] m_pixels_f32;
         }
     }
 
@@ -91,15 +134,15 @@ private:
     tuple3
     rgb_from_pixel_index(u64 pixel_index) const;
 
-    ImageDataType data_type{};
-    ColorSpace color_space{};
-    u32 num_channels{0};
-    i32 width{0};
-    i32 height{0};
+    ImageDataType m_data_type{};
+    ColorSpace m_color_space{};
+    u32 m_num_channels{0};
+    i32 m_width{0};
+    i32 m_height{0};
 
     union {
-        u8 *pixels_u8 = nullptr;
-        f32 *pixels_f32;
+        u8 *m_pixels_u8 = nullptr;
+        f32 *m_pixels_f32;
     };
 };
 

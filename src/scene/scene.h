@@ -1,7 +1,7 @@
 #ifndef PT_SCENE_H
 #define PT_SCENE_H
 
-#include "../geometry/geometry.h"
+#include "../geometry/geometry_container.h"
 #include "../geometry/instance_id.h"
 #include "../integrator/intersection.h"
 #include "../integrator/light_sampler.h"
@@ -18,9 +18,6 @@
 struct Scene {
     Scene();
 
-    ~
-    Scene();
-
     void
     set_envmap(Envmap &&a_envmap);
 
@@ -34,7 +31,7 @@ struct Scene {
     init_instance();
 
     void
-    add_instance(InstanceId instance, const SquareMatrix4 &world_from_instance);
+    add_instanced_instance(InstanceId instance, const SquareMatrix4 &world_from_instance);
 
     MaterialId
     add_material(const Material &material);
@@ -76,32 +73,35 @@ struct Scene {
     Scene &
     operator=(Scene &&other) = default;
 
+    ~
+    Scene() = default;
+
     std::optional<LightSample>
     sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,
                   const Intersection &its) const;
 
     // TODO: encapsulate
-    Geometry geometry{};
-    LightSampler light_sampler{};
+    GeometryContainer geometry_container{};
+    LightSampler light_sampler;
     SceneAttribs attribs{};
-    std::vector<Light> lights{};
-    std::deque<Material> materials{};
+    std::vector<Light> lights;
+    std::deque<Material> materials;
     std::unique_ptr<Envmap> envmap{nullptr};
 
-    std::unordered_map<std::string, FloatTexture *> builtin_float_textures{};
-    std::unordered_map<std::string, SpectrumTexture *> builtin_spectrum_textures{};
+    std::unordered_map<std::string, FloatTexture *> builtin_float_textures;
+    std::unordered_map<std::string, SpectrumTexture *> builtin_spectrum_textures;
 
 private:
-    std::deque<FloatTexture> float_textures{};
-    std::deque<SpectrumTexture> spectrum_textures{};
+    std::deque<FloatTexture> float_textures;
+    std::deque<SpectrumTexture> spectrum_textures;
 
-    std::unordered_map<std::filesystem::path, Image *> images_by_name{};
+    std::unordered_map<std::filesystem::path, Image *> images_by_name;
     // Store the images in a deque, because it provides pointer stability
-    std::deque<Image> images{};
+    std::deque<Image> images;
 
-    std::unordered_map<std::string, Spectrum> builtin_spectra{};
+    std::unordered_map<std::string, Spectrum> builtin_spectra;
 
-    AABB m_bounds{vec3(0.f), vec3(0.f)};
+    AABB m_bounds{vec3(0.F), vec3(0.F)};
 };
 
 #endif // PT_SCENE_H

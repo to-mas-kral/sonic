@@ -113,8 +113,5 @@ void
 Lexer::advance() const {
     if (!src->is_eof()) {
         const auto ch = src->get();
-        if (ch == '\n') {
-            src->inc_line_counter();
-        }
     }
 }

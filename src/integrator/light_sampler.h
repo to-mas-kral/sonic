@@ -1,7 +1,7 @@
 #ifndef PT_LIGHT_SAMPLER_H
 #define PT_LIGHT_SAMPLER_H
 
-#include "../geometry/geometry.h"
+#include "../geometry/geometry_container.h"
 #include "../math/discrete_dist.h"
 #include "../scene/light.h"
 
@@ -17,7 +17,7 @@ public:
     LightSampler() = default;
 
     explicit
-    LightSampler(const std::vector<Light> &lights, const Geometry &geom);
+    LightSampler(const std::vector<Light> &lights, const GeometryContainer &geom);
 
     /// Sample lights according to power
     std::optional<LightIndexSample>
@@ -28,8 +28,7 @@ public:
     light_sample_pdf(u32 light_id) const;
 
 private:
-    bool has_lights = false;
-    DiscreteDist sampling_dist;
+    std::optional<DiscreteDist> sampling_dist;
 };
 
 #endif // PT_LIGHT_SAMPLER_H

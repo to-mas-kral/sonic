@@ -9,8 +9,6 @@
 
 class DiscreteDist {
 public:
-    DiscreteDist() = default;
-
     DiscreteDist(DiscreteDist &other) = delete;
 
     DiscreteDist(DiscreteDist &&other) noexcept = default;

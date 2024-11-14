@@ -23,21 +23,22 @@ Scene() {
 
     for (const auto &spectrum : builtin_spectra) {
         builtin_spectrum_textures.insert(
-            {spectrum.first, add_texture(SpectrumTexture::make(spectrum.second))});
+            {spectrum.first, add_texture(SpectrumTexture(spectrum.second))});
     }
 
     builtin_spectrum_textures.insert(
-        {"reflectance", add_texture(SpectrumTexture::make(RgbSpectrum(tuple3(0.5f))))});
-    builtin_float_textures.insert({"roughness", add_texture(FloatTexture::make(0.f))});
+        {"reflectance",
+         add_texture(SpectrumTexture(RgbSpectrum::from_rgb(tuple3(0.5F))))});
+    builtin_float_textures.insert({"roughness", add_texture(FloatTexture(0.F))});
     builtin_spectrum_textures.insert(
         {"eta-dielectric",
-         add_texture(SpectrumTexture::make(Spectrum(ConstantSpectrum(1.5f))))});
+         add_texture(SpectrumTexture(Spectrum(ConstantSpectrum(1.5F))))});
     builtin_spectrum_textures.insert(
         {"eta-conductor",
-         add_texture(SpectrumTexture::make(builtin_spectra.at("metal-Cu-eta")))});
+         add_texture(SpectrumTexture(builtin_spectra.at("metal-Cu-eta")))});
     builtin_spectrum_textures.insert(
         {"k-conductor",
-         add_texture(SpectrumTexture::make(builtin_spectra.at("metal-Cu-k")))});
+         add_texture(SpectrumTexture(builtin_spectra.at("metal-Cu-k")))});
 }
 
 MaterialId
@@ -64,9 +65,9 @@ Scene::make_or_get_image(const std::filesystem::path &path) {
     if (images_by_name.contains(path)) {
         return images_by_name.at(path);
     } else {
-        const auto img = Image::make(path);
-        images.push_back(img);
-        const auto new_ptr = &images.back();
+        auto img = Image::from_filepath(path);
+        images.push_back(std::move(img));
+        auto *const new_ptr = &images.back();
         images_by_name.insert({path, new_ptr});
         return new_ptr;
     }
@@ -83,7 +84,7 @@ Scene::set_scene_bounds(const AABB &bounds) {
 
 void
 Scene::init_light_sampler() {
-    light_sampler = LightSampler(lights, geometry);
+    light_sampler = LightSampler(lights, geometry_container);
 }
 
 std::optional<LightSample>
@@ -94,12 +95,12 @@ Scene::sample_lights(const f32 sample, const vec3 &shape_rng,
         return {};
     }
     return index_sample->light->sample(index_sample->pdf, shape_rng, lambdas, its,
-                                       geometry);
+                                       geometry_container);
 }
 
 void
 Scene::add_mesh(const MeshParams &mp, const std::optional<InstanceId> instance) {
-    const auto next_mesh_id = geometry.get_next_shape_index(ShapeType::Mesh);
+    const auto next_mesh_id = geometry_container.get_next_shape_index(ShapeType::Mesh);
     std::optional<u32> lights_start_id = {};
 
     if (mp.emitter.has_value() && instance.has_value()) {
@@ -117,19 +118,13 @@ Scene::add_mesh(const MeshParams &mp, const std::optional<InstanceId> instance) 
         }
     }
 
-    if (instance.has_value()) {
-        const auto instance_id = instance.value();
-        auto mesh = Mesh(mp, lights_start_id);
-        geometry.instances.instanced_objs[instance_id.inner].meshes.meshes.push_back(
-            std::move(mesh));
-    } else {
-        geometry.add_mesh(mp, lights_start_id);
-    }
+    geometry_container.add_mesh(mp, lights_start_id, instance);
 }
 
 void
 Scene::add_sphere(const SphereParams &sp, const std::optional<InstanceId> instance) {
-    const auto next_sphere_id = geometry.get_next_shape_index(ShapeType::Sphere);
+    const auto next_sphere_id =
+        geometry_container.get_next_shape_index(ShapeType::Sphere);
     std::optional<u32> light_id = {};
 
     if (sp.emitter.has_value() && instance.has_value()) {
@@ -143,34 +138,18 @@ Scene::add_sphere(const SphereParams &sp, const std::optional<InstanceId> instan
         lights.emplace_back(ShapeLight(si, sp.emitter.value()));
     }
 
-    if (instance.has_value()) {
-        const auto instance_id = instance.value();
-        auto &spheres = geometry.instances.instanced_objs[instance_id.inner].spheres;
-        spheres.add_sphere(sp, light_id);
-    } else {
-        geometry.add_sphere(sp, light_id);
-    }
+    geometry_container.add_sphere(sp, light_id, instance);
 }
 
 InstanceId
 Scene::init_instance() {
-    const u32 id = geometry.instances.instanced_objs.size();
-    geometry.instances.instanced_objs.emplace_back();
-    return InstanceId{id};
+    return geometry_container.init_instance();
 }
 
 void
-Scene::add_instance(const InstanceId instance, const SquareMatrix4 &world_from_instance) {
-    geometry.instances.indices.push_back(instance.inner);
-    geometry.instances.world_from_instances.push_back(world_from_instance);
-    geometry.instances.wfi_inv_trans.push_back(world_from_instance.inverse().transpose());
-}
-
-Scene::~
-Scene() {
-    for (const auto &[_, img] : images_by_name) {
-        img->free();
-    }
+Scene::add_instanced_instance(const InstanceId instance,
+                              const SquareMatrix4 &world_from_instance) {
+    geometry_container.add_instanced_instance(instance, world_from_instance);
 }
 
 void

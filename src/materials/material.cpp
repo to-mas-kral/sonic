@@ -3,59 +3,35 @@
 #include "../integrator/shading_frame.h"
 #include "diffuse_transmission.h"
 
-Material
-Material::make_diffuse(SpectrumTexture *reflectance) {
-    return Material{.type = MaterialType::Diffuse,
-                    .diffuse = DiffuseMaterial(reflectance)};
-}
+Material::
+Material(const DiffuseMaterial &diffuse_material)
+    : type{MaterialType::Diffuse}, diffuse{diffuse_material} {}
 
-Material
-Material::make_diffuse_transmission(SpectrumTexture *reflectance,
-                                    SpectrumTexture *transmittance, const f32 scale) {
-    const auto diffusetransmission_mat =
-        DiffuseTransmissionMaterial(reflectance, transmittance, scale);
+Material::
+Material(const DiffuseTransmissionMaterial &diffuse_transmission)
+    : type{MaterialType::DiffuseTransmission},
+      diffuse_transmission{diffuse_transmission} {}
 
-    return Material{.type = MaterialType::DiffuseTransmission,
-                    .diffusetransmission = diffusetransmission_mat};
-}
+Material::
+Material(const CoatedDifuseMaterial &coated_difuse_material)
+    : type{MaterialType::CoatedDiffuse}, coated_diffuse{coated_difuse_material} {}
 
-Material
-Material::make_dielectric(const Spectrum &ext_ior, SpectrumTexture *int_ior,
-                          const Spectrum &transmittance) {
-    const auto dielectric_mat = DielectricMaterial(int_ior, ext_ior, transmittance);
-    return Material{.type = MaterialType::Dielectric, .dielectric = dielectric_mat};
-}
+Material::
+Material(const RoughCoatedDiffuseMaterial &rough_coated_diffuse_material)
+    : type{MaterialType::RoughCoatedDiffuse},
+      rough_coated_diffuse{rough_coated_diffuse_material} {}
 
-Material
-Material::make_conductor(SpectrumTexture *eta, SpectrumTexture *k) {
-    const auto conductor_mat = ConductorMaterial(false, eta, k);
-    return Material{.type = MaterialType::Conductor, .conductor = conductor_mat};
-}
+Material::
+Material(const DielectricMaterial &dielectric_material)
+    : type{MaterialType::Dielectric}, dielectric{dielectric_material} {}
 
-Material
-Material::make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta,
-                               SpectrumTexture *k) {
-    const auto rough_conductor_material = RoughConductorMaterial(eta, k, alpha);
-    return Material{.type = MaterialType::RoughConductor,
-                    .rough_conductor = rough_conductor_material};
-}
+Material::
+Material(const ConductorMaterial &conductor_material)
+    : type{MaterialType::Conductor}, conductor{conductor_material} {}
 
-Material
-Material::make_plastic(const Spectrum &ext_ior, const Spectrum &int_ior,
-                       SpectrumTexture *diffuse_reflectance) {
-    const auto plastic_mat = CoatedDifuseMaterial(ext_ior, int_ior, diffuse_reflectance);
-    return Material{.type = MaterialType::CoatedDiffuse, .coateddiffuse = plastic_mat};
-}
-
-Material
-Material::make_rough_plastic(FloatTexture *alpha, const Spectrum &ext_ior,
-                             const Spectrum &int_ior,
-                             SpectrumTexture *diffuse_reflectance) {
-    const auto rough_plastic_mat =
-        RoughCoatedDiffuseMaterial(alpha, ext_ior, int_ior, diffuse_reflectance);
-    return Material{.type = MaterialType::RoughCoatedDiffuse,
-                    .rough_coateddiffuse = rough_plastic_mat};
-}
+Material::
+Material(const RoughConductorMaterial &rough_conductor_material)
+    : type{MaterialType::RoughConductor}, rough_conductor{rough_conductor_material} {}
 
 std::optional<BSDFSample>
 Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &xi,
@@ -75,13 +51,13 @@ Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 
         break;
     case MaterialType::DiffuseTransmission:
         bsdf_sample =
-            diffusetransmission.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
+            diffuse_transmission.sample(sframe, wo, vec2(xi.x, xi.y), lambdas, uv);
         break;
     case MaterialType::CoatedDiffuse:
-        bsdf_sample = coateddiffuse.sample(sframe, wo, xi, lambdas, uv);
+        bsdf_sample = coated_diffuse.sample(sframe, wo, xi, lambdas, uv);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        bsdf_sample = rough_coateddiffuse.sample(sframe, wo, xi, lambdas, uv);
+        bsdf_sample = rough_coated_diffuse.sample(sframe, wo, xi, lambdas, uv);
         break;
     case MaterialType::Conductor:
         bsdf_sample = conductor.sample(sframe, wo, lambdas, uv);
@@ -117,10 +93,10 @@ Material::pdf(const ShadingFrame &sframe, const SampledLambdas &lambdas,
         pdf = DiffuseTransmissionMaterial::pdf(sframe);
         break;
     case MaterialType::CoatedDiffuse:
-        pdf = coateddiffuse.pdf(sframe, lambdas);
+        pdf = coated_diffuse.pdf(sframe, lambdas);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        pdf = rough_coateddiffuse.pdf(sframe, lambdas, uv);
+        pdf = rough_coated_diffuse.pdf(sframe, lambdas, uv);
         break;
     case MaterialType::Conductor:
         pdf = ConductorMaterial::pdf();
@@ -154,13 +130,13 @@ Material::eval(const ShadingFrame &sframe, const SampledLambdas &lambdas,
         result = diffuse.eval(lambdas, uv);
         break;
     case MaterialType::DiffuseTransmission:
-        result = diffusetransmission.eval(lambdas, uv);
+        result = diffuse_transmission.eval(lambdas, uv);
         break;
     case MaterialType::CoatedDiffuse:
-        result = coateddiffuse.eval(sframe, lambdas, uv);
+        result = coated_diffuse.eval(sframe, lambdas, uv);
         break;
     case MaterialType::RoughCoatedDiffuse:
-        result = rough_coateddiffuse.eval(sframe, lambdas, uv);
+        result = rough_coated_diffuse.eval(sframe, lambdas, uv);
         break;
     case MaterialType::RoughConductor:
         result = rough_conductor.eval(sframe, lambdas, uv);

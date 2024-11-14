@@ -1,7 +1,7 @@
 #ifndef PT_MATERIAL_H
 #define PT_MATERIAL_H
 
-#include "../color/sampled_spectrum.h"
+#include "../color/spectral_quantity.h"
 #include "../color/spectrum.h"
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"
@@ -24,32 +24,28 @@ enum class MaterialType : u8 {
     Dielectric,
 };
 
-// TODO: make this a proper class...
-struct Material {
-    static Material
-    make_diffuse(SpectrumTexture *reflectance);
+class Material {
+public:
+    explicit
+    Material(const DiffuseMaterial &diffuse_material);
 
-    static Material
-    make_diffuse_transmission(SpectrumTexture *reflectance,
-                              SpectrumTexture *transmittance, f32 scale);
+    explicit
+    Material(const DiffuseTransmissionMaterial &diffuse_transmission);
 
-    static Material
-    make_dielectric(const Spectrum &ext_ior, SpectrumTexture *int_ior,
-                    const Spectrum &transmittance);
+    explicit
+    Material(const CoatedDifuseMaterial &coated_difuse_material);
 
-    static Material
-    make_conductor(SpectrumTexture *eta, SpectrumTexture *k);
+    explicit
+    Material(const RoughCoatedDiffuseMaterial &rough_coated_diffuse_material);
 
-    static Material
-    make_rough_conductor(FloatTexture *alpha, SpectrumTexture *eta, SpectrumTexture *k);
+    explicit
+    Material(const DielectricMaterial &dielectric_material);
 
-    static Material
-    make_plastic(const Spectrum &ext_ior, const Spectrum &int_ior,
-                 SpectrumTexture *diffuse_reflectance);
+    explicit
+    Material(const ConductorMaterial &conductor_material);
 
-    static Material
-    make_rough_plastic(FloatTexture *alpha, const Spectrum &ext_ior,
-                       const Spectrum &int_ior, SpectrumTexture *diffuse_reflectance);
+    explicit
+    Material(const RoughConductorMaterial &rough_conductor_material);
 
     std::optional<BSDFSample>
     sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &xi,
@@ -65,14 +61,15 @@ struct Material {
     bool
     is_delta() const;
 
-    MaterialType type = MaterialType::Diffuse;
     bool is_twosided = false;
 
+private:
+    MaterialType type;
     union {
         DiffuseMaterial diffuse;
-        DiffuseTransmissionMaterial diffusetransmission;
-        CoatedDifuseMaterial coateddiffuse;
-        RoughCoatedDiffuseMaterial rough_coateddiffuse;
+        DiffuseTransmissionMaterial diffuse_transmission;
+        CoatedDifuseMaterial coated_diffuse;
+        RoughCoatedDiffuseMaterial rough_coated_diffuse;
         DielectricMaterial dielectric;
         ConductorMaterial conductor;
         RoughConductorMaterial rough_conductor;

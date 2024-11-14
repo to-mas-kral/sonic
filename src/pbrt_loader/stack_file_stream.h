@@ -57,19 +57,6 @@ public:
         }
     }
 
-    void
-    inc_line_counter() {
-        if (!is_string_input) {
-            if (file_streams.empty()) {
-                throw std::runtime_error("StackFileStream is empty");
-            }
-
-            file_streams.back().src_location.line_counter++;
-        } else {
-            string_source_location.line_counter++;
-        }
-    }
-
     bool
     is_eof() {
         if (!is_string_input) {
@@ -84,7 +71,7 @@ public:
             return string_stream.eof();
         }
     }
-    
+
     std::optional<char>
     peek() {
         if (!is_string_input) {
@@ -108,6 +95,8 @@ public:
 
     char
     get() {
+        char ret;
+
         if (!is_string_input) {
             retire_eof_streams();
 
@@ -115,9 +104,29 @@ public:
                 return EOF;
             }
 
-            return file_streams.back().file_stream.get();
+            ret = file_streams.back().file_stream.get();
         } else {
-            return string_stream.get();
+            ret = string_stream.get();
+        }
+
+        if (ret == '\n') {
+            inc_line_counter();
+        }
+
+        return ret;
+    }
+
+private:
+    void
+    inc_line_counter() {
+        if (!is_string_input) {
+            if (file_streams.empty()) {
+                throw std::runtime_error("StackFileStream is empty");
+            }
+
+            file_streams.back().src_location.line_counter++;
+        } else {
+            string_source_location.line_counter++;
         }
     }
 
@@ -132,7 +141,6 @@ public:
         }
     }
 
-private:
     bool is_string_input = false;
     std::istringstream string_stream;
     SourceLocation string_source_location{};

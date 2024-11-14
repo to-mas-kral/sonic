@@ -12,7 +12,7 @@ public:
 
     Framebuffer(const u32 image_x, const u32 image_y)
         : image_x{image_x}, image_y{image_y} {
-        pixels = std::vector<vec3>(num_pixels(), vec3(0.f));
+        pixels = std::vector<vec3>(num_pixels(), vec3(0.F));
     }
 
     u32

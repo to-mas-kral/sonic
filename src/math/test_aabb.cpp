@@ -5,6 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+
 TEST_CASE("AABB split halfs") {
     auto low = vec3(-0.5f, -1.f, 0.3f);
     auto high = vec3(1.2f, 0.6f, 2.f);

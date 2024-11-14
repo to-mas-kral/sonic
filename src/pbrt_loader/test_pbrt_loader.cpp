@@ -1,3 +1,4 @@
+#define TEST_PUBLIC
 #include "pbrt_loader.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -77,7 +78,7 @@ TEST_CASE("loader trianglemesh") {
 
     loader.load_scene(scene);
 
-    const auto &i = scene.geometry.meshes.meshes[0].indices;
+    const auto &i = scene.geometry_container.meshes().meshes[0].indices();
     REQUIRE(i[0] == 0);
     REQUIRE(i[1] == 2);
     REQUIRE(i[2] == 1);
@@ -85,7 +86,7 @@ TEST_CASE("loader trianglemesh") {
     REQUIRE(i[4] == 3);
     REQUIRE(i[5] == 2);
 
-    const auto &p = scene.geometry.meshes.meshes[0].pos;
+    const auto &p = scene.geometry_container.meshes().meshes[0].pos();
     REQUIRE(p[0].x == 550);
     REQUIRE(p[0].y == 0);
     REQUIRE(p[0].z == 0);
@@ -102,7 +103,7 @@ TEST_CASE("loader trianglemesh") {
     REQUIRE(p[3].y == 0);
     REQUIRE(p[3].z == 560);
 
-    const auto &uv = scene.geometry.meshes.meshes[0].uvs;
+    const auto &uv = scene.geometry_container.meshes().meshes[0].m_uvs;
     REQUIRE(uv[0].x == 0);
     REQUIRE(uv[0].y == 1);
 
@@ -115,7 +116,7 @@ TEST_CASE("loader trianglemesh") {
     REQUIRE(uv[3].x == 6);
     REQUIRE(uv[3].y == 7);
 
-    const auto &n = scene.geometry.meshes.meshes[0].normals;
+    const auto &n = scene.geometry_container.meshes().meshes[0].m_normals;
     REQUIRE(n[0].x == 0);
     REQUIRE(n[0].y == 1);
     REQUIRE(n[0].z == 2);

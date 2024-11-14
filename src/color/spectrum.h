@@ -3,8 +3,10 @@
 
 #include "cie_spectrums.h"
 #include "color_space.h"
-#include "sampled_spectrum.h"
+#include "sampled_lambdas.h"
+#include "spectral_quantity.h"
 #include "spectrum_consts.h"
+#include "rgb2spec.h"
 
 class DenseSpectrum {
 public:
@@ -15,7 +17,7 @@ public:
     f32
     eval_single(f32 lambda) const;
 
-    SampledSpectrum
+    SpectralQuantity
     eval(const SampledLambdas &sl) const;
 
 private:
@@ -41,7 +43,7 @@ public:
     f32
     eval_single(f32 lambda) const;
 
-    inline SampledSpectrum
+    inline SpectralQuantity
     eval(const SampledLambdas &sl) const;
 
 private:
@@ -58,7 +60,7 @@ public:
     f32
     eval_single() const;
 
-    inline SampledSpectrum
+    inline SpectralQuantity
     eval() const;
 
 private:
@@ -66,15 +68,13 @@ private:
 };
 
 /// Bounded reflectance spectrum [0; 1]
-struct RgbSpectrum {
+class RgbSpectrum {
+public:
     static RgbSpectrum
-    make(const tuple3 &rgb);
+    from_rgb(const tuple3 &rgb);
 
     static RgbSpectrum
-    from_coeff(const tuple3 &sigmoig_coeff);
-
-    static RgbSpectrum
-    make_empty();
+    from_coeff(const SigmoigCoeff &sigmoig_coeff);
 
     f32
     eval_single(f32 lambda) const;
@@ -82,12 +82,17 @@ struct RgbSpectrum {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
-    tuple3 sigmoid_coeff = tuple3(0.F);
+protected:
+    explicit
+    RgbSpectrum(const SigmoigCoeff &sigmoig_coeff);
+
+    SigmoigCoeff sigmoid_coeff;
 };
 
-struct RgbSpectrumUnbounded : RgbSpectrum {
-    static RgbSpectrumUnbounded
-    make(tuple3 rgb);
+class RgbSpectrumUnbounded : protected RgbSpectrum {
+public:
+    explicit
+    RgbSpectrumUnbounded(const tuple3 &rgb);
 
     f32
     eval_single(f32 lambda) const;
@@ -95,12 +100,14 @@ struct RgbSpectrumUnbounded : RgbSpectrum {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
+protected:
     f32 scale = 1.F;
 };
 
-struct RgbSpectrumIlluminant : RgbSpectrumUnbounded {
-    static RgbSpectrumIlluminant
-    make(const tuple3 &rgb, ColorSpace color_space);
+class RgbSpectrumIlluminant : protected RgbSpectrumUnbounded {
+public:
+    explicit
+    RgbSpectrumIlluminant(const tuple3 &rgb, ColorSpace color_space = ColorSpace::sRGB);
 
     f32
     eval_single(f32 lambda) const;
@@ -108,12 +115,14 @@ struct RgbSpectrumIlluminant : RgbSpectrumUnbounded {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
+protected:
     ColorSpace color_space = ColorSpace::sRGB;
 };
 
-struct BlackbodySpectrum {
-    static BlackbodySpectrum
-    make(i32 temp);
+class BlackbodySpectrum {
+public:
+    explicit
+    BlackbodySpectrum(i32 temp);
 
     f32
     eval_single(f32 lambda) const;
@@ -121,6 +130,7 @@ struct BlackbodySpectrum {
     spectral
     eval(const SampledLambdas &lambdas) const;
 
+protected:
     i32 temp{0};
 };
 
@@ -134,7 +144,8 @@ enum class SpectrumType : u8 {
     Blackbody,
 };
 
-struct Spectrum {
+class Spectrum {
+public:
     explicit
     Spectrum(DenseSpectrum ds)
         : type{SpectrumType::Dense}, dense_spectrum{ds} {}
@@ -163,7 +174,7 @@ struct Spectrum {
     Spectrum(BlackbodySpectrum bs)
         : type{SpectrumType::Blackbody}, blackbody_spectrum{bs} {}
 
-    SampledSpectrum
+    SpectralQuantity
     eval(const SampledLambdas &lambdas) const;
 
     f32
@@ -172,6 +183,7 @@ struct Spectrum {
     f32
     power() const;
 
+private:
     SpectrumType type;
     union {
         DenseSpectrum dense_spectrum;

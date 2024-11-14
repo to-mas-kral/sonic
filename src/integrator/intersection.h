@@ -7,10 +7,6 @@
 #include "../utils/basic_types.h"
 
 struct Intersection {
-    explicit
-    Intersection()
-        : material_id{0}, light_id(0), has_light(false) {}
-
     Intersection(const MaterialId &material_id, const u32 light_id, const bool has_light,
                  const norm_vec3 &normal, const norm_vec3 &geometric_normal,
                  const point3 &pos, const vec2 &uv)

@@ -2,12 +2,10 @@
 #include "light_sampler.h"
 
 LightSampler::
-LightSampler(const std::vector<Light> &lights, const Geometry &geom) {
+LightSampler(const std::vector<Light> &lights, const GeometryContainer &geom) {
     if (lights.empty()) {
         return;
     }
-
-    has_lights = true;
 
     f32 total_power = 0.F;
     for (auto light : lights) {
@@ -28,12 +26,14 @@ LightSampler(const std::vector<Light> &lights, const Geometry &geom) {
 
 std::optional<LightIndexSample>
 LightSampler::sample(const std::vector<Light> &lights, const f32 sample) const {
-    if (!has_lights) {
+    assert(sample >= 0.F && sample < 1.F);
+
+    if (!sampling_dist.has_value()) {
         return {};
     }
 
-    const u32 light_index = sampling_dist.sample(sample);
-    const f32 pdf = sampling_dist.pdf(light_index);
+    const u32 light_index = sampling_dist.value().sample(sample);
+    const f32 pdf = sampling_dist.value().pdf(light_index);
 
     return LightIndexSample{
         .pdf = pdf,
@@ -43,5 +43,7 @@ LightSampler::sample(const std::vector<Light> &lights, const f32 sample) const {
 
 f32
 LightSampler::light_sample_pdf(const u32 light_id) const {
-    return sampling_dist.pdf(light_id);
+    assert(sampling_dist.has_value());
+
+    return sampling_dist.value().pdf(light_id);
 }

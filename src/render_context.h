@@ -7,6 +7,8 @@
 #include "scene/scene_attribs.h"
 #include "utils/basic_types.h"
 
+// TODO: refactor together with Integrator
+
 /// Render Context is a collection of data needed for the integrators to do their job.
 class RenderContext {
 public:
@@ -19,6 +21,7 @@ public:
         fb = Framebuffer(attribs.film.resx, attribs.film.resy);
     }
 
+    // TODO: move camera to scene?
     SceneAttribs attribs;
     Scene scene;
     Camera cam;

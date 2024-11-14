@@ -46,13 +46,13 @@ add_library(pt_lib
         src/integrator/mis_nee_integrator.cpp
         src/integrator/intersection.h
 
-        src/geometry/geometry.h
-        src/geometry/geometry.cpp
+        src/geometry/geometry_container.h
+        src/geometry/geometry_container.cpp
 
         src/color/rgb2spec.h
         src/color/rgb2spec.cpp
-        src/color/sampled_spectrum.h
-        src/color/sampled_spectrum.cpp
+        src/color/spectral_quantity.h
+        src/color/spectral_quantity.cpp
         src/color/cie_spectrums.h
         src/color/spectrum_consts.h
         src/color/color_space.h
@@ -104,6 +104,8 @@ add_library(pt_lib
         src/math/coordinate_system.h
         src/integrator/sobol_matrices.h
         src/integrator/sobol_sampler.h
+        src/color/sampled_lambdas.cpp
+        src/color/sampled_lambdas.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -173,6 +175,7 @@ add_executable(tests
         src/scene/test_envmap.cpp
         src/math/test_coordinate_system.cpp
         src/integrator/test_sobol_sampler.cpp
+        src/utils/tests.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)

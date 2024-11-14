@@ -15,13 +15,13 @@ FloatMixTexture::fetch(const vec2 &uv) const {
     return lerp(mix, t1, t2);
 }
 
-SampledSpectrum
+SpectralQuantity
 SpectrumScaleTexture::fetch(const vec2 &uv, const SampledLambdas &lambdas) const {
     const auto scale = scale_tex->fetch(uv);
     return texture->fetch(uv, lambdas) * scale;
 }
 
-SampledSpectrum
+SpectralQuantity
 SpectrumMixTexture::fetch(const vec2 &uv, const SampledLambdas &lambdas) const {
     const auto t1 = tex1->fetch(uv, lambdas);
     const auto t2 = tex2->fetch(uv, lambdas);

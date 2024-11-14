@@ -51,44 +51,44 @@ TEST_CASE("sphere_to_square mapping") {
     // Forward (+Z)
 
     {
-        const auto uv = sphere_to_square(vec3(0.1f, 0.1f, 1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.52481f, 0.52481f)));
+        const auto uv = sphere_to_square(vec3(0.1F, 0.1F, 1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.52481F, 0.52481F)));
     }
 
     {
-        const auto uv = sphere_to_square(vec3(-0.1f, 0.1f, 1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.47518f, 0.52481f)));
+        const auto uv = sphere_to_square(vec3(-0.1F, 0.1F, 1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.47518F, 0.52481F)));
     }
 
     {
-        const auto uv = sphere_to_square(vec3(0.1f, -0.1f, 1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.52481f, 0.47518f)));
+        const auto uv = sphere_to_square(vec3(0.1F, -0.1F, 1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.52481F, 0.47518F)));
     }
 
     {
-        const auto uv = sphere_to_square(vec3(-0.1f, -0.1f, 1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.47518f, 0.47518f)));
+        const auto uv = sphere_to_square(vec3(-0.1F, -0.1F, 1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.47518F, 0.47518F)));
     }
 
     // Backward (-Z)
 
     {
-        const auto uv = sphere_to_square(vec3(0.1f, 0.1f, -1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.975184f, 0.975184f)));
+        const auto uv = sphere_to_square(vec3(0.1F, 0.1F, -1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.975184F, 0.975184F)));
     }
 
     {
-        const auto uv = sphere_to_square(vec3(-0.1f, 0.1f, -1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.024814f, 0.975184f)));
+        const auto uv = sphere_to_square(vec3(-0.1F, 0.1F, -1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.024814F, 0.975184F)));
     }
 
     {
-        const auto uv = sphere_to_square(vec3(0.1f, -0.1f, -1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.975184f, 0.024814f)));
+        const auto uv = sphere_to_square(vec3(0.1F, -0.1F, -1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.975184F, 0.024814F)));
     }
 
     {
-        const auto uv = sphere_to_square(vec3(-0.1f, -0.1f, -1.f).normalized());
-        CHECK(uv.approx_eq(vec2(0.024814f, 0.024814f)));
+        const auto uv = sphere_to_square(vec3(-0.1F, -0.1F, -1.F).normalized());
+        CHECK(uv.approx_eq(vec2(0.024814F, 0.024814F)));
     }
 }

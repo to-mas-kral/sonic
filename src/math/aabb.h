@@ -8,7 +8,8 @@
 
 #include <tuple>
 
-struct AABB {
+class AABB {
+public:
     AABB(const vec3 &low, const vec3 &high) : low(low), high(high) {}
 
     std::tuple<vec3, f32>
@@ -117,6 +118,7 @@ struct AABB {
         }
     }
 
+private:
     vec3 low;
     vec3 high;
 };

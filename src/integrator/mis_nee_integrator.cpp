@@ -17,7 +17,7 @@ Integrator::light_mis(const Scene &sc, const Intersection &its, const Ray &trace
     // TODO: move this into light sampling itself
     const f32 cos_light = vec3::dot(light_sample.normal, -pl);
 
-    const auto sframe_light = ShadingFrame(its.normal, pl, -traced_ray.dir);
+    const auto sframe_light = ShadingFrame(its.normal, pl, -traced_ray.dir());
     if (sframe_light.is_degenerate()) {
         return spectral::ZERO();
     }
@@ -61,7 +61,7 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 
     // TODO!!!: currently calculating the light PDF by assuming pdf = 1. / area
     //  will have to change with non-uniform sampling !
-    const f32 shape_pdf = sc.lights[its.light_id].area(sc.geometry);
+    const f32 shape_pdf = sc.lights[its.light_id].area(sc.geometry_container);
 
     // pdf_light is the probability of this point being sampled from the
     // probability distribution of the lights.
@@ -74,6 +74,7 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
     return contrib;
 }
 
+namespace {
 // This is useful for debugging fireflies
 void
 add_radiance_contrib(spectral &radiance, const spectral &contrib) {
@@ -84,6 +85,7 @@ add_radiance_contrib(spectral &radiance, const spectral &contrib) {
     assert(!radiance.is_invalid());
     radiance += contrib;
 }
+} // namespace
 
 struct Vertex {
     spectral throughput{spectral::ONE()};
@@ -121,7 +123,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
                 } else {
                     const f32 pdf_envmap =
                         sc.light_sampler.light_sample_pdf(sc.envmap->light_id()) *
-                        sc.envmap->pdf(ray.dir);
+                        sc.envmap->pdf(ray.dir());
                     const f32 bxdf_weight =
                         mis_power_heuristic(last_vertex.pdf_bxdf, pdf_envmap);
 
@@ -139,7 +141,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
         const auto rr_xi = sampler.sample();
 
         auto *const material = &materials[its.material_id.inner];
-        const auto is_frontfacing = vec3::dot(-ray.dir, its.normal) >= 0.F;
+        const auto is_frontfacing = vec3::dot(-ray.dir(), its.normal) >= 0.F;
 
         if (!is_frontfacing && !material->is_twosided) {
             break;
@@ -189,8 +191,8 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
         }
 
         const auto sframe = ShadingFrameIncomplete(its.normal);
-        const auto bsdf_sample_opt =
-            material->sample(sframe, -ray.dir, bsdf_xi, lambdas, its.uv, is_frontfacing);
+        const auto bsdf_sample_opt = material->sample(sframe, -ray.dir(), bsdf_xi,
+                                                      lambdas, its.uv, is_frontfacing);
 
         if (!bsdf_sample_opt.has_value()) {
             break;
@@ -206,7 +208,7 @@ Integrator::integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambda
             (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
         const Ray bxdf_ray =
             spawn_ray(its.pos, spawn_ray_normal,
-                      sframe_bsdf.from_local(sframe_bsdf.wi).normalized());
+                      sframe_bsdf.from_local(sframe_bsdf.wi()).normalized());
 
         const auto rr = russian_roulette(depth, rr_xi, last_vertex.throughput);
         if (!rr.has_value()) {

@@ -1,11 +1,13 @@
 #include "piecewise_dist.h"
 
 #include <algorithm>
-#include <numeric>
 
-PiecewiseDist2D::
-PiecewiseDist2D(const std::vector<f32> &grid, const int width, const int height) {
+PiecewiseDist2D
+PiecewiseDist2D::from_grid(const std::vector<f32> &grid, const int width,
+                           const int height) {
+    std::vector<PiecewiseDist1D> conditionals;
     conditionals.reserve(height);
+
     std::vector<f32> marginals_sums{};
     marginals_sums.reserve(height);
 
@@ -18,8 +20,10 @@ PiecewiseDist2D(const std::vector<f32> &grid, const int width, const int height)
         marginals_sums.push_back(sum);
     }
 
-    marginals =
+    auto marginals =
         PiecewiseDist1D(std::span<f32>(marginals_sums.data(), marginals_sums.size()));
+
+    return PiecewiseDist2D(std::move(conditionals), std::move(marginals));
 }
 
 std::tuple<vec2, f32>

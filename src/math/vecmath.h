@@ -224,6 +224,11 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
         return std::max(std::max(x, y), z);
     }
 
+    T
+    min_component() const {
+        return std::min(std::min(x, y), z);
+    }
+
     Child<T>
     clamp_negative() {
         return Child<T>(std::max(x, 0.F), std::max(y, 0.F), std::max(z, 0.F));

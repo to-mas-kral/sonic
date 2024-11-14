@@ -1,7 +1,7 @@
 #ifndef PT_LIGHT_H
 #define PT_LIGHT_H
 
-#include "../geometry/geometry.h"
+#include "../geometry/geometry_container.h"
 #include "../integrator/intersection.h"
 #include "../utils/basic_types.h"
 #include "envmap.h"
@@ -9,9 +9,9 @@
 class Light;
 
 struct LightSample {
-    point3 pos{};
-    norm_vec3 normal{1.f, 0.f, 0.f};
-    f32 pdf{};
+    point3 pos;
+    norm_vec3 normal;
+    f32 pdf;
     const Light *light{nullptr};
     spectral emission;
 };
@@ -28,7 +28,7 @@ public:
 
     ShapeLightSample
     sample(const Intersection &its, const vec3 &shape_rng, const SampledLambdas &lambdas,
-           const Geometry &geom) const {
+           const GeometryContainer &geom) const {
         auto sample = geom.sample_shape(shape, its.pos, shape_rng);
 
         const norm_vec3 pl = (sample.pos - its.pos).normalized();
@@ -45,16 +45,16 @@ public:
 
     // TODO: twosided lights in general
     f32
-    power(const Geometry &geom) const {
+    power(const GeometryContainer &geom) const {
         auto area = geom.shape_area(shape);
-        if (emitter.twosided) {
-            area *= 2.f;
+        if (emitter.is_twosided()) {
+            area *= 2.F;
         }
         return M_PI * emitter.power() * area;
     }
 
     f32
-    area(const Geometry &geom) const {
+    area(const GeometryContainer &geom) const {
         return geom.shape_area(shape);
     }
 
@@ -103,7 +103,7 @@ public:
     std::optional<LightSample>
     sample(const f32 light_sampler_pdf, const vec3 &shape_rng,
            const SampledLambdas &lambdas, const Intersection &its,
-           const Geometry &geom) const {
+           const GeometryContainer &geom) const {
         ShapeLightSample sample{};
 
         switch (light_type) {
@@ -133,7 +133,7 @@ public:
     }
 
     f32
-    power(const Geometry &geom) const {
+    power(const GeometryContainer &geom) const {
         switch (light_type) {
         case LightType::ShapeLight:
             return inner.shape_light.power(geom);
@@ -157,7 +157,7 @@ public:
     }
 
     f32
-    area(const Geometry &geom) const {
+    area(const GeometryContainer &geom) const {
         switch (light_type) {
         case LightType::ShapeLight:
             return inner.shape_light.area(geom);

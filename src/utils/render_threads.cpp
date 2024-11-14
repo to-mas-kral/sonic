@@ -42,6 +42,7 @@ Tile::make_from_tile_index(const u32 tile_index, const uvec2 dimensions) {
     };
 }
 
+namespace {
 u32
 get_num_threads(const Settings &settings) {
     if (settings.num_threads != 0) {
@@ -56,6 +57,7 @@ get_num_threads(const Settings &settings) {
 
     return num_threads;
 }
+} // namespace
 
 RenderThreads::
 RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
@@ -110,8 +112,8 @@ RenderThreads::render(u32 thread_id) {
             if (tile_index < tiles_per_frame) {
                 const auto tile = Tile::make_from_tile_index(tile_index, dimensions);
 
-                for (int x = tile.start_x; x <= tile.end_x; ++x) {
-                    for (int y = tile.start_y; y <= tile.end_y; ++y) {
+                for (u32 x = tile.start_x; x <= tile.end_x; ++x) {
+                    for (u32 y = tile.start_y; y <= tile.end_y; ++y) {
                         integrator->integrate_pixel(uvec2(x, y));
                     }
                 }

@@ -4,9 +4,10 @@
 #include "../utils/basic_types.h"
 #include "vecmath.h"
 
-struct SquareMatrix4 {
-    SquareMatrix4() = default;
+#include <array>
 
+class SquareMatrix4 {
+public:
     // clang-format off
     SquareMatrix4(f32 m00, f32 m01, f32 m02, f32 m03,
                     f32 m10, f32 m11, f32 m12, f32 m13,
@@ -67,13 +68,15 @@ struct SquareMatrix4 {
     point3
     transform_point(const point3 &p) const;
 
+private:
+    SquareMatrix4() = default;
+
     /// Column-major matrix
-    f32 mat[4][4]{};
+    std::array<std::array<f32, 4>, 4> mat;
 };
 
-struct SquareMatrix3 {
-    SquareMatrix3() = default;
-
+class SquareMatrix3 {
+public:
     // clang-format off
     SquareMatrix3(f32 m00, f32 m01, f32 m02,
                     f32 m10, f32 m11, f32 m12,
@@ -111,8 +114,11 @@ struct SquareMatrix3 {
     static SquareMatrix3
     identity();
 
+private:
+    SquareMatrix3() = default;
+
     /// Column-major matrix
-    f32 mat[3][3]{};
+    std::array<std::array<f32, 3>, 3> mat;
 };
 
 using mat4 = SquareMatrix4;

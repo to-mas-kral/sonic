@@ -171,7 +171,7 @@ TEST_CASE("piecewise2d pdf roundtrip") {
         func.emplace_back(std::abs(norm(generator)));
     }
 
-    const auto dist = PiecewiseDist2D(func, SIZE, SIZE);
+    const auto dist = PiecewiseDist2D::from_grid(func, SIZE, SIZE);
 
     constexpr i32 N = 32768;
     for (i32 i = 0; i < N; ++i) {
@@ -199,7 +199,7 @@ TEST_CASE("piecewise2d pdf roundtrip extreme values") {
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
 
-    const auto dist = PiecewiseDist2D(func, SIZE, SIZE);
+    const auto dist = PiecewiseDist2D::from_grid(func, SIZE, SIZE);
 
     constexpr i32 N = 32768;
     for (i32 i = 0; i < N; ++i) {
@@ -215,7 +215,7 @@ TEST_CASE("piecewise2d pdf roundtrip extreme values") {
 }
 
 TEST_CASE("piecewise2d pdf roundtrip image") {
-    auto image = Image::make("../resources/test/abandoned_tank_farm_03_4k.exr");
+    auto image = Image::from_filepath("../resources/test/abandoned_tank_farm_03_4k.exr");
     auto tex = ImageTexture(&image);
 
     std::vector<f32> sampling_grid(tex.width() * tex.height(), 0.F);
@@ -227,16 +227,16 @@ TEST_CASE("piecewise2d pdf roundtrip image") {
     for (int x = 0; x < tex.width(); ++x) {
         for (int y = 0; y < tex.height(); ++y) {
             const auto rgb = tex.fetch_rgb_texel(uvec2(x, y));
-            const auto spec_illum = RgbSpectrumIlluminant::make(rgb, ColorSpace::sRGB);
+            const auto spec_illum = RgbSpectrumIlluminant(rgb, ColorSpace::sRGB);
             const auto spec = Spectrum(spec_illum);
             const auto rad = spec.eval(lambdas);
 
-            sampling_grid[x + tex.width() * y] = (rgb.x + rgb.y + rgb.z) / 3.F;
+            sampling_grid[x + (tex.width() * y)] = (rgb.x + rgb.y + rgb.z) / 3.F;
             sum_rad += rad;
         }
     }
 
-    auto dist = PiecewiseDist2D(sampling_grid, tex.width(), tex.height());
+    auto dist = PiecewiseDist2D::from_grid(sampling_grid, tex.width(), tex.height());
 
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
@@ -257,15 +257,15 @@ TEST_CASE("piecewise2d pdf roundtrip image") {
 TEST_CASE("piecewise2d sampling") {
     // clang-format off
     const std::vector<f32> func = {
-        0.f, 0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 1.f, 0.f,
-        0.f, 0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 0.f, 0.f,
-        0.f, 0.f, 0.f, 0.f, 0.f,
+        0.F, 0.F, 0.F, 0.F, 0.F,
+        0.F, 0.F, 0.F, 1.F, 0.F,
+        0.F, 0.F, 0.F, 0.F, 0.F,
+        0.F, 0.F, 0.F, 0.F, 0.F,
+        0.F, 0.F, 0.F, 0.F, 0.F,
     };
     // clang-format on
 
-    const auto dist = PiecewiseDist2D(func, 5, 5);
+    const auto dist = PiecewiseDist2D::from_grid(func, 5, 5);
 
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
@@ -310,13 +310,13 @@ TEST_CASE("piecewise2d pdf integrates to 1") {
     // clang-format off
     const std::vector<f32> func = {
         1.F, 2.F, 4.F, 2.F,
-        1.5f, 8.F, 4.F, 2.8F,
+        1.5F, 8.F, 4.F, 2.8F,
         17.F, 2.F, 3.F, 21.F,
         1.F, 3.2F, 1.4F, 5.F
     };
     // clang-format on
 
-    const auto dist = PiecewiseDist2D(func, 4, 4);
+    const auto dist = PiecewiseDist2D::from_grid(func, 4, 4);
 
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};

@@ -1,4 +1,4 @@
-#include "../color/sampled_spectrum.h"
+#include "../color/spectral_quantity.h"
 #include "../math/sampling.h"
 #include "../math/vecmath.h"
 #include "envmap.h"
@@ -13,9 +13,9 @@ TEST_CASE("envmap pdf roudtrip") {
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
 
-    auto image = Image::make("../resources/test/abandoned_tank_farm_03_4k.exr");
+    auto image = Image::from_filepath("../resources/test/abandoned_tank_farm_03_4k.exr");
     auto texture = ImageTexture(&image);
-    auto envmap = Envmap(texture, 1.f, mat4::identity());
+    auto envmap = Envmap::from_image(texture, 1.f, mat4::identity());
 
     i32 wrong = 0;
 
@@ -51,9 +51,9 @@ TEST_CASE("envmap emission roudtrip") {
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
 
-    auto image = Image::make("../resources/test/abandoned_tank_farm_03_4k.exr");
+    auto image = Image::from_filepath("../resources/test/abandoned_tank_farm_03_4k.exr");
     auto texture = ImageTexture(&image);
-    auto envmap = Envmap(texture, 1.f, mat4::identity());
+    auto envmap = Envmap::from_image(texture, 1.f, mat4::identity());
 
     i32 wrong = 0;
 
@@ -87,9 +87,9 @@ TEST_CASE("envmap emission pdf discrepancy") {
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
 
-    auto image = Image::make("../resources/test/abandoned_tank_farm_03_4k.exr");
+    auto image = Image::from_filepath("../resources/test/abandoned_tank_farm_03_4k.exr");
     auto texture = ImageTexture(&image);
-    auto envmap = Envmap(texture, 1.f, mat4::identity());
+    auto envmap = Envmap::from_image(texture, 1.f, mat4::identity());
 
     for (int i = 0; i < 8192; ++i) {
         const auto x = distribution(generator);
@@ -110,9 +110,9 @@ TEST_CASE("envmap pdf integrates to 1") {
     std::mt19937 generator(73927932889);
     std::uniform_real_distribution<f32> distribution{};
 
-    auto image = Image::make("../resources/test/envmap_test.exr");
+    auto image = Image::from_filepath("../resources/test/envmap_test.exr");
     const auto texture = ImageTexture(&image);
-    const auto envmap = Envmap(texture, 1.f, mat4::identity());
+    const auto envmap = Envmap::from_image(texture, 1.f, mat4::identity());
 
     f32 sumpdf = 0.f;
 
