@@ -166,42 +166,6 @@ Mesh::calc_uvs(const u32 triangle_index, const vec3 &bar) const {
     return uv;
 }
 
-Mesh::
-Mesh(Mesh &&other) noexcept
-    : m_num_verts(other.m_num_verts), m_num_indices(other.m_num_indices),
-      m_pos(other.m_pos), m_normals(other.m_normals), m_uvs(other.m_uvs),
-      m_indices(other.m_indices), m_alpha{other.m_alpha}, m_has_light(other.m_has_light),
-      m_lights_start_id(other.m_lights_start_id), m_material_id(other.m_material_id) {
-    other.m_pos = nullptr;
-    other.m_normals = nullptr;
-    other.m_uvs = nullptr;
-    other.m_indices = nullptr;
-}
-
-Mesh &
-Mesh::operator=(Mesh &&other) noexcept {
-    if (this == &other) {
-        return *this;
-    }
-    m_num_verts = other.m_num_verts;
-    m_num_indices = other.m_num_indices;
-    m_pos = other.m_pos;
-    m_normals = other.m_normals;
-    m_alpha = other.m_alpha;
-    m_uvs = other.m_uvs;
-    m_indices = other.m_indices;
-    m_has_light = other.m_has_light;
-    m_lights_start_id = other.m_lights_start_id;
-    m_material_id = other.m_material_id;
-
-    other.m_pos = nullptr;
-    other.m_normals = nullptr;
-    other.m_uvs = nullptr;
-    other.m_indices = nullptr;
-
-    return *this;
-}
-
 ShapeLightSample
 Meshes::sample(const ShapeIndex si, const vec3 &sample) const {
     const auto &mesh = meshes[si.index];

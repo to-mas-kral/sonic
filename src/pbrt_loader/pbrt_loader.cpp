@@ -441,12 +441,13 @@ PbrtLoader::transform_mesh(point3 *pos, const u32 num_verts, vec3 *normals) cons
 
 void
 PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha) const {
-    point3 *pos = nullptr;
     u32 num_verts = 0;
-    vec3 *normals = nullptr;
-    vec2 *uvs = nullptr;
-    u32 *indices = nullptr;
     u32 num_indices = 0;
+
+    GeometryBlock<point3> pos;
+    GeometryBlock<vec3> normals; // may actually be nullptr
+    GeometryBlock<vec2> uvs;     // may actually be nullptr
+    GeometryBlock<u32> indices;
 
     const auto &p_p = params.get_required("P", ValueType::Point3);
     const auto &pos_array = std::get<std::vector<point3>>(p_p.inner);
@@ -455,8 +456,10 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
         throw std::runtime_error("Empty trianglemesh positions");
     }
     num_verts = pos_array.size();
-    pos = static_cast<point3 *>(std::malloc(pos_array.size() * sizeof(point3)));
-    std::uninitialized_copy(pos_array.begin(), pos_array.end(), pos);
+
+    pos = sc.geometry_container.allocate_geom_data<point3>(num_verts);
+    std::memcpy(pos.ptr(), pos_array.data(), num_verts * sizeof(point3));
+
     const auto indices_p = params.get_optional("indices", ValueType::Int);
     if (indices_p.has_value()) {
         const auto &array = std::get<std::vector<i32>>(indices_p.value()->inner);
@@ -465,8 +468,8 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
             throw std::runtime_error("Empty trianglemesh indices");
         }
         num_indices = array.size();
-        indices = static_cast<u32 *>(std::malloc(array.size() * sizeof(u32)));
-        std::uninitialized_copy(array.begin(), array.end(), indices);
+        indices = sc.geometry_container.allocate_geom_data<u32>(num_indices);
+        std::memcpy(indices.ptr(), array.data(), num_indices * sizeof(u32));
     }
 
     const auto n_p = params.get_optional("N", ValueType::Vector3);
@@ -478,8 +481,8 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
         } else if (array.size() != num_verts) {
             throw std::runtime_error("Wrong normals count");
         }
-        normals = static_cast<vec3 *>(std::malloc(array.size() * sizeof(vec3)));
-        std::uninitialized_copy(array.begin(), array.end(), normals);
+        normals = sc.geometry_container.allocate_geom_data<vec3>(num_verts);
+        std::memcpy(normals.ptr(), array.data(), num_verts * sizeof(vec3));
     }
 
     const auto uv_p = params.get_optional("uv", ValueType::Vector2);
@@ -491,27 +494,33 @@ PbrtLoader::load_trianglemesh(Scene &sc, ParamsList &params, FloatTexture *alpha
         } else if (array.size() != num_verts) {
             throw std::runtime_error("Wrong uvs count");
         }
-        uvs = static_cast<vec2 *>(std::malloc(array.size() * sizeof(vec2)));
-        std::uninitialized_copy(array.begin(), array.end(), uvs);
+        uvs = sc.geometry_container.allocate_geom_data<vec2>(num_verts);
+        std::memcpy(uvs.ptr(), array.data(), num_verts * sizeof(vec2));
     }
 
     // indices are required, unless exactly three vertices are specified.
     if (num_indices == 0) {
         if (num_verts == 3) {
-            indices = static_cast<u32 *>(std::malloc(3 * sizeof(u32)));
-            indices[0] = 0;
-            indices[1] = 1;
-            indices[2] = 2;
+            indices = sc.geometry_container.allocate_geom_data<u32>(3);
+            indices.inner[0] = 0;
+            indices.inner[1] = 1;
+            indices.inner[2] = 2;
+            sc.geometry_container.add_geom_data(indices);
         } else {
             throw std::runtime_error("'trianglemesh' Shape without indices");
         }
     }
 
-    normals_reverse_orientation(num_verts, normals);
-    transform_mesh(pos, num_verts, normals);
+    normals_reverse_orientation(num_verts, normals.ptr());
+    transform_mesh(pos.ptr(), num_verts, normals.ptr());
+    sc.geometry_container.add_geom_data(pos);
+    sc.geometry_container.add_geom_data(indices);
+    sc.geometry_container.add_geom_data(normals);
+    sc.geometry_container.add_geom_data(uvs);
 
-    const auto mp = MeshParams(indices, num_indices, pos, normals, uvs, num_verts,
-                               current_astate.material, current_astate.emitter, alpha);
+    const auto mp =
+        MeshParams(indices.ptr(), num_indices, pos.ptr(), normals.ptr(), uvs.ptr(),
+                   num_verts, current_astate.material, current_astate.emitter, alpha);
 
     sc.add_mesh(mp, current_astate.instance);
 
@@ -530,12 +539,13 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
             fmt::format("Can't read PLY file '{}'", filepath.string()));
     }
 
-    point3 *pos = nullptr;
     u32 num_verts = 0;
-    vec3 *normals = nullptr; // may actually be nullptr
-    vec2 *uvs = nullptr;     // may actually be nullptr
-    u32 *indices = nullptr;
     u32 num_indices = 0;
+
+    GeometryBlock<point3> pos;
+    GeometryBlock<vec3> normals; // may actually be nullptr
+    GeometryBlock<vec2> uvs;     // may actually be nullptr
+    GeometryBlock<u32> indices;
 
     std::array<u32, 3> indexes{};
     bool gotVerts = false;
@@ -547,21 +557,24 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
             reader.find_pos(indexes.data())) {
 
             num_verts = reader.num_rows();
-            pos = static_cast<point3 *>(std::malloc(num_verts * sizeof(point3)));
+
+            pos = sc.geometry_container.allocate_geom_data<point3>(num_verts);
 
             reader.extract_properties(indexes.data(), 3, miniply::PLYPropertyType::Float,
-                                      pos);
+                                      pos.ptr());
 
             if (reader.find_texcoord(indexes.data())) {
-                uvs = static_cast<vec2 *>(std::malloc(num_verts * sizeof(vec2)));
+                uvs = sc.geometry_container.allocate_geom_data<vec2>(num_verts);
+
                 reader.extract_properties(indexes.data(), 2,
-                                          miniply::PLYPropertyType::Float, uvs);
+                                          miniply::PLYPropertyType::Float, uvs.ptr());
             }
 
             if (reader.find_normal(indexes.data())) {
-                normals = static_cast<vec3 *>(std::malloc(num_verts * sizeof(vec3)));
+                normals = sc.geometry_container.allocate_geom_data<vec3>(num_verts);
                 reader.extract_properties(indexes.data(), 3,
-                                          miniply::PLYPropertyType::Float, normals);
+                                          miniply::PLYPropertyType::Float, normals.ptr());
+
             }
             gotVerts = true;
         } else if (reader.element_is(miniply::kPLYFaceElement) && reader.load_element() &&
@@ -574,17 +587,16 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
             }
             if (polys) {
                 num_indices = reader.num_triangles(indexes[0]) * 3;
-                indices = static_cast<u32 *>(std::malloc(num_indices * sizeof(u32)));
+                indices = sc.geometry_container.allocate_geom_data<u32>(num_indices);
 
-                assert(pos != nullptr);
-                reader.extract_triangles(indexes[0], &pos[0].x, num_verts,
-                                         miniply::PLYPropertyType::Int, indices);
+                reader.extract_triangles(indexes[0], &pos.ptr()[0].x, num_indices,
+                                         miniply::PLYPropertyType::Int, indices.ptr());
             } else {
                 num_indices = reader.num_rows() * 3;
-                indices = static_cast<u32 *>(std::malloc(num_indices * sizeof(u32)));
+                indices = sc.geometry_container.allocate_geom_data<u32>(num_indices);
 
                 reader.extract_list_property(indexes[0], miniply::PLYPropertyType::Int,
-                                             indices);
+                                             indices.ptr());
             }
             gotFaces = true;
         }
@@ -598,11 +610,16 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
         throw std::runtime_error(fmt::format("PLY error in '{}'", filename));
     }
 
-    normals_reverse_orientation(num_verts, normals);
-    transform_mesh(pos, num_verts, normals);
+    normals_reverse_orientation(num_verts, normals.ptr());
+    transform_mesh(pos.ptr(), num_verts, normals.ptr());
+    sc.geometry_container.add_geom_data(pos);
+    sc.geometry_container.add_geom_data(uvs);
+    sc.geometry_container.add_geom_data(indices);
+    sc.geometry_container.add_geom_data(normals);
 
-    const auto mp = MeshParams(indices, num_indices, pos, normals, uvs, num_verts,
-                               current_astate.material, current_astate.emitter, alpha);
+    const auto mp =
+        MeshParams(indices.ptr(), num_indices, pos.ptr(), normals.ptr(), uvs.ptr(),
+                   num_verts, current_astate.material, current_astate.emitter, alpha);
 
     sc.add_mesh(mp, current_astate.instance);
 

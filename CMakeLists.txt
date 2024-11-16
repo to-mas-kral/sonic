@@ -106,6 +106,9 @@ add_library(pt_lib
         src/integrator/sobol_sampler.h
         src/color/sampled_lambdas.cpp
         src/color/sampled_lambdas.h
+        src/geometry/geometry_storage.cpp
+        src/geometry/geometry_storage.h
+        src/utils/hasher.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -139,6 +142,9 @@ target_link_libraries(pt_lib PUBLIC OpenImageDenoise)
 
 find_package(unofficial-miniply CONFIG REQUIRED)
 target_link_libraries(pt_lib PUBLIC unofficial::miniply::miniply)
+
+find_package(xxHash CONFIG REQUIRED)
+target_link_libraries(pt_lib PRIVATE xxHash::xxhash)
 
 add_executable(pt
         src/main.cpp

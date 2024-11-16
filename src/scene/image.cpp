@@ -75,8 +75,8 @@ Image::from_filepath(const std::string &texture_path) {
 
 tuple3
 Image::fetch_rgb_texel(const uvec2 &coords) const {
-    assert(coords.x >= 0 && coords.x < width);
-    assert(coords.y >= 0 && coords.y < height);
+    assert(coords.x < m_width);
+    assert(coords.y < m_height);
 
     const auto pixel_index = coords.x + (m_width * coords.y);
     return rgb_from_pixel_index(pixel_index);
@@ -164,7 +164,7 @@ Image::fetch_rgb(const vec2 &uv_in, const ImageTextureParams &params) const {
     const auto uv = calc_uv(uv_in, params);
 
     const auto pixel_index = calc_index(uv);
-    assert(pixel_index < static_cast<i64>(width) * static_cast<i64>(height));
+    assert(pixel_index < static_cast<i64>(m_width) * static_cast<i64>(m_height));
 
     auto scaled = rgb_from_pixel_index(pixel_index) * params.scale;
     if (params.invert) {
@@ -179,7 +179,7 @@ Image::fetch_float(const vec2 &uv_in, const ImageTextureParams &params) const {
     const auto uv = calc_uv(uv_in, params);
 
     const auto pixel_index = calc_index(uv);
-    assert(pixel_index < static_cast<i64>(width) * static_cast<i64>(height));
+    assert(pixel_index < static_cast<i64>(m_width) * static_cast<i64>(m_height));
 
     f32 fetched = 0.F;
 

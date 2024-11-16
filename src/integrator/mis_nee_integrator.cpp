@@ -61,7 +61,7 @@ bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos
 
     // TODO!!!: currently calculating the light PDF by assuming pdf = 1. / area
     //  will have to change with non-uniform sampling !
-    const f32 shape_pdf = sc.lights[its.light_id].area(sc.geometry_container);
+    const f32 shape_pdf = 1.F / sc.lights[its.light_id].area(sc.geometry_container);
 
     // pdf_light is the probability of this point being sampled from the
     // probability distribution of the lights.

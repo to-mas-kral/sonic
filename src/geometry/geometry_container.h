@@ -6,6 +6,7 @@
 #include "../scene/emitter.h"
 #include "../scene/texture.h"
 #include "../utils/basic_types.h"
+#include "geometry_storage.h"
 #include "instance_id.h"
 
 #include <vector>
@@ -52,16 +53,6 @@ public:
     vec2
     calc_uvs(u32 triangle_index, const vec3 &bar) const;
 
-    Mesh(const Mesh &other) = delete;
-
-    Mesh(Mesh &&other) noexcept;
-
-    Mesh &
-    operator=(const Mesh &other) = delete;
-
-    Mesh &
-    operator=(Mesh &&other) noexcept;
-
     u32
     num_verts() const {
         return m_num_verts;
@@ -100,26 +91,6 @@ public:
     MaterialId
     material_id() const {
         return m_material_id;
-    }
-
-    ~
-    Mesh() {
-        // TODO: This will be moved elsewhere once geometry is cached
-        if (m_pos != nullptr) {
-            std::free(m_pos);
-        }
-
-        if (m_normals != nullptr) {
-            std::free(m_normals);
-        }
-
-        if (m_uvs != nullptr) {
-            std::free(m_uvs);
-        }
-
-        if (m_indices != nullptr) {
-            std::free(m_indices);
-        }
     }
 
 private:
@@ -247,6 +218,18 @@ struct Instances {
 /// spheres), etc...
 class GeometryContainer {
 public:
+    template <GeometryPod T>
+    GeometryBlock<T>
+    allocate_geom_data(const std::size_t count) {
+        return m_geom_storage.allocate<T>(count);
+    }
+
+    template <GeometryPod T>
+    void
+    add_geom_data(GeometryBlock<T> &block) {
+        m_geom_storage.add_geom_data(block);
+    }
+
     void
     add_mesh(const MeshParams &mp, std::optional<u32> lights_start_id,
              std::optional<InstanceId> inst_id);
@@ -291,6 +274,8 @@ private:
     Spheres m_spheres{};
 
     Instances m_instances{};
+
+    GeometryStorage m_geom_storage;
 };
 
 #endif // PT_GEOMETRY_CONTAINER_H
