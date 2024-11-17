@@ -27,5 +27,8 @@
   }, {
     "name" : "matplotplusplus",
     "version>=" : "1.2.1"
+  }, {
+    "name" : "xxhash",
+    "version>=" : "0.8.2"
   } ]
 }
