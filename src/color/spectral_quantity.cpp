@@ -5,9 +5,10 @@
 #include <algorithm>
 #include <limits>
 
-SpectralQuantity::
-SpectralQuantity(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals)
+SpectralQuantity::SpectralQuantity(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals)
     : vals(p_vals) {}
+
+SpectralQuantity::SpectralQuantity(const f32 val) { vals.fill(val); }
 
 SpectralQuantity
 SpectralQuantity::make_constant(const f32 constant) {

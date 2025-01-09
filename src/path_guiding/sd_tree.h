@@ -1,7 +1,7 @@
 #ifndef SD_TREE_H
 #define SD_TREE_H
 
-#include "../color/sampled_spectrum.h"
+#include "../color/spectral_quantity.h"
 #include "../math/aabb.h"
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
@@ -19,9 +19,7 @@ class QuadtreeNode {
 public:
     QuadtreeNode() = default;
 
-    explicit
-    QuadtreeNode(const f32 radiance)
-        : m_radiance(radiance) {}
+    explicit QuadtreeNode(const f32 radiance) : m_radiance(radiance) {}
 
     QuadtreeNode(const QuadtreeNode &other)
         : m_radiance(other.m_radiance.load()), m_children(other.m_children) {}
@@ -41,8 +39,7 @@ public:
     QuadtreeNode &
     operator=(QuadtreeNode &&other) noexcept = delete;
 
-    ~
-    QuadtreeNode() = default;
+    ~QuadtreeNode() = default;
 
     bool
     is_leaf() const {
@@ -57,7 +54,7 @@ public:
 
     /// Returns the index inside of the m_children.
     u32
-    choose_child(const vec2 &xy, vec2 &middle, f32 &quadtrant_half) const;
+    choose_child(const vec2 &xy, vec2 &middle, f32 &quadrant_half) const;
 
     u32
     child_index(const u8 index) const {
@@ -69,7 +66,7 @@ public:
         m_children = {0, 0, 0, 0};
     }
 
-    std::atomic<f32> m_radiance{0.f};
+    std::atomic<f32> m_radiance{0.F};
 
     /// Odrer of children:
     ///
@@ -100,7 +97,7 @@ public:
     void
     reset_flux() {
         for (auto &node : nodes) {
-            node.m_radiance = 0.f;
+            node.m_radiance = 0.F;
         }
     }
 
@@ -114,8 +111,7 @@ public:
 
 class SDTreeNode {
 public:
-    explicit
-    SDTreeNode(const u32 parent_index)
+    explicit SDTreeNode(const u32 parent_index)
         : m_recording_quadtree{std::make_unique<Quadtree>()},
           m_sampling_quadtree{std::make_unique<Quadtree>()},
           m_parent_index{parent_index} {}
@@ -141,8 +137,7 @@ public:
     operator=(SDTreeNode &&other) noexcept = delete;
 
     // I don't think any custom destructor is needed ?
-    ~
-    SDTreeNode() = default;
+    ~SDTreeNode() = default;
 
     bool
     is_leaf() const {
@@ -181,6 +176,12 @@ public:
     void
     record(const spectral &radiance, const norm_vec3 &wi) {
         m_record_count.fetch_add(1, std::memory_order_relaxed);
+        m_recording_quadtree->record(radiance, wi);
+    }
+
+    void
+    record_bulk(const spectral &radiance, const norm_vec3 &wi, const u32 count) {
+        m_record_count.fetch_add(count, std::memory_order_relaxed);
         m_recording_quadtree->record(radiance, wi);
     }
 
@@ -228,14 +229,16 @@ private:
 
 class SDTree {
 public:
-    explicit
-    SDTree(const AABB &scene_bounds)
-        : scene_bounds{scene_bounds} {
+    explicit SDTree(const AABB &scene_bounds) : scene_bounds{scene_bounds} {
         nodes.emplace_back(0);
     }
 
     void
     record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi);
+
+    void
+    record_bulk(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
+                u32 count);
 
     PGSample
     sample(const point3 &pos, Sampler &sampler);

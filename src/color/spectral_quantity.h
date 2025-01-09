@@ -16,6 +16,9 @@ public:
     explicit
     SpectralQuantity(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals);
 
+    explicit
+    SpectralQuantity(f32 val);
+
     static SpectralQuantity
     make_constant(f32 constant);
 

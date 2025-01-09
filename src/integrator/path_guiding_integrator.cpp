@@ -1,4 +1,4 @@
-#include "mis_nee_integrator.h"
+#include "path_guiding_integrator.h"
 #include "../utils/sampler.h"
 #include "integrator.h"
 #include "intersection.h"
@@ -6,10 +6,11 @@
 
 // Multiple Importance Sampling for lights
 spectral
-MisNeeIntegrator::light_mis(const Intersection &its, const Ray &traced_ray,
-                            const LightSample &light_sample, const norm_vec3 &geom_normal,
-                            const Material *material, const spectral &throughput,
-                            const SampledLambdas &lambdas) const {
+PathGuidingIntegrator::light_mis(const Intersection &its, const Ray &traced_ray,
+                                 const LightSample &light_sample,
+                                 const norm_vec3 &geom_normal, const Material *material,
+                                 const spectral &throughput,
+                                 const SampledLambdas &lambdas) const {
     const point3 light_pos = light_sample.pos;
     const norm_vec3 pl = (light_pos - its.pos).normalized();
     // TODO: move this into light sampling itself
@@ -47,9 +48,9 @@ MisNeeIntegrator::light_mis(const Intersection &its, const Ray &traced_ray,
 }
 
 spectral
-MisNeeIntegrator::bxdf_mis(const Scene &sc, const spectral &throughput,
-                           const point3 &last_hit_pos, const f32 last_pdf_bxdf,
-                           const Intersection &its, const spectral &emission) const {
+PathGuidingIntegrator::bxdf_mis(const Scene &sc, const spectral &throughput,
+                                const point3 &last_hit_pos, const f32 last_pdf_bxdf,
+                                const Intersection &its, const spectral &emission) const {
     const norm_vec3 pl_norm = (its.pos - last_hit_pos).normalized();
     const f32 pl_mag_sq = (its.pos - last_hit_pos).length_squared();
     const f32 cos_light = vec3::dot(its.normal, -pl_norm);
@@ -74,8 +75,8 @@ MisNeeIntegrator::bxdf_mis(const Scene &sc, const spectral &throughput,
 }
 
 void
-MisNeeIntegrator::add_radiance_contrib(spectral &radiance,
-                                       const spectral &contrib) const {
+PathGuidingIntegrator::add_radiance_contrib(spectral &radiance,
+                                            const spectral &contrib) const {
     if (contrib.max_component() > 10000.F) {
         spdlog::warn("potential firefly");
     }
@@ -92,7 +93,8 @@ struct Vertex {
 };
 
 spectral
-MisNeeIntegrator::radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const {
+PathGuidingIntegrator::radiance_rendering(Ray ray, Sampler &sampler,
+                                          SampledLambdas &lambdas) const {
     auto &sc = rc->scene;
     auto &lights = rc->scene.lights;
     auto &materials = rc->scene.materials;
@@ -235,6 +237,171 @@ MisNeeIntegrator::radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) c
             break;
         }
     }
+
+    return radiance;
+}
+
+struct PgVertex {
+    PgVertex(const point3 &pos, const norm_vec3 &wi, const spectral &throughput)
+        : throughput(throughput), pos(pos), wi(wi) {}
+
+    void
+    add_radiance(const spectral &radiance_contrib) {
+        radiance += throughput * radiance_contrib;
+        count++;
+    }
+
+    // TODO: store nodes here directly to avoid searching the trees repeatedly...
+    spectral radiance{0.F};
+    spectral throughput;
+    u32 count{0};
+    point3 pos;
+    norm_vec3 wi;
+};
+
+struct PathVertices {
+    void
+    add_vertex(const PgVertex &vertex) {
+        for (auto &existing_vertex : path_vertices) {
+            existing_vertex.throughput *= vertex.throughput;
+        }
+
+        path_vertices.push_back(vertex);
+    }
+
+    void
+    add_radiance_contrib(const spectral &radiance_contrib) {
+        for (auto &vertex : path_vertices) {
+            vertex.add_radiance(radiance_contrib);
+        }
+    }
+
+    void
+    add_to_sd_tree(SDTree &sd_tree) {
+        for (const auto &vertex : path_vertices) {
+            sd_tree.record_bulk(vertex.pos, vertex.radiance, vertex.wi, vertex.count);
+        }
+    }
+
+private:
+    std::vector<PgVertex> path_vertices{};
+};
+
+void
+PathGuidingIntegrator::add_radiance_contrib_learning(PathVertices &path_vertices,
+                                                     spectral &radiance,
+                                                     const spectral &path_contrib,
+                                                     const spectral &emission) const {
+    path_vertices.add_radiance_contrib(emission);
+    add_radiance_contrib(radiance, path_contrib);
+}
+
+spectral
+PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
+                                         SampledLambdas &lambdas) {
+    auto &sc = rc->scene;
+    auto &lights = rc->scene.lights;
+    auto &materials = rc->scene.materials;
+    auto max_depth = rc->attribs.max_depth;
+
+    spectral radiance = spectral::ZERO();
+    u32 depth = 1;
+    auto last_vertex = Vertex{};
+    auto path_vertices = PathVertices();
+
+    while (true) {
+        auto opt_its = device->cast_ray(ray);
+        if (!opt_its.has_value()) {
+            if (sc.envmap) {
+                const auto envrad = sc.envmap->get_ray_radiance(ray, lambdas);
+                const auto path_contrib = last_vertex.throughput * envrad;
+                add_radiance_contrib_learning(path_vertices, radiance, path_contrib,
+                                              envrad);
+            }
+            break;
+        }
+
+        auto its = opt_its.value();
+
+        const auto bsdf_xi = sampler.sample3();
+        const auto rr_xi = sampler.sample();
+
+        auto *const material = &materials[its.material_id.inner];
+        const auto is_frontfacing = vec3::dot(-ray.dir(), its.normal) >= 0.F;
+
+        if (!is_frontfacing && !material->is_twosided) {
+            break;
+        }
+
+        if (!is_frontfacing) {
+            its.normal = -its.normal;
+            its.geometric_normal = -its.geometric_normal;
+        }
+
+        if (its.has_light && is_frontfacing) {
+            const spectral emission = lights[its.light_id].emission(lambdas);
+            const auto path_contrib = last_vertex.throughput * emission;
+            add_radiance_contrib_learning(path_vertices, radiance, path_contrib,
+                                          emission);
+        }
+
+        // Do this before light sampling, because that "extends the path"
+        if (max_depth > 0 && depth >= max_depth) {
+            break;
+        }
+
+        last_vertex.is_bxdf_delta = material->is_delta();
+
+        const auto sframe = ShadingFrameIncomplete(its.normal);
+        const auto bsdf_sample_opt = material->sample(sframe, -ray.dir(), bsdf_xi,
+                                                      lambdas, its.uv, is_frontfacing);
+
+        if (!bsdf_sample_opt.has_value()) {
+            break;
+        }
+        const auto bsdf_sample = bsdf_sample_opt.value();
+
+        const auto &sframe_bsdf = bsdf_sample.sframe;
+        if (sframe_bsdf.is_degenerate()) {
+            break;
+        }
+
+        const auto spawn_ray_normal =
+            (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
+        const Ray bxdf_ray =
+            spawn_ray(its.pos, spawn_ray_normal,
+                      sframe_bsdf.from_local(sframe_bsdf.wi()).normalized());
+
+        const auto rr = russian_roulette(depth, rr_xi, last_vertex.throughput);
+        if (!rr.has_value()) {
+            break;
+        }
+
+        const auto roulette_compensation = rr.value();
+        const auto pdf = bsdf_sample.pdf * roulette_compensation;
+        const auto vertex_throughput =
+            bsdf_sample.bsdf * sframe_bsdf.abs_nowi() * (1.F / pdf);
+        last_vertex.throughput *= vertex_throughput;
+        assert(!last_vertex.throughput.is_invalid());
+
+        if (last_vertex.throughput.is_zero()) {
+            break;
+        }
+
+        ray = bxdf_ray;
+        last_vertex.pos = its.pos;
+        last_vertex.pdf_bxdf = bsdf_sample.pdf;
+        depth++;
+
+        path_vertices.add_vertex(PgVertex(last_vertex.pos, ray.dir(), vertex_throughput));
+
+        if (depth == 1024) {
+            fmt::println("infinite self-intersection path");
+            break;
+        }
+    }
+
+    path_vertices.add_to_sd_tree(sd_tree);
 
     return radiance;
 }

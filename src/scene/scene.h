@@ -60,6 +60,11 @@ struct Scene {
     void
     set_scene_bounds(const AABB &bounds);
 
+    AABB
+    bounds() const {
+        return m_bounds;
+    }
+
     void
     init_light_sampler();
 
@@ -73,8 +78,7 @@ struct Scene {
     Scene &
     operator=(Scene &&other) = default;
 
-    ~
-    Scene() = default;
+    ~Scene() = default;
 
     std::optional<LightSample>
     sample_lights(f32 sample, const vec3 &shape_rng, const SampledLambdas &lambdas,

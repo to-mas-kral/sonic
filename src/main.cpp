@@ -31,6 +31,7 @@ main(int argc, char **argv) {
     const std::map<std::string, IntegratorType> map{
         {"naive", IntegratorType::Naive},
         {"mis_nee", IntegratorType::MISNEE},
+        {"path_guiding", IntegratorType::PathGuiding},
     };
 
     app.add_option("--samples", settings.spp, "Samples per pixel (SPP).");
@@ -38,8 +39,6 @@ main(int argc, char **argv) {
     app.add_option("-o,--out", out_filename, "Path of the output file, without '.exr'");
     app.add_flag("--silent,!--no-silent", settings.silent, "Silent run.")
         ->default_val(true);
-    app.add_flag("--normals", settings.render_normals, "Render normals AOV")
-        ->default_val(false);
     app.add_option("-i,--integrator", settings.integrator_type, "Integrator")
         ->transform(CLI::CheckedTransformer(map, CLI::ignore_case))
         ->default_val(IntegratorType::MISNEE);
@@ -92,7 +91,7 @@ main(int argc, char **argv) {
     spdlog::info("Creating Embree acceleration structure");
     auto embree_device = EmbreeDevice(rc.scene);
 
-    Integrator integrator(settings, &rc, &embree_device);
+    auto integrator = Integrator::init(settings, &rc, &embree_device);
 
     RenderThreads render_threads(rc.attribs, &integrator, settings);
 

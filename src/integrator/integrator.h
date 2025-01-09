@@ -7,16 +7,30 @@
 #include "../settings.h"
 #include "../utils/basic_types.h"
 #include "../utils/sampler.h"
+#include "mis_nee_integrator.h"
+#include "path_guiding_integrator.h"
 
 // TODO: refactor together with RenderContext...
 
 class Integrator {
 public:
-    Integrator(const Settings &settings, RenderContext *rc, EmbreeDevice *device)
-        : sample{settings.start_frame}, rc{rc}, settings{settings}, device{device} {}
+    static Integrator
+    init(const Settings &settings, RenderContext *rc, EmbreeDevice *device) {
+        switch (settings.integrator_type) {
+        case IntegratorType::Naive:
+            return Integrator(settings, rc, MisNeeIntegrator(settings, rc, device));
+        case IntegratorType::MISNEE:
+            return Integrator(settings, rc, MisNeeIntegrator(settings, rc, device));
+        case IntegratorType::PathGuiding:
+            return Integrator(settings, rc, PathGuidingIntegrator(settings, rc, device));
+        default:
+            panic("Erroneous integrator type.");
+        }
+    }
 
+    // TODO: add back const after PG training refactor
     void
-    integrate_pixel(uvec2 pixel) const {
+    integrate_pixel(uvec2 pixel) {
         const auto dim = uvec2(rc->attribs.film.resx, rc->attribs.film.resy);
 
         const auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
@@ -28,15 +42,17 @@ public:
         const auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, rc->cam,
                                  rc->attribs.camera.camera_to_world);
 
-        if (settings.render_normals) {
-            const auto aov = render_aov(ray);
-            rc->fb.get_pixels()[pixel_index] += aov;
-            return;
-        }
-
         SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
 
-        const spectral radiance = integrator_mis_nee(ray, sampler, lambdas);
+        spectral radiance;
+        if (auto const *inner_integrator = std::get_if<MisNeeIntegrator>(&integrator)) {
+            radiance = inner_integrator->radiance(ray, sampler, lambdas);
+        } else if (auto *inner_integrator =
+                       std::get_if<PathGuidingIntegrator>(&integrator)) {
+            radiance = inner_integrator->radiance_training(ray, sampler, lambdas);
+        } else {
+            panic("Wrong integrator type");
+        }
 
         if (radiance.is_invalid()) {
             spdlog::error("Invalid radiance {} at sample {}, pixel: {} x {} y",
@@ -47,28 +63,19 @@ public:
             lambdas.to_xyz(radiance) * rc->scene.attribs.film.iso / 100.F;
     }
 
-    spectral
-    integrator_mis_nee(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const;
-
-    spectral
-    light_mis(const Scene &sc, const Intersection &its, const Ray &traced_ray,
-              const LightSample &light_sample, const norm_vec3 &geom_normal,
-              const Material *material, const spectral &throughput,
-              const SampledLambdas &lambdas) const;
-
-    vec3
-    render_aov(const Ray &ray) const {
-        const auto opt_its = device->cast_ray(ray);
-        if (opt_its.has_value()) {
-            return opt_its->normal;
-        } else {
-            return vec3(0.F);
-        }
-    }
-
     u32 sample = 0;
 
 private:
+    Integrator(const Settings &settings, RenderContext *rc,
+               const MisNeeIntegrator &integrator)
+        : sample{settings.start_frame}, integrator{integrator}, rc{rc},
+          settings{settings} {}
+
+    Integrator(const Settings &settings, RenderContext *rc,
+               const PathGuidingIntegrator &integrator)
+        : sample{settings.start_frame}, integrator{integrator}, rc{rc},
+          settings{settings} {}
+
     static Ray
     gen_ray(const u32 x, const u32 y, const u32 res_x, const u32 res_y,
             const vec2 &sample, const Camera &cam, const mat4 &cam_to_world) {
@@ -87,8 +94,9 @@ private:
         return ray;
     }
 
+    std::variant<MisNeeIntegrator, PathGuidingIntegrator> integrator;
+
     RenderContext *rc;
     Settings settings;
-    EmbreeDevice *device;
 };
 #endif

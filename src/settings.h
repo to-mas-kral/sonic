@@ -6,7 +6,6 @@
 
 struct Settings {
     bool silent = false;
-    bool render_normals = false;
     bool load_only = false;
     u32 start_frame = 0;
     u32 spp = 32;

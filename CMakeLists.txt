@@ -11,6 +11,7 @@ add_library(pt_lib
         src/framebuffer.h
         src/camera.h
         src/embree_device.h
+        src/settings.h
 
         src/scene/emitter.h
         src/scene/envmap.h
@@ -20,12 +21,19 @@ add_library(pt_lib
         src/scene/light.h
         src/scene/emitter.cpp
         src/scene/envmap.cpp
+        src/scene/image.h
+        src/scene/image.cpp
+        src/scene/texture_types.h
+        src/scene/texture.cpp
+        src/scene/sphere_square_mapping.cpp
+        src/scene/sphere_square_mapping.h
 
         src/utils/basic_types.h
         src/utils/sampler.h
         src/utils/algs.h
         src/utils/render_threads.h
         src/utils/render_threads.cpp
+        src/utils/sampler.cpp
 
         src/io/image_writer.h
         src/io/progress_bar.h
@@ -78,8 +86,10 @@ add_library(pt_lib
         src/materials/trowbridge_reitz_ggx.cpp
         src/materials/rough_coateddiffuse.h
         src/materials/rough_coateddiffuse.cpp
-        src/utils/sampler.cpp
-        src/settings.h
+        src/materials/diffuse_transmission.cpp
+        src/materials/diffuse_transmission.h
+        src/materials/material_id.h
+        
         src/pbrt_loader/pbrt_loader.cpp
         src/pbrt_loader/pbrt_loader.h
         src/pbrt_loader/lexer.cpp
@@ -87,16 +97,7 @@ add_library(pt_lib
         src/pbrt_loader/stack_file_stream.h
         src/scene/scene_attribs.h
         src/pbrt_loader/param.h
-        src/materials/material_id.h
         src/geometry/instance_id.h
-        src/scene/image.h
-        src/scene/image.cpp
-        src/scene/texture_types.h
-        src/scene/texture.cpp
-        src/materials/diffuse_transmission.cpp
-        src/materials/diffuse_transmission.h
-        src/scene/sphere_square_mapping.cpp
-        src/scene/sphere_square_mapping.h
         src/math/aabb.h
         src/math/discrete_dist.h
         src/utils/panic.h
@@ -109,6 +110,12 @@ add_library(pt_lib
         src/geometry/geometry_storage.cpp
         src/geometry/geometry_storage.h
         src/utils/hasher.h
+        
+        src/path_guiding/sd_tree.cpp
+        src/path_guiding/sd_tree.h
+        src/integrator/path_guiding_integrator.cpp
+        src/integrator/path_guiding_integrator.h
+        src/integrator/mis_nee_integrator.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -175,13 +182,14 @@ add_executable(tests
         src/pbrt_loader/test_lexer.cpp
         src/pbrt_loader/test_params_parser.cpp
         src/pbrt_loader/test_pbrt_loader.cpp
-        src/math/test_transform.cpp
         src/scene/test_sphere_square_mapping.cpp
-        src/math/test_sampling_piecewise.cpp
         src/scene/test_envmap.cpp
+        src/math/test_sampling_piecewise.cpp
         src/math/test_coordinate_system.cpp
+        src/math/test_transform.cpp
         src/integrator/test_sobol_sampler.cpp
         src/utils/tests.cpp
+        src/path_guiding/test_sd_tree.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)
