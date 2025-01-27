@@ -10,9 +10,9 @@
 #include <thread>
 #include <vector>
 
-class RenderThreads {
+class ThreadPool {
 public:
-    RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
+    ThreadPool(const SceneAttribs &scene_attribs, Integrator *integrator,
                   const Settings &settings);
 
     void
@@ -34,7 +34,7 @@ private:
     std::barrier<> start_work;
     std::barrier<> end_work;
 
-    /// 4x4 tiles
+    /// 8x8 tiles
     uvec2 dimensions;
     u32 tiles_per_frame;
     std::atomic<u32> tile_counter;

@@ -31,8 +31,8 @@ add_library(pt_lib
         src/utils/basic_types.h
         src/utils/sampler.h
         src/utils/algs.h
-        src/utils/render_threads.h
-        src/utils/render_threads.cpp
+        src/utils/thread_pool.h
+        src/utils/thread_pool.cpp
         src/utils/sampler.cpp
 
         src/io/image_writer.h
@@ -141,17 +141,17 @@ target_link_libraries(pt_lib PUBLIC CLI11::CLI11)
 find_package(spdlog CONFIG REQUIRED)
 target_link_libraries(pt_lib PUBLIC spdlog::spdlog)
 
-find_package(embree 4 REQUIRED)
-target_link_libraries(pt_lib PUBLIC embree)
-
-find_package(OpenImageDenoise 2 REQUIRED)
-target_link_libraries(pt_lib PUBLIC OpenImageDenoise)
-
 find_package(unofficial-miniply CONFIG REQUIRED)
 target_link_libraries(pt_lib PUBLIC unofficial::miniply::miniply)
 
 find_package(xxHash CONFIG REQUIRED)
 target_link_libraries(pt_lib PRIVATE xxHash::xxhash)
+
+find_package(embree 4 REQUIRED)
+target_link_libraries(pt_lib PUBLIC embree)
+
+find_package(OpenImageDenoise 2 REQUIRED)
+target_link_libraries(pt_lib PUBLIC OpenImageDenoise)
 
 add_executable(pt
         src/main.cpp

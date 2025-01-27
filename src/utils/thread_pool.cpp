@@ -1,4 +1,4 @@
-#include "render_threads.h"
+#include "thread_pool.h"
 
 #include <xmmintrin.h>
 
@@ -59,8 +59,8 @@ get_num_threads(const Settings &settings) {
 }
 } // namespace
 
-RenderThreads::
-RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
+ThreadPool::
+ThreadPool(const SceneAttribs &scene_attribs, Integrator *integrator,
               const Settings &settings)
     : integrator{integrator}, num_threads(get_num_threads(settings)),
       start_work{num_threads + 1}, end_work{num_threads + 1},
@@ -80,13 +80,13 @@ RenderThreads(const SceneAttribs &scene_attribs, Integrator *integrator,
 }
 
 void
-RenderThreads::stop() {
+ThreadPool::stop() {
     should_stop = true;
     start_work.arrive_and_wait();
 }
 
 void
-RenderThreads::start_new_frame() {
+ThreadPool::start_new_frame() {
     tile_counter = 0;
 
     start_work.arrive_and_wait();
@@ -94,7 +94,7 @@ RenderThreads::start_new_frame() {
 }
 
 void
-RenderThreads::render(u32 thread_id) {
+ThreadPool::render(u32 thread_id) {
     // Recommended by the Embree manual
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);

@@ -13,8 +13,9 @@
 inline std::optional<f32>
 russian_roulette(const u32 depth, const f32 u, const spectral &throughput) {
     if (depth > 3) {
-        const f32 survival_prob = 1.F - std::max(throughput.max_component(), 0.05F);
-
+        const f32 survival_prob = std::max(1.F - throughput.max_component(), 0.F);
+        assert(survival_prob >= 0.F && survival_prob <= 1.F);
+        
         if (u < survival_prob) {
             return {};
         } else {
