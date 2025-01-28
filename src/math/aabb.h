@@ -39,6 +39,7 @@ public:
     bool
     contains(const point3 &pos) const {
         // clang-format off
+        // TODO: fix EPS
         return
             pos.x >= (low.x - EPS) && pos.x <= (high.x + EPS) &&
             pos.y >= (low.y - EPS) && pos.y <= (high.y + EPS) &&

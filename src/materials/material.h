@@ -26,26 +26,19 @@ enum class MaterialType : u8 {
 
 class Material {
 public:
-    explicit
-    Material(const DiffuseMaterial &diffuse_material);
+    explicit Material(const DiffuseMaterial &diffuse_material);
 
-    explicit
-    Material(const DiffuseTransmissionMaterial &diffuse_transmission);
+    explicit Material(const DiffuseTransmissionMaterial &diffuse_transmission);
 
-    explicit
-    Material(const CoatedDifuseMaterial &coated_difuse_material);
+    explicit Material(const CoatedDifuseMaterial &coated_difuse_material);
 
-    explicit
-    Material(const RoughCoatedDiffuseMaterial &rough_coated_diffuse_material);
+    explicit Material(const RoughCoatedDiffuseMaterial &rough_coated_diffuse_material);
 
-    explicit
-    Material(const DielectricMaterial &dielectric_material);
+    explicit Material(const DielectricMaterial &dielectric_material);
 
-    explicit
-    Material(const ConductorMaterial &conductor_material);
+    explicit Material(const ConductorMaterial &conductor_material);
 
-    explicit
-    Material(const RoughConductorMaterial &rough_conductor_material);
+    explicit Material(const RoughConductorMaterial &rough_conductor_material);
 
     std::optional<BSDFSample>
     sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 &xi,
@@ -60,6 +53,9 @@ public:
 
     bool
     is_delta() const;
+
+    bool
+    is_translucent() const;
 
     bool is_twosided = false;
 

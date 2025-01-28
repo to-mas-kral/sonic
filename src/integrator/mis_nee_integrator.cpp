@@ -102,10 +102,6 @@ MisNeeIntegrator::radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) c
     u32 depth = 1;
     auto last_vertex = Vertex{};
 
-#ifndef NDEBUG
-    std::vector<Vertex> path_vertices{};
-#endif
-
     while (true) {
         auto opt_its = device->cast_ray(ray);
         if (!opt_its.has_value()) {
@@ -225,15 +221,6 @@ MisNeeIntegrator::radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) c
         last_vertex.pos = its.pos;
         last_vertex.pdf_bxdf = bsdf_sample.pdf;
         depth++;
-
-#ifndef NDEBUG
-        path_vertices.emplace_back(last_vertex);
-#endif
-
-        if (depth == 1024) {
-            fmt::println("infinite self-intersection path");
-            break;
-        }
     }
 
     return radiance;

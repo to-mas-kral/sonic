@@ -16,7 +16,7 @@ SDTreeNode::traverse(const point3 &pos, const Axis split_axis, AABB &bounds) con
     }
 }
 
-u32
+ChildIndices
 QuadtreeNode::choose_child(const vec2 &xy, vec2 &middle, f32 &quadrant_half) const {
     assert(middle.x >= 0.F && middle.x <= 1.F);
     assert(middle.y >= 0.F && middle.y <= 1.F);
@@ -29,22 +29,22 @@ QuadtreeNode::choose_child(const vec2 &xy, vec2 &middle, f32 &quadrant_half) con
         if (xy.y > middle.y) {
             // bottom-right
             middle.y += old_quadrant_half;
-            return m_children[1];
+            return {.parent_index = m_children[1], .inner_index = 1};
         } else {
             // top-right
             middle.y -= old_quadrant_half;
-            return m_children[0];
+            return {.parent_index = m_children[0], .inner_index = 0};
         }
     } else {
         middle.x -= old_quadrant_half;
         if (xy.y > middle.y) {
             // bottom-left
             middle.y += old_quadrant_half;
-            return m_children[2];
+            return {.parent_index = m_children[2], .inner_index = 2};
         } else {
             // top-left
             middle.y -= old_quadrant_half;
-            return m_children[3];
+            return {.parent_index = m_children[3], .inner_index = 3};
         }
     }
 }
@@ -54,7 +54,7 @@ Quadtree::record(const spectral &radiance, const norm_vec3 &wi) {
     const auto xy = sphere_to_square(wi);
 
     auto middle = vec2(0.5F);
-    f32 quadtrant_half = 0.5F / 2.F;
+    f32 quadrant_half = 0.5F / 2.F;
 
     u32 index = 0;
     while (true) {
@@ -66,7 +66,7 @@ Quadtree::record(const spectral &radiance, const norm_vec3 &wi) {
             break;
         }
 
-        index = node.choose_child(xy, middle, quadtrant_half);
+        index = node.choose_child(xy, middle, quadrant_half).parent_index;
     }
 }
 
@@ -74,7 +74,6 @@ PGSample
 Quadtree::sample(Sampler &sampler) const {
     auto middle = vec2(0.5F);
     f32 quadrant_len_half = 0.5F / 2.F;
-    f32 inverse_square_area = 4.F;
     f32 square_probability = 1.F;
 
     u32 index = 0;
@@ -89,14 +88,14 @@ Quadtree::sample(Sampler &sampler) const {
 
             return PGSample{
                 .wi = square_to_sphere(xy),
-                .pdf = square_probability * (1.F / (4.F * M_PIf)),
+                .pdf = square_probability / (4.F * M_PIf),
             };
         }
 
-        const auto &c0_rad = nodes[node.child_index(0)].m_radiance.load();
-        const auto &c1_rad = nodes[node.child_index(1)].m_radiance.load();
-        const auto &c2_rad = nodes[node.child_index(2)].m_radiance.load();
-        const auto &c3_rad = nodes[node.child_index(3)].m_radiance.load();
+        const auto &c0_rad = nodes[node.get_child(0)].m_radiance.load();
+        const auto &c1_rad = nodes[node.get_child(1)].m_radiance.load();
+        const auto &c2_rad = nodes[node.get_child(2)].m_radiance.load();
+        const auto &c3_rad = nodes[node.get_child(3)].m_radiance.load();
 
         const auto sum = c0_rad + c1_rad + c2_rad + c3_rad;
 
@@ -135,16 +134,45 @@ Quadtree::sample(Sampler &sampler) const {
         }
 
         quadrant_len_half /= 2.F;
-        inverse_square_area *= 4.F;
 
-        index = node.child_index(sampled_child);
+        index = node.get_child(sampled_child);
+    }
+}
+
+f32 Quadtree::pdf(const norm_vec3 &dir) const {
+    const auto xy = sphere_to_square(dir);
+    
+    auto middle = vec2(0.5F);
+    f32 quadrant_len_half = 0.5F / 2.F;
+    f32 square_probability = 1.F;
+
+    u32 index = 0;
+    while (true) {
+        const auto &node = nodes[index];
+
+        // If it's root node with 0 energy, sample directly...
+        if (node.is_leaf() || (node.m_radiance == 0.F && index == 0)) {
+            return square_probability / (4.F * M_PIf);
+        }
+
+        const auto c0_rad = nodes[node.get_child(0)].m_radiance.load();
+        const auto c1_rad = nodes[node.get_child(1)].m_radiance.load();
+        const auto c2_rad = nodes[node.get_child(2)].m_radiance.load();
+        const auto c3_rad = nodes[node.get_child(3)].m_radiance.load();
+
+        const auto sum = c0_rad + c1_rad + c2_rad + c3_rad;
+        const std::array<f32, 4> radiances = {c0_rad, c1_rad, c2_rad, c3_rad};
+        assert(sum > 0.F);
+        
+        const auto child_indices = node.choose_child(xy, middle, quadrant_len_half);
+        square_probability *= 4.F * radiances[child_indices.inner_index] / sum;
+        index = child_indices.parent_index;
     }
 }
 
 void
-Quadtree::refine() {
+Quadtree::refine(const f32 SUBDIVIDE_CRITERION) {
     const f32 total_flux = nodes[0].m_radiance.load();
-    constexpr f32 SUBDIVIDE_CRITERION = 0.01F;
 
     std::vector<QuadtreeNode> new_nodes{};
     new_nodes.resize(nodes.size());
@@ -230,16 +258,17 @@ SDTree::record_bulk(const point3 &pos, const spectral &radiance, const norm_vec3
 PGSample
 SDTree::sample(const point3 &pos, Sampler &sampler) {
     const auto &node = traverse<nullptr>(pos);
-
-    auto sampler_copy = sampler;
-
     const auto s = node.sample(sampler);
-    if (std::isnan(s.pdf) || std::isinf(s.pdf)) {
-        auto a = node.sample(sampler_copy);
-    }
-    assert(!std::isnan(s.pdf) && !std::isinf(s.pdf));
 
+    assert(s.pdf > 0.F);
+    
     return s;
+}
+
+SDTreeNode *
+SDTree::find_node(const point3 &pos) {
+    auto &node = traverse<nullptr>(pos);
+    return &node;
 }
 
 void
@@ -263,8 +292,8 @@ SDTree::refine(const u32 iteration) {
                 l_child_node.m_recording_quadtree =
                     std::make_unique<Quadtree>(*node.m_recording_quadtree);
 
-                /*l_child_node.m_sampling_quadtree =
-                    std::make_unique<Quadtree>(*node.m_sampling_quadtree);*/
+                // No need to copy sampling quadtree, becuase it's gonna get replaced by
+                // refined version of the recording tree later.
 
                 auto r_child_node = SDTreeNode(i);
                 r_child_node.m_recording_quadtree = std::move(node.m_recording_quadtree);
@@ -281,9 +310,11 @@ SDTree::refine(const u32 iteration) {
 
     // New leaf nodes have been added, refine the quadtrees here
     for (auto &node : nodes) {
+        // Also reset the sample counts of the spatial tree here
         node.reset_count();
 
         if (node.is_leaf()) {
+            // TODO: in case of splitting, refinement is done twice for the split node
             node.m_recording_quadtree->refine();
             node.m_sampling_quadtree =
                 std::make_unique<Quadtree>(*node.m_recording_quadtree);

@@ -30,10 +30,18 @@ public:
         return image_y;
     }
 
+    void
+    reset() {
+        std::fill(pixels.begin(), pixels.end(), vec3(0.f));
+        num_samples = 0;
+    }
+
     std::vector<vec3> &
     get_pixels() {
         return pixels;
     }
+
+    u32 num_samples{0};
 
 private:
     std::vector<vec3> pixels;

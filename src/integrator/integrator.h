@@ -49,7 +49,7 @@ public:
             radiance = inner_integrator->radiance(ray, sampler, lambdas);
         } else if (auto *inner_integrator =
                        std::get_if<PathGuidingIntegrator>(&integrator)) {
-            radiance = inner_integrator->radiance_training(ray, sampler, lambdas);
+            radiance = inner_integrator->radiance(ray, sampler, lambdas);
         } else {
             panic("Wrong integrator type");
         }
@@ -63,18 +63,27 @@ public:
             lambdas.to_xyz(radiance) * rc->scene.attribs.film.iso / 100.F;
     }
 
-    u32 sample = 0;
+    void
+    next_sample() {
+        sample++;
+
+        if (auto *pg_integrator = std::get_if<PathGuidingIntegrator>(&integrator)) {
+            pg_integrator->next_sample();
+        } else {
+            rc->fb.num_samples++;
+        }
+    }
 
 private:
     Integrator(const Settings &settings, RenderContext *rc,
                const MisNeeIntegrator &integrator)
-        : sample{settings.start_frame}, integrator{integrator}, rc{rc},
-          settings{settings} {}
+        : integrator{integrator}, rc{rc}, settings{settings},
+          sample{settings.start_frame} {}
 
     Integrator(const Settings &settings, RenderContext *rc,
                const PathGuidingIntegrator &integrator)
-        : sample{settings.start_frame}, integrator{integrator}, rc{rc},
-          settings{settings} {}
+        : integrator{integrator}, rc{rc}, settings{settings},
+          sample{settings.start_frame} {}
 
     static Ray
     gen_ray(const u32 x, const u32 y, const u32 res_x, const u32 res_y,
@@ -98,5 +107,7 @@ private:
 
     RenderContext *rc;
     Settings settings;
+
+    u32 sample = 0;
 };
 #endif

@@ -56,7 +56,7 @@ private:
 
 class ShadingFrame {
 public:
-    /// wi and wo are assumed to not be in local space
+    /// wi and wo are assumed to *not* be in local space
     ShadingFrame(const norm_vec3 &normal, const norm_vec3 &p_wi, const norm_vec3 &p_wo)
         : m_sframe{ShadingFrameIncomplete(normal)},
           m_wi{m_sframe.to_local(p_wi).normalized()},

@@ -75,6 +75,7 @@ Material::sample(const ShadingFrameIncomplete &sframe, norm_vec3 wo, const vec3 
 
     if (bsdf_sample.has_value()) {
         assert(!bsdf_sample->bsdf.is_invalid());
+        assert(bsdf_sample->pdf >= 0.F);
     }
 
     return bsdf_sample;
@@ -169,6 +170,29 @@ Material::is_delta() const {
         return false;
     case MaterialType::Conductor:
         return true;
+    case MaterialType::RoughConductor:
+        return false;
+    case MaterialType::Dielectric:
+        return true;
+    default:
+        panic();
+    }
+}
+
+bool
+Material::is_translucent() const {
+    switch (type) {
+    case MaterialType::Diffuse:
+        return false;
+    case MaterialType::DiffuseTransmission:
+        // TODO: FIXME: actually implement diffuse transmission, this is jsut a hack...
+        return false;
+    case MaterialType::CoatedDiffuse:
+        return false;
+    case MaterialType::RoughCoatedDiffuse:
+        return false;
+    case MaterialType::Conductor:
+        return false;
     case MaterialType::RoughConductor:
         return false;
     case MaterialType::Dielectric:

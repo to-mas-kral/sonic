@@ -15,6 +15,11 @@ struct PGSample {
     f32 pdf;
 };
 
+struct ChildIndices {
+    u32 parent_index;
+    u8 inner_index;
+};
+
 class QuadtreeNode {
 public:
     QuadtreeNode() = default;
@@ -52,12 +57,12 @@ public:
         m_radiance.fetch_add(radiance.average());
     }
 
-    /// Returns the index inside of the m_children.
-    u32
+    /// Returns the index to the nodes in the whole Quadtree and the inner child index.
+    ChildIndices
     choose_child(const vec2 &xy, vec2 &middle, f32 &quadrant_half) const;
 
     u32
-    child_index(const u8 index) const {
+    get_child(const u8 index) const {
         return m_children[index];
     }
 
@@ -91,8 +96,11 @@ public:
     PGSample
     sample(Sampler &sampler) const;
 
+    f32
+    pdf(const norm_vec3 &dir) const;
+
     void
-    refine();
+    refine(f32 SUBDIVIDE_CRITERION = 0.01F);
 
     void
     reset_flux() {
@@ -243,12 +251,19 @@ public:
     PGSample
     sample(const point3 &pos, Sampler &sampler);
 
+    SDTreeNode *
+    find_node(const point3 &pos);
+
     /// Creates a new sampling tree from the recording tree
     /// iteration starts from 0 as far as I can tell
     void
     refine(u32 iteration);
 
+#ifdef TEST_PUBLIC
+public:
+#else
 private:
+#endif
     template <void (*NODE_VISITOR)(SDTreeNode &), typename... Ts>
     SDTreeNode &
     traverse(const point3 &pos, Ts...);

@@ -227,7 +227,10 @@ public:
     template <GeometryPod T>
     void
     add_geom_data(GeometryBlock<T> &block) {
-        m_geom_storage.add_geom_data(block);
+        // TODO: maybe check elsewhere...
+        if (block.inner.size() != 0) {
+            m_geom_storage.add_geom_data(block);
+        }
     }
 
     void

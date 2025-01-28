@@ -92,6 +92,54 @@ struct Vertex {
     point3 pos{0.F};
 };
 
+#include "../io/image_writer.h"
+
+void
+PathGuidingIntegrator::next_sample() {
+    if (!training_phase) {
+        rc->fb.num_samples++;
+        return;
+    }
+
+    if (iteration_samples >= max_training_samples) {
+        spdlog::critical("Starting rendering");
+        rc->fb.reset();
+        rc->fb.num_samples++;
+        training_phase = false;
+        return;
+    }
+
+    if (iteration_samples >= iteration_max_samples) {
+        spdlog::critical("Resetting training iteration");
+        iteration_max_samples *= 2;
+        iteration_samples = 0;
+        rc->fb.reset();
+        sd_tree.refine(training_iteration);
+        training_iteration++;
+    }
+
+    if (do_intermediate_images && std::popcount(rc->fb.num_samples) == 1) {
+        ImageWriter::write_framebuffer(
+            fmt::format("{}-i-{}-s-{}", rc->scene.attribs.film.filename.c_str(),
+                        training_iteration, rc->fb.num_samples),
+            rc->fb);
+    }
+
+    iteration_samples++;
+    rc->fb.num_samples++;
+}
+
+spectral
+PathGuidingIntegrator::radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) {
+
+    if (!training_phase) {
+        return radiance_training(ray, sampler, lambdas);
+        // return radiance_rendering(ray, sampler, lambdas);
+    } else {
+        return radiance_training(ray, sampler, lambdas);
+    }
+}
+
 spectral
 PathGuidingIntegrator::radiance_rendering(Ray ray, Sampler &sampler,
                                           SampledLambdas &lambdas) const {
@@ -242,8 +290,9 @@ PathGuidingIntegrator::radiance_rendering(Ray ray, Sampler &sampler,
 }
 
 struct PgVertex {
-    PgVertex(const point3 &pos, const norm_vec3 &wi, const spectral &throughput)
-        : throughput(throughput), pos(pos), wi(wi) {}
+    PgVertex(SDTree &sd_tree, const point3 &pos, const norm_vec3 &wi,
+             const spectral &throughput)
+        : throughput(throughput), wi(wi), tree_node(sd_tree.find_node(pos)) {}
 
     void
     add_radiance(const spectral &radiance_contrib) {
@@ -251,12 +300,12 @@ struct PgVertex {
         count++;
     }
 
-    // TODO: store nodes here directly to avoid searching the trees repeatedly...
     spectral radiance{0.F};
     spectral throughput;
     u32 count{0};
-    point3 pos;
     norm_vec3 wi;
+
+    SDTreeNode *tree_node;
 };
 
 struct PathVertices {
@@ -277,10 +326,23 @@ struct PathVertices {
     }
 
     void
-    add_to_sd_tree(SDTree &sd_tree) {
-        for (const auto &vertex : path_vertices) {
-            sd_tree.record_bulk(vertex.pos, vertex.radiance, vertex.wi, vertex.count);
+    add_to_sd_tree() {
+        for (auto &vertex : path_vertices) {
+            if (vertex.count != 0) {
+                vertex.tree_node->record_bulk(vertex.radiance, vertex.wi, vertex.count);
+            }
         }
+    }
+
+    bool
+    is_empty() const {
+        return path_vertices.empty();
+    }
+
+    const PgVertex &
+    last_vertex() const {
+        assert(!path_vertices.empty());
+        return path_vertices.back();
     }
 
 private:
@@ -295,6 +357,18 @@ PathGuidingIntegrator::add_radiance_contrib_learning(PathVertices &path_vertices
     path_vertices.add_radiance_contrib(emission);
     add_radiance_contrib(radiance, path_contrib);
 }
+
+namespace {
+struct DirectionalSample {
+    bool did_refract = false;
+    f32 pdf{0.F};
+    f32 other_strategy_pdf{0.F};
+    spectral bsdf{0.F};
+    norm_vec3 wi_world_space;
+    // Need to provide init for default init in integrator...
+    ShadingFrame sframe{norm_vec3(), norm_vec3(), norm_vec3()};
+};
+} // namespace
 
 spectral
 PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
@@ -323,7 +397,6 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
 
         auto its = opt_its.value();
 
-        const auto bsdf_xi = sampler.sample3();
         const auto rr_xi = sampler.sample();
 
         auto *const material = &materials[its.material_id.inner];
@@ -352,25 +425,75 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
 
         last_vertex.is_bxdf_delta = material->is_delta();
 
-        const auto sframe = ShadingFrameIncomplete(its.normal);
-        const auto bsdf_sample_opt = material->sample(sframe, -ray.dir(), bsdf_xi,
-                                                      lambdas, its.uv, is_frontfacing);
+        const auto sampling_kind = sampler.sample();
 
-        if (!bsdf_sample_opt.has_value()) {
-            break;
+        DirectionalSample sample;
+
+        const bool do_mis = !material->is_delta() && training_iteration != 0;
+        constexpr f32 bsdf_sampling_prob = 0.5F;
+
+        if (material->is_delta() || training_iteration == 0 ||
+            sampling_kind < bsdf_sampling_prob) {
+            const auto bsdf_xi = sampler.sample3();
+            // SD-tree cannot be used, sample using the BSDF
+            const auto sframe = ShadingFrameIncomplete(its.normal);
+            const auto bsdf_sample_opt = material->sample(
+                sframe, -ray.dir(), bsdf_xi, lambdas, its.uv, is_frontfacing);
+            if (!bsdf_sample_opt.has_value()) {
+                break;
+            }
+            const auto bsdf_sample = bsdf_sample_opt.value();
+
+            const auto &sframe_bsdf = bsdf_sample.sframe;
+            if (sframe_bsdf.is_degenerate()) {
+                break;
+            }
+
+            const auto wi_world_space =
+                sframe_bsdf.from_local(sframe_bsdf.wi()).normalized();
+
+            const auto sd_tree_pdf =
+                do_mis
+                    ? sd_tree.find_node(its.pos)->m_sampling_quadtree->pdf(wi_world_space)
+                    : 0.F;
+
+            sample =
+                DirectionalSample(bsdf_sample.did_refract, bsdf_sample.pdf, sd_tree_pdf,
+                                  bsdf_sample.bsdf, wi_world_space, bsdf_sample.sframe);
+        } else {
+            // Use SD-tree for sampling
+            // TODO: make this function return the node so it doesn't have to be
+            // fetched again later
+            const auto sd_sample = sd_tree.sample(its.pos, sampler);
+            const auto sd_sframe = ShadingFrame(its.normal, sd_sample.wi, -ray.dir());
+
+            if (sd_sframe.is_degenerate()) {
+                break;
+            }
+
+            if (sd_sframe.nowi() < 0.F && !material->is_translucent()) {
+                break;
+            }
+
+            const auto bsdf = material->eval(sd_sframe, lambdas, its.uv);
+            const auto bsdf_pdf =
+                do_mis ? material->pdf(sd_sframe, lambdas, its.uv) : 0.F;
+
+            const auto did_refract = sd_sframe.nowi() < 0.F;
+            sample = DirectionalSample(did_refract, sd_sample.pdf, bsdf_pdf, bsdf,
+                                       sd_sample.wi, sd_sframe);
         }
-        const auto bsdf_sample = bsdf_sample_opt.value();
 
-        const auto &sframe_bsdf = bsdf_sample.sframe;
-        if (sframe_bsdf.is_degenerate()) {
-            break;
+        if (do_mis) {
+            // Do one-sample MIS between BSDF and sd-tree sampling
+            const auto mis_weight =
+                mis_power_heuristic(sample.pdf, sample.other_strategy_pdf);
+            sample.bsdf *= mis_weight / bsdf_sampling_prob;
         }
 
         const auto spawn_ray_normal =
-            (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
-        const Ray bxdf_ray =
-            spawn_ray(its.pos, spawn_ray_normal,
-                      sframe_bsdf.from_local(sframe_bsdf.wi()).normalized());
+            sample.did_refract ? -its.geometric_normal : its.geometric_normal;
+        const Ray bxdf_ray = spawn_ray(its.pos, spawn_ray_normal, sample.wi_world_space);
 
         const auto rr = russian_roulette(depth, rr_xi, last_vertex.throughput);
         if (!rr.has_value()) {
@@ -378,9 +501,9 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
         }
 
         const auto roulette_compensation = rr.value();
-        const auto pdf = bsdf_sample.pdf * roulette_compensation;
+        const auto pdf = sample.pdf * roulette_compensation;
         const auto vertex_throughput =
-            bsdf_sample.bsdf * sframe_bsdf.abs_nowi() * (1.F / pdf);
+            sample.bsdf * sample.sframe.abs_nowi() * (1.F / pdf);
         last_vertex.throughput *= vertex_throughput;
         assert(!last_vertex.throughput.is_invalid());
 
@@ -390,18 +513,18 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
 
         ray = bxdf_ray;
         last_vertex.pos = its.pos;
-        last_vertex.pdf_bxdf = bsdf_sample.pdf;
+        last_vertex.pdf_bxdf = sample.pdf;
         depth++;
 
-        path_vertices.add_vertex(PgVertex(last_vertex.pos, ray.dir(), vertex_throughput));
-
-        if (depth == 1024) {
-            fmt::println("infinite self-intersection path");
-            break;
+        if (training_phase) {
+            path_vertices.add_vertex(
+                PgVertex(sd_tree, last_vertex.pos, ray.dir(), vertex_throughput));
         }
     }
 
-    path_vertices.add_to_sd_tree(sd_tree);
+    if (training_phase) {
+        path_vertices.add_to_sd_tree();
+    }
 
     return radiance;
 }

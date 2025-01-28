@@ -7,13 +7,11 @@
 
 using namespace std::literals;
 
-PbrtLoader::
-PbrtLoader(const std::filesystem::path &file_path)
+PbrtLoader::PbrtLoader(const std::filesystem::path &file_path)
     : file_path{file_path}, base_directory{file_path.parent_path()},
       stack_file_stream{file_path}, lexer{&stack_file_stream} {}
 
-PbrtLoader::
-PbrtLoader(const std::string &input)
+PbrtLoader::PbrtLoader(const std::string &input)
     : stack_file_stream{input}, lexer{&stack_file_stream} {}
 
 void
@@ -574,7 +572,6 @@ PbrtLoader::load_plymesh(Scene &sc, ParamsList &params, FloatTexture *alpha) con
                 normals = sc.geometry_container.allocate_geom_data<vec3>(num_verts);
                 reader.extract_properties(indexes.data(), 3,
                                           miniply::PLYPropertyType::Float, normals.ptr());
-
             }
             gotVerts = true;
         } else if (reader.element_is(miniply::kPLYFaceElement) && reader.load_element() &&

@@ -7,7 +7,7 @@
 #include "render_context.h"
 #include "settings.h"
 #include "utils/basic_types.h"
-#include "utils/render_threads.h"
+#include "utils/thread_pool.h"
 
 #include <bit>
 #include <chrono>
@@ -18,7 +18,7 @@
 int
 main(int argc, char **argv) {
     /*
-     * Parse comdline arguments
+     * Parse cmdline arguments
      * */
 
     Settings settings{};
@@ -30,8 +30,8 @@ main(int argc, char **argv) {
 
     const std::map<std::string, IntegratorType> map{
         {"naive", IntegratorType::Naive},
-        {"mis_nee", IntegratorType::MISNEE},
-        {"path_guiding", IntegratorType::PathGuiding},
+        {"nee", IntegratorType::MISNEE},
+        {"pg", IntegratorType::PathGuiding},
     };
 
     app.add_option("--samples", settings.spp, "Samples per pixel (SPP).");
@@ -93,33 +93,33 @@ main(int argc, char **argv) {
 
     auto integrator = Integrator::init(settings, &rc, &embree_device);
 
-    RenderThreads render_threads(rc.attribs, &integrator, settings);
+    ThreadPool render_threads(rc.attribs, &integrator, settings);
 
     spdlog::info("Rendering a {}x{} image at {} spp.", rc.attribs.film.resx,
                  rc.attribs.film.resy, settings.spp);
 
     ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};
-    for (u32 s = 1; s <= settings.spp; s++) {
+    for (u32 sample = 1; sample <= settings.spp; sample++) {
         render_threads.start_new_frame();
 
         const auto end{std::chrono::steady_clock::now()};
         const std::chrono::duration<f64> elapsed{end - start};
 
         // Update the framebuffer when the number of samples doubles...
-        if (std::popcount(s) == 1) {
-            ImageWriter::write_framebuffer(out_filename, rc.fb, s);
+        if (std::popcount(rc.fb.num_samples) == 1) {
+            ImageWriter::write_framebuffer(out_filename, rc.fb);
         }
 
-        integrator.sample += 1;
+        integrator.next_sample();
         if (!settings.silent) {
-            pb.print(s, settings.spp, elapsed);
+            pb.print(sample, settings.spp, elapsed);
         }
     }
 
     render_threads.stop();
 
-    ImageWriter::write_framebuffer(out_filename, rc.fb, settings.spp);
+    ImageWriter::write_framebuffer(out_filename, rc.fb);
 
     return 0;
 }

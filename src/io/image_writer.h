@@ -6,7 +6,6 @@
 #include "../math/vecmath.h"
 #include "../utils/basic_types.h"
 
-#include <algorithm>
 #include <vector>
 
 #include <spdlog/spdlog.h>
@@ -15,7 +14,7 @@
 namespace ImageWriter {
 
 inline void
-write_framebuffer(const std::string &filename, Framebuffer &fb, const u32 num_samples) {
+write_framebuffer(const std::string &filename, Framebuffer &fb) {
     const auto width = fb.get_res_x();
     const auto height = fb.get_res_y();
 
@@ -37,7 +36,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb, const u32 num_sa
     images[2].resize(width * height);
 
     for (int i = 0; i < width * height; i++) {
-        const vec3 xyz = pixels[i] / static_cast<float>(num_samples);
+        const vec3 xyz = pixels[i] / static_cast<float>(fb.num_samples);
         tuple3 rgb = xyz_to_srgb(tuple3(xyz.x, xyz.y, xyz.z));
 
         rgb.x = std::max(rgb.x, 0.F);

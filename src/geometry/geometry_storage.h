@@ -47,7 +47,7 @@ template <GeometryPod T> struct GeometryBlock {
 
     void
     calc_hash() {
-        assert(inner != nullptr);
+        assert(inner.data() != nullptr);
         hash = hash_buffer(inner.data(), inner.size_bytes());
     }
 

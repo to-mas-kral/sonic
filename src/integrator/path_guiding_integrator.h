@@ -23,10 +23,16 @@ public:
         : sd_tree(rc->scene.bounds()), rc{rc}, settings{settings}, device{device} {}
 
     spectral
+    radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas);
+
+    spectral
     radiance_rendering(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const;
 
     spectral
     radiance_training(Ray ray, Sampler &sampler, SampledLambdas &lambdas);
+
+    void
+    next_sample();
 
 private:
     spectral
@@ -52,6 +58,14 @@ private:
     RenderContext *rc;
     Settings settings;
     EmbreeDevice *device;
+
+    bool training_phase{true};
+    u32 training_iteration{0};
+    u32 iteration_samples{0};
+    u32 iteration_max_samples{1};
+    u32 max_training_samples{128};
+
+    bool do_intermediate_images{false};
 };
 
 #endif // PATH_GUIDING_INTEGRATOR_H

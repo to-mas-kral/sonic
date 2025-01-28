@@ -17,8 +17,9 @@ RgbSpectrum(const SigmoigCoeff &sigmoig_coeff)
 
 RgbSpectrum
 RgbSpectrum::from_rgb(const tuple3 &rgb) {
-    assert(rgb.max_component() <= 1.f);
-    assert(rgb.min_component() >= 0.f);
+    // TODO: FIXME: this assert keeps happening with some image textures
+    assert(rgb.max_component() <= 1.F);
+    assert(rgb.min_component() >= 0.F);
     return RgbSpectrum(rgb2spec.fetch(rgb));
 }
 
