@@ -7,10 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #[[Main executable]]
 
 add_library(pt_lib
-        src/render_context.h
+        src/integrator_context.h
         src/framebuffer.h
         src/camera.h
-        src/embree_device.h
+        src/embree_accel.h
         src/settings.h
 
         src/scene/emitter.h
@@ -116,6 +116,8 @@ add_library(pt_lib
         src/integrator/path_guiding_integrator.cpp
         src/integrator/path_guiding_integrator.h
         src/integrator/mis_nee_integrator.h
+        src/renderer.h
+        src/integrator/integrator.cpp
 )
 
 target_compile_options(pt_lib PUBLIC

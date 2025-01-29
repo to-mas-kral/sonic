@@ -5,40 +5,22 @@
 #include "../geometry/ray.h"
 #include "../materials/material.h"
 #include "../settings.h"
-#include "intersection.h"
+#include "integrator.h"
 
 struct LightSample;
 struct Scene;
 class SampledLambdas;
 class Sampler;
-class EmbreeDevice;
-class RenderContext;
+class EmbreeAccel;
+class IntegratorContext;
 
-class MisNeeIntegrator {
+class MisNeeIntegrator final : public Integrator {
 public:
-    MisNeeIntegrator(const Settings &settings, RenderContext *rc, EmbreeDevice *device)
-        : rc{rc}, settings{settings}, device{device} {}
+    MisNeeIntegrator(const Settings &settings, IntegratorContext *ctx)
+        : Integrator(ctx, settings) {}
 
     spectral
-    radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const;
-
-private:
-    spectral
-    light_mis(const Intersection &its, const Ray &traced_ray,
-              const LightSample &light_sample, const norm_vec3 &geom_normal,
-              const Material *material, const spectral &throughput,
-              const SampledLambdas &lambdas) const;
-
-    spectral
-    bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos,
-             f32 last_pdf_bxdf, const Intersection &its, const spectral &emission) const;
-
-    void
-    add_radiance_contrib(spectral &radiance, const spectral &contrib) const;
-
-    RenderContext *rc;
-    Settings settings;
-    EmbreeDevice *device;
+    estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) override;
 };
 
 #endif // MIS_NEE_INTEGRATOR_H

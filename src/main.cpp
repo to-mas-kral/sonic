@@ -1,10 +1,11 @@
-#include "embree_device.h"
+#include "embree_accel.h"
 #include "integrator/integrator.h"
 #include "integrator/integrator_type.h"
+#include "integrator_context.h"
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
 #include "pbrt_loader/pbrt_loader.h"
-#include "render_context.h"
+#include "renderer.h"
 #include "settings.h"
 #include "utils/basic_types.h"
 #include "utils/thread_pool.h"
@@ -82,44 +83,34 @@ main(int argc, char **argv) {
         out_filename = scene.attribs.film.filename;
     }
 
-    RenderContext rc(std::move(scene));
-
     if (settings.load_only) {
         return 0;
     }
 
-    spdlog::info("Creating Embree acceleration structure");
-    auto embree_device = EmbreeDevice(rc.scene);
+    auto renderer = Renderer::init(std::move(scene), settings);
 
-    auto integrator = Integrator::init(settings, &rc, &embree_device);
-
-    ThreadPool render_threads(rc.attribs, &integrator, settings);
-
-    spdlog::info("Rendering a {}x{} image at {} spp.", rc.attribs.film.resx,
-                 rc.attribs.film.resy, settings.spp);
+    spdlog::info("Rendering a {}x{} image at {} spp.", renderer.scene().attribs.film.resx,
+                 renderer.scene().attribs.film.resy, settings.spp);
 
     ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};
     for (u32 sample = 1; sample <= settings.spp; sample++) {
-        render_threads.start_new_frame();
+        renderer.compute_sample();
 
         const auto end{std::chrono::steady_clock::now()};
         const std::chrono::duration<f64> elapsed{end - start};
 
         // Update the framebuffer when the number of samples doubles...
-        if (std::popcount(rc.fb.num_samples) == 1) {
-            ImageWriter::write_framebuffer(out_filename, rc.fb);
+        if (std::popcount(renderer.framebuf().num_samples) == 1) {
+            ImageWriter::write_framebuffer(out_filename, renderer.framebuf());
         }
 
-        integrator.next_sample();
         if (!settings.silent) {
-            pb.print(sample, settings.spp, elapsed);
+            pb.print(renderer.framebuf().num_samples, settings.spp, elapsed);
         }
     }
 
-    render_threads.stop();
-
-    ImageWriter::write_framebuffer(out_filename, rc.fb);
+    ImageWriter::write_framebuffer(out_filename, renderer.framebuf());
 
     return 0;
 }

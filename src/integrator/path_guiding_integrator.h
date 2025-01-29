@@ -3,61 +3,42 @@
 
 #include "../color/spectral_quantity.h"
 #include "../geometry/ray.h"
+#include "../integrator_context.h"
 #include "../materials/material.h"
 #include "../path_guiding/sd_tree.h"
-#include "../render_context.h"
-#include "../settings.h"
-#include "intersection.h"
+#include "integrator.h"
 
 struct PathVertices;
 struct Scene;
 class Sampler;
-class EmbreeDevice;
-class RenderContext;
+class EmbreeAccel;
+class IntegratorContext;
 struct LightSample;
 
-class PathGuidingIntegrator {
+class PathGuidingIntegrator final : public Integrator {
 public:
-    PathGuidingIntegrator(const Settings &settings, RenderContext *rc,
-                          EmbreeDevice *device)
-        : sd_tree(rc->scene.bounds()), rc{rc}, settings{settings}, device{device} {}
+    explicit PathGuidingIntegrator(const Settings &settings, IntegratorContext *ctx)
+        : Integrator(ctx, settings), sd_tree(ctx->scene().bounds()) {}
 
     spectral
-    radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas);
+    estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) override;
 
+    void
+    next_sample() override;
+
+private:
     spectral
     radiance_rendering(Ray ray, Sampler &sampler, SampledLambdas &lambdas) const;
 
     spectral
     radiance_training(Ray ray, Sampler &sampler, SampledLambdas &lambdas);
-
-    void
-    next_sample();
-
-private:
-    spectral
-    light_mis(const Intersection &its, const Ray &traced_ray,
-              const LightSample &light_sample, const norm_vec3 &geom_normal,
-              const Material *material, const spectral &throughput,
-              const SampledLambdas &lambdas) const;
-
-    spectral
-    bxdf_mis(const Scene &sc, const spectral &throughput, const point3 &last_hit_pos,
-             f32 last_pdf_bxdf, const Intersection &its, const spectral &emission) const;
-
-    void
-    add_radiance_contrib(spectral &radiance, const spectral &contrib) const;
-
+    
     void
     add_radiance_contrib_learning(PathVertices &path_vertices, spectral &radiance,
                                   const spectral &path_contrib,
                                   const spectral &emission) const;
 
     SDTree sd_tree;
-
-    RenderContext *rc;
-    Settings settings;
-    EmbreeDevice *device;
 
     bool training_phase{true};
     u32 training_iteration{0};

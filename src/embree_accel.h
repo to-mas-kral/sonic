@@ -1,5 +1,5 @@
-#ifndef PT_EMBREE_DEVICE_H
-#define PT_EMBREE_DEVICE_H
+#ifndef PT_EMBREE_ACCEL_H
+#define PT_EMBREE_ACCEL_H
 
 #include "integrator/intersection.h"
 #include "math/aabb.h"
@@ -71,11 +71,9 @@ filter_intersect_sphere(const RTCFilterFunctionNArguments *args) {
     }
 }
 
-class EmbreeDevice {
+class EmbreeAccel {
 public:
-    explicit
-    EmbreeDevice(Scene &scene)
-        : scene(&scene), device(initialize_device()) {
+    explicit EmbreeAccel(Scene &scene) : scene(&scene), device(initialize_device()) {
         initialize_scene();
     }
 
@@ -132,8 +130,8 @@ public:
 
         auto its = get_its();
 
-        const auto &transform =
-            scene->geometry_container.instances().world_from_instances[rayhit.hit.instPrimID[0]];
+        const auto &transform = scene->geometry_container.instances()
+                                    .world_from_instances[rayhit.hit.instPrimID[0]];
         const auto &transform_inv_trans =
             scene->geometry_container.instances().wfi_inv_trans[rayhit.hit.instPrimID[0]];
 
@@ -154,7 +152,8 @@ public:
                                     vec2(rayhit.hit.u, rayhit.hit.v));
         } else {
             const point3 pos = orig + rayhit.ray.tfar * dir;
-            return get_sphere_its(scene->geometry_container.spheres(), rayhit.hit.primID, pos);
+            return get_sphere_its(scene->geometry_container.spheres(), rayhit.hit.primID,
+                                  pos);
         }
     }
 
@@ -218,6 +217,63 @@ public:
         return rtc_ray.tfar != -INFINITY;
     }
 
+    void
+    set_scene(Scene &new_scene) {
+        scene = &new_scene;
+    }
+
+    EmbreeAccel(const EmbreeAccel &other) = delete;
+
+    EmbreeAccel &
+    operator=(const EmbreeAccel &other) = delete;
+
+    EmbreeAccel(EmbreeAccel &&other) noexcept
+        : scene(other.scene), mesh_geom_count(other.mesh_geom_count),
+          sphere_geom_count(other.sphere_geom_count),
+          instance_count(other.instance_count),
+          instance_scenes(std::move(other.instance_scenes)),
+          mesh_geom_counts(std::move(other.mesh_geom_counts)), device(other.device),
+          main_scene(other.main_scene) {
+        other.device = nullptr;
+        other.main_scene = nullptr;
+    }
+
+    EmbreeAccel &
+    operator=(EmbreeAccel &&other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        scene = other.scene;
+        mesh_geom_count = other.mesh_geom_count;
+        sphere_geom_count = other.sphere_geom_count;
+        instance_count = other.instance_count;
+        instance_scenes = std::move(other.instance_scenes);
+        mesh_geom_counts = std::move(other.mesh_geom_counts);
+        device = other.device;
+        main_scene = other.main_scene;
+
+        other.device = nullptr;
+        other.main_scene = nullptr;
+
+        return *this;
+    }
+
+    ~EmbreeAccel() {
+        if (device != nullptr) {
+            rtcReleaseDevice(device);
+        }
+
+        if (main_scene != nullptr) {
+            rtcReleaseScene(main_scene);
+        }
+
+        for (const auto &scene : instance_scenes) {
+            rtcReleaseScene(scene);
+        }
+    }
+
+private:
     static RTCDevice
     initialize_device() {
         auto *const device = rtcNewDevice(nullptr);
@@ -254,7 +310,7 @@ public:
 
     void
     initialize_meshes() {
-        auto &meshes = scene->geometry_container.meshes().meshes;
+        const auto &meshes = scene->geometry_container.meshes().meshes;
         mesh_geom_count = meshes.size();
         for (const auto &mesh : meshes) {
             auto *const geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
@@ -405,27 +461,6 @@ public:
         }
     }
 
-    EmbreeDevice(const EmbreeDevice &other) = delete;
-
-    EmbreeDevice(EmbreeDevice &&other) noexcept = delete;
-
-    EmbreeDevice &
-    operator=(const EmbreeDevice &other) = delete;
-
-    EmbreeDevice &
-    operator=(EmbreeDevice &&other) noexcept = delete;
-
-    ~
-    EmbreeDevice() {
-        rtcReleaseDevice(device);
-        rtcReleaseScene(main_scene);
-
-        for (const auto &scene : instance_scenes) {
-            rtcReleaseScene(scene);
-        }
-    }
-
-private:
     Scene *scene;
 
     /// goem_ids are assigned sequentially by Embree
@@ -437,10 +472,11 @@ private:
     u32 instance_count{0};
     std::vector<RTCScene> instance_scenes;
     // TODO: refactor later when multilevel instancing is added
+    // Mesh geometry counts for every instance scene
     std::vector<u32> mesh_geom_counts;
 
     RTCDevice device;
     RTCScene main_scene;
 };
 
-#endif // PT_EMBREE_DEVICE_H
+#endif // PT_EMBREE_ACCEL_H
