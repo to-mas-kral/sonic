@@ -1,34 +1,50 @@
 {
-  "name" : "pt",
-  "version-string" : "1.0.0",
-  "builtin-baseline" : "c6d6efed3e9b4242765bfe1b5c5befffd85f7b92",
-  "dependencies" : [ {
-    "name" : "fmt",
-    "version>=" : "10.2.1#2",
-    "$comment" : "    find_package(fmt CONFIG REQUIRED)\n\n    target_link_libraries(main PRIVATE fmt::fmt)\n"
-  }, {
-    "name" : "tinyexr",
-    "version>=" : "1.0.5"
-  }, {
-    "name" : "cli11",
-    "version>=" : "2.3.2"
-  }, {
-    "name" : "spdlog",
-    "version>=" : "1.12.0"
-  }, {
-    "name" : "stb",
-    "version>=" : "2023-04-11#1"
-  }, {
-    "name" : "catch2",
-    "version>=" : "3.5.0"
-  }, {
-    "name" : "miniply",
-    "version>=" : "2022-09-15#1"
-  }, {
-    "name" : "matplotplusplus",
-    "version>=" : "1.2.1"
-  }, {
-    "name" : "xxhash",
-    "version>=" : "0.8.2"
-  } ]
+  "name": "pt",
+  "version-string": "1.0.0",
+  "builtin-baseline": "c6d6efed3e9b4242765bfe1b5c5befffd85f7b92",
+  "dependencies": [
+    {
+      "name": "catch2",
+      "version>=": "3.5.0"
+    },
+    {
+      "name": "cli11",
+      "version>=": "2.3.2"
+    },
+    {
+      "$comment": "    find_package(fmt CONFIG REQUIRED)\n\n    target_link_libraries(main PRIVATE fmt::fmt)\n",
+      "name": "fmt",
+      "version>=": "10.2.1#2"
+    },
+    {
+      "name": "miniply",
+      "version>=": "2022-09-15#1"
+    },
+    {
+      "name": "spdlog",
+      "version>=": "1.12.0"
+    },
+    {
+      "name": "stb",
+      "version>=": "2023-04-11#1"
+    },
+    {
+      "name": "tinyexr",
+      "version>=": "1.0.5"
+    },
+    {
+      "name": "xxhash",
+      "version>=": "0.8.2"
+    },
+    "sdl2",
+    {
+      "name": "imgui",
+      "default-features": false,
+      "features": [
+        "sdl2-binding",
+        "opengl3-binding",
+        "docking-experimental"
+      ]
+    }
+  ]
 }

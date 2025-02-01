@@ -15,6 +15,11 @@ struct PathVertex {
     point3 pos{0.F};
 };
 
+struct IterationProgressInfo {
+    u32 samples_max;
+    u32 samples_done;
+};
+
 class Integrator {
 public:
     Integrator(IntegratorContext *const ctx, const Settings &settings)
@@ -23,8 +28,6 @@ public:
     void
     integrate_pixel(uvec2 pixel) {
         const auto dim = uvec2(ctx->attribs().film.resx, ctx->attribs().film.resy);
-
-        const auto pixel_index = ((dim.y - 1U - pixel.y) * dim.x) + pixel.x;
 
         Sampler sampler{};
         sampler.init_frame(pixel, dim, sample, settings.spp);
@@ -35,21 +38,26 @@ public:
 
         SampledLambdas lambdas = SampledLambdas::new_sample_uniform(sampler.sample());
 
-        const auto radiance = estimate_radiance(ray, sampler, lambdas);
+        const auto radiance = estimate_radiance(ray, sampler, lambdas, pixel);
 
         if (radiance.is_invalid()) {
             spdlog::error("Invalid radiance {} at sample {}, pixel: {} x {} y",
                           radiance.to_str(), sample, pixel.x, pixel.y);
         }
 
-        ctx->framebuf().get_pixels()[pixel_index] +=
-            lambdas.to_xyz(radiance) * ctx->attribs().film.iso / 100.F;
+        ctx->framebuf().add_to_pixel(pixel, lambdas.to_xyz(radiance) *
+                                                ctx->attribs().film.iso / 100.F);
     }
 
     virtual void
     next_sample() {
         sample++;
         ctx->framebuf().num_samples++;
+    }
+
+    virtual std::optional<IterationProgressInfo>
+    iter_progress_info() {
+        return {};
     }
 
     Integrator(const Integrator &other) = default;
@@ -78,6 +86,12 @@ protected:
     void
     add_radiance_contrib(spectral &radiance, const spectral &contrib) const;
 
+    void
+    record_aovs(const uvec2 &pixel, const Intersection &its) const {
+        ctx->framebuf().add_aov(pixel, "Normals", its.normal.as_tuple());
+        ctx->framebuf().add_aov(pixel, "Position", its.pos.as_tuple());
+    }
+
     IntegratorContext *ctx;
     Settings settings;
 
@@ -85,7 +99,8 @@ protected:
 
 private:
     virtual spectral
-    estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) = 0;
+    estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas,
+                      uvec2 &pixel) = 0;
 
     static Ray
     gen_ray(const u32 x, const u32 y, const u32 res_x, const u32 res_y,

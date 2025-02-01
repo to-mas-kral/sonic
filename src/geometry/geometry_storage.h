@@ -20,12 +20,9 @@ concept GeometryPod =
      std::is_same_v<T, norm_vec3> || std::is_same_v<T, point3>);
 
 template <GeometryPod T> struct GeometryBlock {
-    explicit
-    GeometryBlock() = default;
+    explicit GeometryBlock() = default;
 
-    explicit
-    GeometryBlock(const std::span<T> &inner)
-        : inner(inner) {}
+    explicit GeometryBlock(const std::span<T> &inner) : inner(inner) {}
 
     T *
     ptr() const {
@@ -134,9 +131,7 @@ public:
     GeometryStorage &
     operator=(GeometryStorage &&other) noexcept = default;
 
-    ~
-    GeometryStorage() {
-        spdlog::info("GeometryStorage bytes saved: {}", bytes_saved);
+    ~GeometryStorage() {
         for (auto *const ptr : allocated_chunks) {
             std::free(ptr);
         }

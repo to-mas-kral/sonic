@@ -11,6 +11,7 @@ PathGuidingIntegrator::next_sample() {
 
     if (!training_phase) {
         ctx->framebuf().num_samples++;
+        iteration_samples++;
         return;
     }
 
@@ -19,6 +20,7 @@ PathGuidingIntegrator::next_sample() {
         ctx->framebuf().reset();
         ctx->framebuf().num_samples++;
         training_phase = false;
+        iteration_samples = 0;
         return;
     }
 
@@ -42,151 +44,26 @@ PathGuidingIntegrator::next_sample() {
     ctx->framebuf().num_samples++;
 }
 
-spectral
-PathGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
-                                         SampledLambdas &lambdas) {
-
-    if (!training_phase) {
-        return radiance_training(ray, sampler, lambdas);
-        // return radiance_rendering(ray, sampler, lambdas);
+std::optional<IterationProgressInfo>
+PathGuidingIntegrator::iter_progress_info() {
+    if (training_phase) {
+        return IterationProgressInfo{
+            .samples_max = iteration_max_samples,
+            .samples_done = iteration_samples,
+        };
     } else {
-        return radiance_training(ray, sampler, lambdas);
+        assert(std::popcount(max_training_samples) == 1);
+        return IterationProgressInfo{
+            .samples_max = settings.spp - (2 * max_training_samples - 1),
+            .samples_done = iteration_samples,
+        };
     }
 }
 
 spectral
-PathGuidingIntegrator::radiance_rendering(Ray ray, Sampler &sampler,
-                                          SampledLambdas &lambdas) const {
-    auto &sc = ctx->scene();
-    auto &lights = ctx->scene().lights;
-    auto &materials = ctx->scene().materials;
-    auto max_depth = ctx->attribs().max_depth;
-
-    spectral radiance = spectral::ZERO();
-    u32 depth = 1;
-    auto last_vertex = PathVertex{};
-
-    while (true) {
-        auto opt_its = ctx->accel().cast_ray(ray);
-        if (!opt_its.has_value()) {
-            if (sc.envmap) {
-                const auto envrad = sc.envmap->get_ray_radiance(ray, lambdas);
-
-                if (depth == 1 || last_vertex.is_bxdf_delta ||
-                    settings.integrator_type == IntegratorType::Naive) {
-                    // straight miss... can't do MIS
-                    const auto contrib = last_vertex.throughput * envrad;
-                    add_radiance_contrib(radiance, contrib);
-                } else {
-                    const f32 pdf_envmap =
-                        sc.light_sampler.light_sample_pdf(sc.envmap->light_id()) *
-                        sc.envmap->pdf(ray.dir());
-                    const f32 bxdf_weight =
-                        mis_power_heuristic(last_vertex.pdf_bxdf, pdf_envmap);
-
-                    // pdf is already contained in the throughput
-                    const auto contrib = last_vertex.throughput * envrad * bxdf_weight;
-                    add_radiance_contrib(radiance, contrib);
-                }
-            }
-            break;
-        }
-
-        auto its = opt_its.value();
-
-        const auto bsdf_xi = sampler.sample3();
-        const auto rr_xi = sampler.sample();
-
-        auto *const material = &materials[its.material_id.inner];
-        const auto is_frontfacing = vec3::dot(-ray.dir(), its.normal) >= 0.F;
-
-        if (!is_frontfacing && !material->is_twosided) {
-            break;
-        }
-
-        if (!is_frontfacing) {
-            its.normal = -its.normal;
-            its.geometric_normal = -its.geometric_normal;
-        }
-
-        if (its.has_light && is_frontfacing) {
-            const spectral emission = lights[its.light_id].emission(lambdas);
-
-            if (settings.integrator_type == IntegratorType::Naive || depth == 1 ||
-                last_vertex.is_bxdf_delta) {
-                // Primary ray hit, can't apply MIS...
-                const auto contrib = last_vertex.throughput * emission;
-                add_radiance_contrib(radiance, contrib);
-            } else {
-                auto bxdf_mis_contrib = bxdf_mis(last_vertex.throughput, last_vertex.pos,
-                                                 last_vertex.pdf_bxdf, its, emission);
-
-                add_radiance_contrib(radiance, bxdf_mis_contrib);
-            }
-        }
-
-        // Do this before light sampling, because that "extends the path"
-        if (max_depth > 0 && depth >= max_depth) {
-            break;
-        }
-
-        const f32 light_xi = sampler.sample();
-        const auto shape_xi = sampler.sample3();
-
-        last_vertex.is_bxdf_delta = material->is_delta();
-        if (settings.integrator_type != IntegratorType::Naive &&
-            !last_vertex.is_bxdf_delta) {
-            const auto sampled_light = sc.sample_lights(light_xi, shape_xi, lambdas, its);
-            if (sampled_light.has_value()) {
-                auto light_mis_contrib =
-                    light_mis(its, ray, sampled_light.value(), its.geometric_normal,
-                              material, last_vertex.throughput, lambdas);
-
-                add_radiance_contrib(radiance, light_mis_contrib);
-            }
-        }
-
-        const auto sframe = ShadingFrameIncomplete(its.normal);
-        const auto bsdf_sample_opt = material->sample(sframe, -ray.dir(), bsdf_xi,
-                                                      lambdas, its.uv, is_frontfacing);
-
-        if (!bsdf_sample_opt.has_value()) {
-            break;
-        }
-        const auto bsdf_sample = bsdf_sample_opt.value();
-
-        const auto &sframe_bsdf = bsdf_sample.sframe;
-        if (sframe_bsdf.is_degenerate()) {
-            break;
-        }
-
-        const auto spawn_ray_normal =
-            (bsdf_sample.did_refract) ? -its.geometric_normal : its.geometric_normal;
-        const Ray bxdf_ray =
-            spawn_ray(its.pos, spawn_ray_normal,
-                      sframe_bsdf.from_local(sframe_bsdf.wi()).normalized());
-
-        const auto rr = russian_roulette(depth, rr_xi, last_vertex.throughput);
-        if (!rr.has_value()) {
-            break;
-        }
-
-        const auto roulette_compensation = rr.value();
-        last_vertex.throughput *= bsdf_sample.bsdf * sframe_bsdf.abs_nowi() *
-                                  (1.F / (bsdf_sample.pdf * roulette_compensation));
-        assert(!last_vertex.throughput.is_invalid());
-
-        if (last_vertex.throughput.is_zero()) {
-            break;
-        }
-
-        ray = bxdf_ray;
-        last_vertex.pos = its.pos;
-        last_vertex.pdf_bxdf = bsdf_sample.pdf;
-        depth++;
-    }
-
-    return radiance;
+PathGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
+                                         SampledLambdas &lambdas, uvec2 &pixel) {
+    return radiance_training(ray, sampler, lambdas, pixel);
 }
 
 struct PgVertex {
@@ -258,6 +135,55 @@ PathGuidingIntegrator::add_radiance_contrib_learning(PathVertices &path_vertices
     add_radiance_contrib(radiance, path_contrib);
 }
 
+/// Returns the contribution and emission.
+std::tuple<spectral, spectral>
+PathGuidingIntegrator::light_mis_pg(const Intersection &its, const Ray &traced_ray,
+                                    const LightSample &light_sample,
+                                    const norm_vec3 &geom_normal,
+                                    const Material *material, const spectral &throughput,
+                                    const SampledLambdas &lambdas) {
+    const point3 light_pos = light_sample.pos;
+    const norm_vec3 pl = (light_pos - its.pos).normalized();
+    // TODO: move this into light sampling itself
+    const f32 cos_light = vec3::dot(light_sample.normal, -pl);
+
+    const auto sframe_light = ShadingFrame(its.normal, pl, -traced_ray.dir());
+    if (sframe_light.is_degenerate()) {
+        return {spectral::ZERO(), spectral::ZERO()};
+    }
+
+    // Quickly precheck if light is reachable
+    if (sframe_light.nowi() > 0.F && cos_light > 0.F) {
+        const point3 ray_orig = offset_ray(its.pos, geom_normal);
+        const spectral bxdf_light = material->eval(sframe_light, lambdas, its.uv);
+        // eval bxdf and check if it's 0 to potentially avoid the raycast
+        if (bxdf_light.is_zero()) {
+            return {spectral::ZERO(), spectral::ZERO()};
+        }
+
+        if (ctx->accel().is_visible(ray_orig, light_pos)) {
+            const auto mat_pdf = material->pdf(sframe_light, lambdas, its.uv);
+            const auto *const sd_tree_node = sd_tree.find_node(its.pos);
+            const auto guide_pdf = sd_tree_node->m_sampling_quadtree->pdf(pl);
+
+            const f32 directional_pdf =
+                bsdf_sampling_prob * mat_pdf + (1.F - bsdf_sampling_prob) * guide_pdf;
+
+            const f32 weight_light =
+                mis_power_heuristic(light_sample.pdf, directional_pdf);
+
+            const auto contrib = bxdf_light * sframe_light.abs_nowi() *
+                                 (1.F / light_sample.pdf) * light_sample.emission *
+                                 weight_light * throughput;
+
+            assert(!contrib.is_invalid());
+            return {contrib, light_sample.emission};
+        }
+    }
+
+    return {spectral::ZERO(), spectral::ZERO()};
+}
+
 namespace {
 struct DirectionalSample {
     bool did_refract = false;
@@ -272,7 +198,7 @@ struct DirectionalSample {
 
 spectral
 PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
-                                         SampledLambdas &lambdas) {
+                                         SampledLambdas &lambdas, uvec2 &pixel) {
     auto &sc = ctx->scene();
     auto &lights = ctx->scene().lights;
     auto &materials = ctx->scene().materials;
@@ -288,14 +214,34 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
         if (!opt_its.has_value()) {
             if (sc.envmap) {
                 const auto envrad = sc.envmap->get_ray_radiance(ray, lambdas);
-                const auto path_contrib = last_vertex.throughput * envrad;
-                add_radiance_contrib_learning(path_vertices, radiance, path_contrib,
-                                              envrad);
+
+                // TODO: fix Path Guiding + NEE
+                if (true || depth == 1 || last_vertex.is_bxdf_delta) {
+                    // straight miss... can't do MIS
+                    const auto contrib = last_vertex.throughput * envrad;
+                    add_radiance_contrib_learning(path_vertices, radiance, contrib,
+                                                  envrad);
+                } else {
+                    const f32 pdf_envmap =
+                        sc.light_sampler.light_sample_pdf(sc.envmap->light_id()) *
+                        sc.envmap->pdf(ray.dir());
+                    const f32 bxdf_weight =
+                        mis_power_heuristic(last_vertex.pdf_bxdf, pdf_envmap);
+
+                    // pdf is already contained in the throughput
+                    const auto contrib = last_vertex.throughput * envrad * bxdf_weight;
+                    add_radiance_contrib_learning(path_vertices, radiance, contrib,
+                                                  envrad);
+                }
             }
             break;
         }
 
         auto its = opt_its.value();
+
+        if (depth == 1) {
+            record_aovs(pixel, its);
+        }
 
         const auto rr_xi = sampler.sample();
 
@@ -313,9 +259,19 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
 
         if (its.has_light && is_frontfacing) {
             const spectral emission = lights[its.light_id].emission(lambdas);
-            const auto path_contrib = last_vertex.throughput * emission;
-            add_radiance_contrib_learning(path_vertices, radiance, path_contrib,
-                                          emission);
+
+            // TODO: fix Path Guiding + NEE
+            if (true || depth == 1 || last_vertex.is_bxdf_delta) {
+                // Primary ray hit, can't apply MIS...
+                const auto contrib = last_vertex.throughput * emission;
+                add_radiance_contrib_learning(path_vertices, radiance, contrib, emission);
+            } else {
+                auto bxdf_mis_contrib = bxdf_mis(last_vertex.throughput, last_vertex.pos,
+                                                 last_vertex.pdf_bxdf, its, emission);
+
+                add_radiance_contrib_learning(path_vertices, radiance, bxdf_mis_contrib,
+                                              emission);
+            }
         }
 
         // Do this before light sampling, because that "extends the path"
@@ -325,17 +281,34 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
 
         last_vertex.is_bxdf_delta = material->is_delta();
 
+        const f32 light_xi = sampler.sample();
+        const auto shape_xi = sampler.sample3();
+
+        // TODO: fix Path Guiding + NEE
+        if (false && !last_vertex.is_bxdf_delta) {
+            const auto sampled_light = sc.sample_lights(light_xi, shape_xi, lambdas, its);
+            if (sampled_light.has_value()) {
+                auto [light_mis_contrib, emission] =
+                    light_mis_pg(its, ray, sampled_light.value(), its.geometric_normal,
+                                 material, last_vertex.throughput, lambdas);
+
+                // Don't add NEE contrib to guiding tree as we want mostly indirect
+                // illumination there.
+                /*add_radiance_contrib_learning(path_vertices, radiance,
+                   light_mis_contrib, emission);*/
+                add_radiance_contrib(radiance, light_mis_contrib);
+            }
+        }
+
         const auto sampling_kind = sampler.sample();
 
         DirectionalSample sample;
 
         const bool do_mis = !material->is_delta() && training_iteration != 0;
-        constexpr f32 bsdf_sampling_prob = 0.5F;
 
         if (material->is_delta() || training_iteration == 0 ||
             sampling_kind < bsdf_sampling_prob) {
             const auto bsdf_xi = sampler.sample3();
-            // SD-tree cannot be used, sample using the BSDF
             const auto sframe = ShadingFrameIncomplete(its.normal);
             const auto bsdf_sample_opt = material->sample(
                 sframe, -ray.dir(), bsdf_xi, lambdas, its.uv, is_frontfacing);
@@ -352,13 +325,13 @@ PathGuidingIntegrator::radiance_training(Ray ray, Sampler &sampler,
             const auto wi_world_space =
                 sframe_bsdf.from_local(sframe_bsdf.wi()).normalized();
 
-            const auto sd_tree_pdf =
+            const auto guide_pdf =
                 do_mis
                     ? sd_tree.find_node(its.pos)->m_sampling_quadtree->pdf(wi_world_space)
                     : 0.F;
 
             sample =
-                DirectionalSample(bsdf_sample.did_refract, bsdf_sample.pdf, sd_tree_pdf,
+                DirectionalSample(bsdf_sample.did_refract, bsdf_sample.pdf, guide_pdf,
                                   bsdf_sample.bsdf, wi_world_space, bsdf_sample.sframe);
         } else {
             // Use SD-tree for sampling

@@ -15,8 +15,8 @@ namespace ImageWriter {
 
 inline void
 write_framebuffer(const std::string &filename, Framebuffer &fb) {
-    const auto width = fb.get_res_x();
-    const auto height = fb.get_res_y();
+    const auto width = fb.width_x();
+    const auto height = fb.height_y();
 
     const std::vector<vec3> &pixels = fb.get_pixels();
 

@@ -5,7 +5,8 @@
 #include "shading_frame.h"
 
 spectral
-MisNeeIntegrator::estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) {
+MisNeeIntegrator::estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas,
+                                    uvec2 &pixel) {
     auto &sc = ctx->scene();
     auto &lights = ctx->scene().lights;
     auto &materials = ctx->scene().materials;
@@ -42,6 +43,10 @@ MisNeeIntegrator::estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &l
         }
 
         auto its = opt_its.value();
+
+        if (depth == 1) {
+            record_aovs(pixel, its);
+        }
 
         const auto bsdf_xi = sampler.sample3();
         const auto rr_xi = sampler.sample();

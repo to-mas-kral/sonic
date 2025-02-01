@@ -10,13 +10,11 @@
 // Vector3, Point3 and Tuple3 is inspired by PBRTv4...
 
 template <template <typename> typename Child, typename T> struct Tuple2Base {
-    explicit
-    Tuple2Base(T val)
-        : x{val}, y{val} {}
+    explicit Tuple2Base(T val) : x{val}, y{val} {}
 
     Tuple2Base(T x, T y) : x{x}, y{y} {}
 
-    Tuple2Base() : x{0.F}, y{0.F} {}
+    Tuple2Base() {}
 
     T
     max_component() const {
@@ -176,17 +174,15 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
         return std::abs(x - other.x) < EPS && std::abs(y - other.y) < EPS;
     }
 
-    T x;
-    T y;
+    T x{0.F};
+    T y{0.F};
 };
 
 template <typename T> struct Vector2 : Tuple2Base<Vector2, T> {
     using Tuple2Base<Vector2, T>::x;
     using Tuple2Base<Vector2, T>::y;
 
-    explicit
-    Vector2(T val)
-        : Tuple2Base<Vector2, T>(val) {}
+    explicit Vector2(T val) : Tuple2Base<Vector2, T>(val) {}
 
     Vector2(T x, T y) : Tuple2Base<Vector2, T>(x, y) {}
 
@@ -211,13 +207,11 @@ template <typename T> struct Vector2 : Tuple2Base<Vector2, T> {
 struct NormalizedVector3;
 
 template <template <typename> typename Child, typename T> struct Tuple3Base {
-    explicit
-    Tuple3Base(T val)
-        : x{val}, y{val}, z{val} {}
+    explicit Tuple3Base(T val) : x{val}, y{val}, z{val} {}
 
     Tuple3Base(T x, T y, T z) : x{x}, y{y}, z{z} {}
 
-    Tuple3Base() : x{0.F}, y{0.F}, z{0.F} {}
+    Tuple3Base() {}
 
     T
     max_component() const {
@@ -400,9 +394,9 @@ template <template <typename> typename Child, typename T> struct Tuple3Base {
                std::abs(z - other.z) < EPS;
     }
 
-    T x;
-    T y;
-    T z;
+    T x{0.F};
+    T y{0.F};
+    T z{0.F};
 };
 
 template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
@@ -410,9 +404,7 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
     using Tuple3Base<Vector3, T>::y;
     using Tuple3Base<Vector3, T>::z;
 
-    explicit
-    Vector3(T val)
-        : Tuple3Base<Vector3, T>(val) {}
+    explicit Vector3(T val) : Tuple3Base<Vector3, T>(val) {}
 
     Vector3(T x, T y, T z) : Tuple3Base<Vector3, T>(x, y, z) {}
 
@@ -447,19 +439,17 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
 };
 
 template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
-    explicit
-    Tuple3(f32 val)
-        : Tuple3Base<Tuple3, T>(val) {}
+    explicit Tuple3(f32 val) : Tuple3Base<Tuple3, T>(val) {}
 
     Tuple3(T x, T y, T z) : Tuple3Base<Tuple3, T>(x, y, z) {}
+    
+    Tuple3() : Tuple3Base<Tuple3, T>() {}
 };
 
 struct NormalizedVector3 : Vector3<f32> {
     NormalizedVector3() : Vector3(0.F, 0.F, 1.F) {}
 
-    explicit
-    NormalizedVector3(const f32 val)
-        : Vector3(val) {
+    explicit NormalizedVector3(const f32 val) : Vector3(val) {
         assert(std::abs(Vector3::length() - 1.F) < 0.0001F);
     }
 
@@ -470,6 +460,11 @@ struct NormalizedVector3 : Vector3<f32> {
     f32
     length() const {
         return 1.F;
+    }
+
+    Tuple3<f32>
+    as_tuple() const {
+        return Tuple3<f32>(x, y, z);
     }
 
     static NormalizedVector3
@@ -497,15 +492,11 @@ Vector3<T>::reflect(const Vector3 &vec, const NormalizedVector3 &normal) {
 }
 
 template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
-    explicit
-    Point3(const f32 val)
-        : Tuple3Base(val) {}
+    explicit Point3(const f32 val) : Tuple3Base(val) {}
 
     Point3(const f32 x, const f32 y, const f32 z) : Tuple3Base(x, y, z) {}
 
-    explicit
-    Point3(Vector3<T> vec)
-        : Tuple3Base(vec.x, vec.y, vec.z) {}
+    explicit Point3(Vector3<T> vec) : Tuple3Base(vec.x, vec.y, vec.z) {}
 
     Point3() : Tuple3Base() {}
 
@@ -527,6 +518,11 @@ template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
     Point3
     operator+(const Point3 &other) const {
         return Point3(x + other.x, y + other.y, z + other.z);
+    }
+
+    Tuple3<f32>
+    as_tuple() const {
+        return Tuple3<f32>(x, y, z);
     }
 };
 

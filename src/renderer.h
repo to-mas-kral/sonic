@@ -67,6 +67,11 @@ public:
         return m_ictx->framebuf();
     }
 
+    std::optional<IterationProgressInfo>
+    iter_progress_info() const {
+        return m_integrator->iter_progress_info();
+    }
+
 private:
     Settings m_settings;
     std::unique_ptr<IntegratorContext> m_ictx;

@@ -12,6 +12,7 @@ add_library(pt_lib
         src/camera.h
         src/embree_accel.h
         src/settings.h
+        src/renderer.h
 
         src/scene/emitter.h
         src/scene/envmap.h
@@ -27,6 +28,7 @@ add_library(pt_lib
         src/scene/texture.cpp
         src/scene/sphere_square_mapping.cpp
         src/scene/sphere_square_mapping.h
+        src/scene/scene_attribs.h
 
         src/utils/basic_types.h
         src/utils/sampler.h
@@ -34,6 +36,8 @@ add_library(pt_lib
         src/utils/thread_pool.h
         src/utils/thread_pool.cpp
         src/utils/sampler.cpp
+        src/utils/panic.h
+        src/utils/hasher.h
 
         src/io/image_writer.h
         src/io/progress_bar.h
@@ -45,6 +49,9 @@ add_library(pt_lib
         src/math/piecewise_dist.cpp
         src/math/sampling.cpp
         src/math/transform.cpp
+        src/math/aabb.h
+        src/math/discrete_dist.h
+        src/math/coordinate_system.h
 
         src/integrator/integrator.h
         src/integrator/utils.h
@@ -53,9 +60,19 @@ add_library(pt_lib
         src/integrator/integrator_type.h
         src/integrator/mis_nee_integrator.cpp
         src/integrator/intersection.h
+        src/integrator/sobol_matrices.h
+        src/integrator/sobol_sampler.h
+        src/integrator/shading_frame.h
+        src/integrator/path_guiding_integrator.cpp
+        src/integrator/path_guiding_integrator.h
+        src/integrator/mis_nee_integrator.h
+        src/integrator/integrator.cpp
 
         src/geometry/geometry_container.h
         src/geometry/geometry_container.cpp
+        src/geometry/instance_id.h
+        src/geometry/geometry_storage.cpp
+        src/geometry/geometry_storage.h
 
         src/color/rgb2spec.h
         src/color/rgb2spec.cpp
@@ -67,6 +84,8 @@ add_library(pt_lib
         src/color/spectrum.cpp
         src/color/spectral_data.h
         src/color/spectrum.h
+        src/color/sampled_lambdas.cpp
+        src/color/sampled_lambdas.h
 
         src/materials/material.h
         src/materials/material.cpp
@@ -89,35 +108,20 @@ add_library(pt_lib
         src/materials/diffuse_transmission.cpp
         src/materials/diffuse_transmission.h
         src/materials/material_id.h
-        
+
         src/pbrt_loader/pbrt_loader.cpp
         src/pbrt_loader/pbrt_loader.h
         src/pbrt_loader/lexer.cpp
         src/pbrt_loader/lexer.h
         src/pbrt_loader/stack_file_stream.h
-        src/scene/scene_attribs.h
         src/pbrt_loader/param.h
-        src/geometry/instance_id.h
-        src/math/aabb.h
-        src/math/discrete_dist.h
-        src/utils/panic.h
-        src/integrator/shading_frame.h
-        src/math/coordinate_system.h
-        src/integrator/sobol_matrices.h
-        src/integrator/sobol_sampler.h
-        src/color/sampled_lambdas.cpp
-        src/color/sampled_lambdas.h
-        src/geometry/geometry_storage.cpp
-        src/geometry/geometry_storage.h
-        src/utils/hasher.h
-        
+
         src/path_guiding/sd_tree.cpp
         src/path_guiding/sd_tree.h
-        src/integrator/path_guiding_integrator.cpp
-        src/integrator/path_guiding_integrator.h
-        src/integrator/mis_nee_integrator.h
-        src/renderer.h
-        src/integrator/integrator.cpp
+
+        src/gui/gui.cpp
+        src/gui/gui.h
+        src/gui/gui_state.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -155,6 +159,21 @@ target_link_libraries(pt_lib PUBLIC embree)
 find_package(OpenImageDenoise 2 REQUIRED)
 target_link_libraries(pt_lib PUBLIC OpenImageDenoise)
 
+find_package(SDL2 CONFIG REQUIRED)
+target_link_libraries(pt_lib
+        PRIVATE
+        $<TARGET_NAME_IF_EXISTS:SDL2::SDL2main>
+        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+)
+
+find_package(imgui REQUIRED)
+target_link_libraries(pt_lib PRIVATE imgui::imgui)
+
+configure_file(src/gui/Roboto-Medium.ttf font.ttf COPYONLY)
+
+find_package(OpenGL REQUIRED)
+target_link_libraries(pt_lib PRIVATE OpenGL)
+
 add_executable(pt
         src/main.cpp
 )
@@ -177,7 +196,6 @@ add_custom_target(
 add_dependencies(pt_lib run_rgb2spec_opt)
 
 target_link_libraries(pt PRIVATE pt_lib)
-
 
 #[[Tests]]
 add_executable(tests
@@ -202,6 +220,3 @@ target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(tests PRIVATE fmt::fmt)
 
 target_link_libraries(tests PRIVATE unofficial::tinyexr::tinyexr)
-
-find_package(Matplot++ CONFIG REQUIRED)
-target_link_libraries(tests PRIVATE Matplot++::cimg  Matplot++::matplot)

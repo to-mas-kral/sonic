@@ -20,7 +20,8 @@ public:
         : Integrator(ctx, settings) {}
 
     spectral
-    estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas) override;
+    estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas,
+                      uvec2 &pixel) override;
 };
 
 #endif // MIS_NEE_INTEGRATOR_H
