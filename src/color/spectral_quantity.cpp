@@ -94,10 +94,10 @@ SpectralQuantity::is_zero() const {
 }
 
 void
-SpectralQuantity::div_pdf(const f32 pdf) {
-    for (f32 &val : vals) {
-        if (pdf != 0.F) {
-            val /= pdf;
+SpectralQuantity::div_pdf(const SpectralQuantity &pdf) {
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        if (pdf[i] != 0.F) {
+            vals[i] /= pdf[i];
         }
     }
 }
@@ -230,6 +230,15 @@ SpectralQuantity::operator/(const SpectralQuantity &other) const {
     }
 
     return sq;
+}
+
+SpectralQuantity &
+SpectralQuantity::operator/=(const f32 div) {
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; i++) {
+        vals[i] /= div;
+    }
+
+    return *this;
 }
 
 f32 &

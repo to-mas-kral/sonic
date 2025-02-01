@@ -3,15 +3,18 @@
 #include "spectrum.h"
 #include "spectrum_consts.h"
 
+static constexpr f32 UNIFORM_PDF =
+    1.F / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
+
 SampledLambdas
-SampledLambdas::new_sample_uniform(const f32 rand) {
+SampledLambdas::new_sample_uniform(const f32 xi) {
     SampledLambdas sl{};
 
     constexpr f32 lambda_min = static_cast<f32>(LAMBDA_MIN);
     constexpr f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
 
     // Sample first wavelength
-    sl.lambdas[0] = lerp(rand, lambda_min, lambda_max);
+    sl.lambdas[0] = lerp(xi, lambda_min, lambda_max);
 
     if constexpr (N_SPECTRUM_SAMPLES > 1) {
         // Initialize remaining wavelenghts
@@ -26,30 +29,51 @@ SampledLambdas::new_sample_uniform(const f32 rand) {
         }
     }
 
+    sl.pdfs = SpectralQuantity(UNIFORM_PDF);
+
     return sl;
 }
 
-static constexpr f32 PDF =
-    1.F / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
+/// Due to: RADZISZEWSKI, Michal; BORYCZKO, Krzysztof a ALDA, Witold.
+/// An improved technique for full spectral rendering. Václav Skala - UNION Agency, 2009.
+/// Code adapted from PBRT.
+SampledLambdas
+SampledLambdas::new_sample_importance(Sampler &sampler) {
+    // integral of 1 / (cosh(0.0072(x-538))^2) from LAMBDA_MIN to LAMBDA_MAX.
+    constexpr f32 NORM_CONSTANT = 0.003939804229F;
+
+    SampledLambdas sl{};
+
+    // PDF f(x) = 0.003939804229 / cosh^2(0.0072 (x - 538))
+    // CDF p(x) = int_0^x f(a) da
+    // sampling_routine s(x) = p(x)^-1
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        sl.lambdas[i] =
+            538 - 138.888889f * std::atanh(0.85691062f - 1.82750197f * sampler.sample());
+        sl.pdfs[i] = NORM_CONSTANT / sqr(std::cosh(0.0072 * (sl.lambdas[i] - 538)));
+    }
+
+    return sl;
+}
 
 vec3
 SampledLambdas::to_xyz(const SpectralQuantity &radiance) const {
     auto rad = radiance;
-    auto pdf = PDF;
+    auto local_pdfs = pdfs;
     if (is_secondary_terminated) {
         for (int i = 1; i < N_SPECTRUM_SAMPLES; ++i) {
             rad[i] = 0.F;
         }
-        pdf /= N_SPECTRUM_SAMPLES;
+        local_pdfs /= N_SPECTRUM_SAMPLES;
     }
 
     SpectralQuantity x = CIE_X.eval(*this) * rad;
     SpectralQuantity y = CIE_Y.eval(*this) * rad;
     SpectralQuantity z = CIE_Z.eval(*this) * rad;
 
-    x.div_pdf(pdf);
-    y.div_pdf(pdf);
-    z.div_pdf(pdf);
+    x.div_pdf(local_pdfs);
+    y.div_pdf(local_pdfs);
+    z.div_pdf(local_pdfs);
 
     const f32 x_xyz = x.average() / CIE_Y_INTEGRAL;
     const f32 y_xyz = y.average() / CIE_Y_INTEGRAL;
@@ -73,5 +97,3 @@ const f32 &
 SampledLambdas::operator[](const u32 index) const {
     return lambdas[index];
 }
-
-#include "sampled_lambdas.h"

@@ -223,6 +223,7 @@ public:
         return bounds.contains(pos);
     }
 
+    // Can be null for interior nodes
     std::unique_ptr<Quadtree> m_recording_quadtree{nullptr};
     std::unique_ptr<Quadtree> m_sampling_quadtree{nullptr};
 

@@ -13,11 +13,9 @@ class SpectralQuantity {
 public:
     SpectralQuantity() = default;
 
-    explicit
-    SpectralQuantity(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals);
+    explicit SpectralQuantity(const std::array<f32, N_SPECTRUM_SAMPLES> &p_vals);
 
-    explicit
-    SpectralQuantity(f32 val);
+    explicit SpectralQuantity(f32 val);
 
     static SpectralQuantity
     make_constant(f32 constant);
@@ -49,7 +47,7 @@ public:
     }
 
     void
-    div_pdf(f32 pdf);
+    div_pdf(const SpectralQuantity &pdf);
 
     std::string
     to_str() const;
@@ -89,6 +87,9 @@ public:
 
     SpectralQuantity
     operator/(f32 div) const;
+
+    SpectralQuantity &
+    operator/=(f32 div);
 
     SpectralQuantity
     operator/(const SpectralQuantity &other) const;

@@ -32,6 +32,12 @@ render_headless(Settings settings, Renderer &renderer) {
         // Update the framebuffer when the number of samples doubles...
         if (std::popcount(renderer.framebuf().num_samples) == 1) {
             ImageWriter::write_framebuffer(settings.out_filename, renderer.framebuf());
+
+            if (settings.save_progress) {
+                ImageWriter::write_framebuffer(
+                    fmt::format("{}-{}", settings.out_filename, sample),
+                    renderer.framebuf());
+            }
         }
 
         if (!settings.silent) {
@@ -76,6 +82,7 @@ main(int argc, char **argv) {
                    "Frame at which to start rendering. Useful for debugging");
     app.add_flag("--load-only", settings.load_only, "Only load the scene.");
     app.add_flag("--no-gui", settings.no_gui, "Run in headless mode.");
+    app.add_flag("--save-progress", settings.save_progress, "Save progress images.");
 
     CLI11_PARSE(app, argc, argv)
 

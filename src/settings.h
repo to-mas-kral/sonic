@@ -8,6 +8,7 @@ struct Settings {
     bool silent = false;
     bool load_only = false;
     bool no_gui = false;
+    bool save_progress = false;
     std::string scene_path{};
     std::string out_filename;
     u32 start_frame = 0;
