@@ -4,6 +4,7 @@
 #include "../embree_accel.h"
 #include "../integrator_context.h"
 #include "../math/vecmath.h"
+#include "../path_guiding/sd_tree.h"
 #include "../settings.h"
 #include "../utils/basic_types.h"
 #include "../utils/sampler.h"
@@ -50,13 +51,21 @@ public:
     }
 
     virtual void
-    next_sample() {
+    advance_sample() {
         sample++;
         ctx->framebuf().num_samples++;
     }
 
+    virtual void
+    reset_iteration() {}
+
     virtual std::optional<IterationProgressInfo>
-    iter_progress_info() {
+    iter_progress_info() const {
+        return {};
+    }
+
+    virtual std::optional<SDTree>
+    get_sd_tree() const {
         return {};
     }
 

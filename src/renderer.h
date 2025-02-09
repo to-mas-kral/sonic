@@ -2,6 +2,7 @@
 #define RENDERER_H
 
 #include "integrator/integrator.h"
+#include "integrator/lambda_guiding_integrator.h"
 #include "integrator/mis_nee_integrator.h"
 #include "integrator/path_guiding_integrator.h"
 #include "scene/scene.h"
@@ -26,6 +27,9 @@ public:
         case IntegratorType::PathGuiding:
             integrator = std::make_unique<PathGuidingIntegrator>(settings, ictx.get());
             break;
+        case IntegratorType::LambdaGuiding:
+            integrator = std::make_unique<LambdaGuidingIntegrator>(settings, ictx.get());
+            break;
         default:
             panic("Erroneous integrator type.");
         }
@@ -40,9 +44,14 @@ public:
           m_thread_pool(m_ictx->attribs(), m_integrator.get(), m_settings) {}
 
     void
-    compute_sample() {
+    compute_current_sample() {
         m_thread_pool.start_new_frame();
-        m_integrator->next_sample();
+        m_integrator->advance_sample();
+    }
+
+    void
+    reset_iteration_sample() const {
+        m_integrator->reset_iteration();
     }
 
     Renderer(const Renderer &other) = delete;
@@ -65,6 +74,11 @@ public:
     Framebuffer &
     framebuf() const {
         return m_ictx->framebuf();
+    }
+
+    const Integrator *
+    integrator() const {
+        return m_integrator.get();
     }
 
     std::optional<IterationProgressInfo>

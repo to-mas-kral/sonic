@@ -24,7 +24,7 @@ render_headless(Settings settings, Renderer &renderer) {
     ProgressBar pb{};
     const auto start{std::chrono::steady_clock::now()};
     for (u32 sample = 1; sample <= settings.spp; sample++) {
-        renderer.compute_sample();
+        renderer.compute_current_sample();
 
         const auto end{std::chrono::steady_clock::now()};
         const std::chrono::duration<f64> elapsed{end - start};
@@ -35,14 +35,17 @@ render_headless(Settings settings, Renderer &renderer) {
 
             if (settings.save_progress) {
                 ImageWriter::write_framebuffer(
-                    fmt::format("{}-{}", settings.out_filename, sample),
+                    fmt::format("{}-{}.exr", settings.out_filename,
+                                renderer.framebuf().num_samples),
                     renderer.framebuf());
             }
         }
 
         if (!settings.silent) {
-            pb.print(renderer.framebuf().num_samples, settings.spp, elapsed);
+            pb.print(sample, settings.spp, elapsed);
         }
+
+        renderer.reset_iteration_sample();
     }
 
     ImageWriter::write_framebuffer(settings.out_filename, renderer.framebuf());
@@ -63,6 +66,7 @@ main(int argc, char **argv) {
         {"naive", IntegratorType::Naive},
         {"nee", IntegratorType::MISNEE},
         {"pg", IntegratorType::PathGuiding},
+        {"nee-lg", IntegratorType::LambdaGuiding},
     };
 
     app.add_option("--samples", settings.spp, "Samples per pixel (SPP).");

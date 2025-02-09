@@ -3,6 +3,8 @@
 
 #include "../utils/basic_types.h"
 
+#include "spectrum.h"
+
 /// Data from: https://refractiveindex.info/ (public domain)
 
 inline constexpr auto GLASS_BAF10_ETA_RAW = std::array<f32, 58>{
@@ -220,6 +222,25 @@ inline constexpr auto TIO2_K_RAW = std::array<f32, 68>{
     0.000000,   879.915039, 0.000000,   899.709961, 0.000000,
 };
 
+inline constexpr auto CIE_FL_10_RAW =
+    std::array{380.F, 1.11F,  385.F, 0.8F,   390.F, 0.62F,  395.F, 0.57F,  400.F, 1.48F,
+               405.F, 12.16F, 410.F, 2.12F,  415.F, 2.7F,   420.F, 3.74F,  425.F, 5.14F,
+               430.F, 6.75F,  435.F, 34.39F, 440.F, 14.86F, 445.F, 10.4F,  450.F, 10.76F,
+               455.F, 10.67F, 460.F, 10.11F, 465.F, 9.27F,  470.F, 8.29F,  475.F, 7.29F,
+               480.F, 7.91F,  485.F, 16.64F, 490.F, 16.73F, 495.F, 10.44F, 500.F, 5.94F,
+               505.F, 3.34F,  510.F, 2.35F,  515.F, 1.88F,  520.F, 1.59F,  525.F, 1.47F,
+               530.F, 1.8F,   535.F, 5.71F,  540.F, 40.98F, 545.F, 73.69F, 550.F, 33.61F,
+               555.F, 8.24F,  560.F, 3.38F,  565.F, 2.47F,  570.F, 2.14F,  575.F, 4.86F,
+               580.F, 11.45F, 585.F, 14.79F, 590.F, 12.16F, 595.F, 8.97F,  600.F, 6.52F,
+               605.F, 8.31F,  610.F, 44.12F, 615.F, 34.55F, 620.F, 12.09F, 625.F, 12.15F,
+               630.F, 10.52F, 635.F, 4.43F,  640.F, 1.95F,  645.F, 2.19F,  650.F, 3.19F,
+               655.F, 2.77F,  660.F, 2.29F,  665.F, 2.F,    670.F, 1.52F,  675.F, 1.35F,
+               680.F, 1.47F,  685.F, 1.79F,  690.F, 1.74F,  695.F, 1.02F,  700.F, 1.14F,
+               705.F, 3.32F,  710.F, 4.49F,  715.F, 2.05F,  720.F, 0.49F,  725.F, 0.24F,
+               730.F, 0.21F,  735.F, 0.21F,  740.F, 0.24F,  745.F, 0.24F,  750.F, 0.21F,
+               755.F, 0.17F,  760.F, 0.21F,  765.F, 0.22F,  770.F, 0.17F,  775.F, 0.12F,
+               780.F, 0.09F};
+
 constexpr auto GLASS_BAF10_ETA = PiecewiseSpectrum(
     std::span<const f32>(GLASS_BAF10_ETA_RAW.data(), GLASS_BAF10_ETA_RAW.size()));
 
@@ -258,6 +279,9 @@ constexpr auto TIO2_ETA =
 
 constexpr auto TIO2_K =
     PiecewiseSpectrum(std::span<const f32>(TIO2_K_RAW.data(), TIO2_K_RAW.size()));
+
+constexpr auto CIE_FL_10 =
+    PiecewiseSpectrum(std::span<const f32>(CIE_FL_10_RAW.data(), CIE_FL_10_RAW.size()));
 
 constexpr auto AIR_ETA = ConstantSpectrum(1.000277F);
 

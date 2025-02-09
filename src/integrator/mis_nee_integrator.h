@@ -1,10 +1,10 @@
 #ifndef MIS_NEE_INTEGRATOR_H
 #define MIS_NEE_INTEGRATOR_H
 
-#include "../color/spectral_quantity.h"
 #include "../geometry/ray.h"
 #include "../materials/material.h"
 #include "../settings.h"
+#include "../spectrum/spectral_quantity.h"
 #include "integrator.h"
 
 struct LightSample;

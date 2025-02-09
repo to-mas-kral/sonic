@@ -7,7 +7,8 @@
 enum class IntegratorType : u32 {
     Naive,
     MISNEE,
-    PathGuiding
+    PathGuiding,
+    LambdaGuiding
 };
 
 #endif // PT_INTEGRATOR_TYPE_H

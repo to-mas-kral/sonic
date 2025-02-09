@@ -15,6 +15,10 @@ TEST_CASE("Binary interval search", "[binary_search_interval]") {
     REQUIRE(binary_search_interval(vals.size(), accessor, 25.F) == 1);
     REQUIRE(binary_search_interval(vals.size(), accessor, 35.F) == 2);
     REQUIRE(binary_search_interval(vals.size(), accessor, 45.F) == 3);
+
+    REQUIRE(binary_search_interval(vals.size(), accessor, 20.F) == 1);
+    REQUIRE(binary_search_interval(vals.size(), accessor, 30.F) == 2);
+    REQUIRE(binary_search_interval(vals.size(), accessor, 40.F) == 3);
 }
 
 TEST_CASE("Binary interval search out of range", "[binary_search_interval]") {
@@ -31,4 +35,7 @@ TEST_CASE("Binary interval search small", "[binary_search_interval]") {
 
     REQUIRE(binary_search_interval(vals.size(), accessor, 0.F) == 0);
     REQUIRE(binary_search_interval(vals.size(), accessor, 30.F) == 0);
+    REQUIRE(binary_search_interval(vals.size(), accessor, 10.F) == 0);
+    REQUIRE(binary_search_interval(vals.size(), accessor, 20.F) == 0);
+    REQUIRE(binary_search_interval(vals.size(), accessor, 15.F) == 0);
 }

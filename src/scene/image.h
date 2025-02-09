@@ -1,8 +1,8 @@
 #ifndef IMAGE_H
 #define IMAGE_H
 
-#include "../color/spectrum.h"
 #include "../math/vecmath.h"
+#include "../spectrum/spectrum.h"
 #include "../utils/basic_types.h"
 
 struct ImageTextureParams;

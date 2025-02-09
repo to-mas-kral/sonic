@@ -1,12 +1,12 @@
 #ifndef PT_SPECTRUM_H
 #define PT_SPECTRUM_H
 
-#include "cie_spectrums.h"
+#include "cie_spectra.h"
 #include "color_space.h"
+#include "rgb2spec.h"
 #include "sampled_lambdas.h"
 #include "spectral_quantity.h"
 #include "spectrum_consts.h"
-#include "rgb2spec.h"
 
 class DenseSpectrum {
 public:

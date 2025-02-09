@@ -3,8 +3,8 @@
 
 #include "image.h"
 
-#include "../color/spectrum.h"
 #include "../math/vecmath.h"
+#include "../spectrum/spectrum.h"
 #include "../utils/basic_types.h"
 #include "../utils/panic.h"
 

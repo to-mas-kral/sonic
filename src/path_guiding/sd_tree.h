@@ -1,10 +1,11 @@
 #ifndef SD_TREE_H
 #define SD_TREE_H
 
-#include "../color/spectral_quantity.h"
 #include "../math/aabb.h"
 #include "../math/vecmath.h"
+#include "../spectrum/spectral_quantity.h"
 #include "../utils/basic_types.h"
+#include "binary_tree.h"
 
 #include <vector>
 
@@ -100,7 +101,7 @@ public:
     pdf(const norm_vec3 &dir) const;
 
     void
-    refine(f32 SUBDIVIDE_CRITERION = 0.01F);
+    refine(f32 SUBDIVISION_CRITERION = 0.01F);
 
     void
     reset_flux() {
@@ -109,11 +110,6 @@ public:
         }
     }
 
-    /*#ifdef TEST_PUBLIC
-    public:
-    #else
-    private:
-    #endif*/
     std::vector<QuadtreeNode> nodes{};
 };
 
@@ -122,6 +118,8 @@ public:
     explicit SDTreeNode(const u32 parent_index)
         : m_recording_quadtree{std::make_unique<Quadtree>()},
           m_sampling_quadtree{std::make_unique<Quadtree>()},
+          m_recording_binarytree{std::make_unique<BinaryTree>()},
+          m_sampling_binarytree{std::make_unique<BinaryTree>()},
           m_parent_index{parent_index} {}
 
     SDTreeNode(const SDTreeNode &other)
@@ -134,6 +132,15 @@ public:
         }
         if (other.m_sampling_quadtree) {
             m_sampling_quadtree = std::make_unique<Quadtree>(*other.m_sampling_quadtree);
+        }
+
+        if (other.m_recording_binarytree) {
+            m_recording_binarytree =
+                std::make_unique<BinaryTree>(*other.m_recording_binarytree);
+        }
+        if (other.m_sampling_binarytree) {
+            m_sampling_binarytree =
+                std::make_unique<BinaryTree>(*other.m_sampling_binarytree);
         }
     }
 
@@ -179,18 +186,24 @@ public:
     traverse(const point3 &pos, Axis split_axis, AABB &bounds) const;
 
     void
-    split(Axis axis);
-
-    void
-    record(const spectral &radiance, const norm_vec3 &wi) {
+    record(const spectral &radiance, const SampledLambdas &lambdas, const norm_vec3 &wi) {
         m_record_count.fetch_add(1, std::memory_order_relaxed);
         m_recording_quadtree->record(radiance, wi);
+        m_recording_binarytree->record(lambdas, radiance);
     }
 
     void
     record_bulk(const spectral &radiance, const norm_vec3 &wi, const u32 count) {
         m_record_count.fetch_add(count, std::memory_order_relaxed);
         m_recording_quadtree->record(radiance, wi);
+    }
+
+    void
+    record_bulk(const spectral &radiance, const SampledLambdas &lambdas,
+                const norm_vec3 &wi, const u32 count) {
+        m_record_count.fetch_add(count, std::memory_order_relaxed);
+        m_recording_quadtree->record(radiance, wi);
+        m_recording_binarytree->record(lambdas, radiance);
     }
 
     PGSample
@@ -226,6 +239,8 @@ public:
     // Can be null for interior nodes
     std::unique_ptr<Quadtree> m_recording_quadtree{nullptr};
     std::unique_ptr<Quadtree> m_sampling_quadtree{nullptr};
+    std::unique_ptr<BinaryTree> m_recording_binarytree{nullptr};
+    std::unique_ptr<BinaryTree> m_sampling_binarytree{nullptr};
 
 private:
     //  TODO: could put this inside a union
@@ -243,11 +258,12 @@ public:
     }
 
     void
-    record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi);
+    record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
+           const SampledLambdas &lambdas);
 
     void
     record_bulk(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
-                u32 count);
+                u32 count, const SampledLambdas &lambdas);
 
     PGSample
     sample(const point3 &pos, Sampler &sampler);
@@ -259,6 +275,11 @@ public:
     /// iteration starts from 0 as far as I can tell
     void
     refine(u32 iteration);
+
+    std::span<const SDTreeNode>
+    get_nodes() const {
+        return std::span(nodes);
+    }
 
 #ifdef TEST_PUBLIC
 public:

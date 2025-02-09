@@ -1,6 +1,8 @@
 #ifndef AXIS_H
 #define AXIS_H
 
+#include "../utils/basic_types.h"
+
 enum class Axis : u8 {
     X = 0U,
     Y = 1U,

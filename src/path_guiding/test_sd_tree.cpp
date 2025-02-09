@@ -7,7 +7,6 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include <matplot/matplot.h>
 
 #include <vector>
 
@@ -369,11 +368,10 @@ TEST_CASE("quadtree sampling pdf integrates to 1") {
         for (int j = 0; j < 1024U << i; ++j) {
             const f32 xi_x = sampler.sample();
             const f32 xi_y = sampler.sample();
-            
+
             const auto wi = square_to_sphere(vec2(xi_x, xi_y));
             tree.record(spectral::make_constant(1.F), wi);
         }
-
 
         if (i != 2) {
             tree.refine();
@@ -504,22 +502,28 @@ TEST_CASE("quadtree refine split and prune") {
 TEST_CASE("spatial tree splitting") {
     SDTree tree(AABB(vec3(-1.F, -1.F, -1.F), vec3(1.F, 1.F, 1.F)));
 
-    tree.record_bulk(point3(0.F), spectral::ZERO(), norm_vec3(), 100000);
+    tree.record_bulk(point3(0.F), spectral::ZERO(), norm_vec3(), 100000,
+                     SampledLambdas::new_mock());
     tree.refine(0);
 
     REQUIRE(tree.nodes.size() == 3);
 
-    tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10);
-    tree.record_bulk(point3(0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 100000);
+    tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10,
+                     SampledLambdas::new_mock());
+    tree.record_bulk(point3(0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 100000,
+                     SampledLambdas::new_mock());
 
     REQUIRE(tree.nodes[1].record_count() == 10);
     REQUIRE(tree.nodes[2].record_count() == 100000);
 
     tree.refine(0);
 
-    tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10);
-    tree.record_bulk(point3(0.5F, 0.5F, 0.F), spectral::ZERO(), norm_vec3(), 20);
-    tree.record_bulk(point3(0.5F, -0.5F, 0.F), spectral::ZERO(), norm_vec3(), 30);
+    tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10,
+                     SampledLambdas::new_mock());
+    tree.record_bulk(point3(0.5F, 0.5F, 0.F), spectral::ZERO(), norm_vec3(), 20,
+                     SampledLambdas::new_mock());
+    tree.record_bulk(point3(0.5F, -0.5F, 0.F), spectral::ZERO(), norm_vec3(), 30,
+                     SampledLambdas::new_mock());
 
     REQUIRE(tree.nodes[1].record_count() == 10);
     REQUIRE(tree.nodes[3].record_count() == 30);

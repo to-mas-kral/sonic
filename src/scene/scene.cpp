@@ -1,10 +1,9 @@
 #include "scene.h"
 
-#include "../color/spectral_data.h"
 #include "../integrator/intersection.h"
+#include "../spectrum/spectral_data.h"
 
-Scene::
-Scene() {
+Scene::Scene() {
     builtin_spectra.insert({"metal-Au-eta", Spectrum(AU_ETA)});
     builtin_spectra.insert({"metal-Au-k", Spectrum(AU_K)});
     builtin_spectra.insert({"metal-Al-eta", Spectrum(AL_ETA)});
@@ -20,6 +19,8 @@ Scene() {
     builtin_spectra.insert({"glass-BK7", Spectrum(GLASS_BK7_ETA)});
     builtin_spectra.insert({"glass-BAF10", Spectrum(GLASS_BAF10_ETA)});
     builtin_spectra.insert({"glass-F11", Spectrum(GLASS_F11_ETA)});
+
+    builtin_spectra.insert({"stdillum-F10", Spectrum(CIE_FL_10)});
 
     for (const auto &spectrum : builtin_spectra) {
         builtin_spectrum_textures.insert(
@@ -37,8 +38,7 @@ Scene() {
         {"eta-conductor",
          add_texture(SpectrumTexture(builtin_spectra.at("metal-Cu-eta")))});
     builtin_spectrum_textures.insert(
-        {"k-conductor",
-         add_texture(SpectrumTexture(builtin_spectra.at("metal-Cu-k")))});
+        {"k-conductor", add_texture(SpectrumTexture(builtin_spectra.at("metal-Cu-k")))});
 }
 
 MaterialId

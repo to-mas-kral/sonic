@@ -61,8 +61,47 @@ Gui::run_loop() {
     }
 
     render_thread->request_stop();
-    const auto _ = render_barrier.arrive();
+    const auto _ = gui_state_update_barrier.arrive();
     render_thread->join();
+}
+
+void
+Gui::update_gui_state() {
+    update_viewport_textures();
+
+    if (gui_state_needs_update) {
+        const auto sd_tree = renderer->integrator()->get_sd_tree();
+        if (sd_tree.has_value()) {
+            gui_state.sd_tree.nodes.clear();
+
+            const auto tree = sd_tree.value();
+            for (auto &node : tree.get_nodes()) {
+                if (node.is_leaf()) {
+                    std::vector<f32> pdf_x;
+                    std::vector<f32> pdf_y;
+
+                    pdf_x.reserve(LAMBDA_SAMPLES);
+                    pdf_y.reserve(LAMBDA_SAMPLES);
+
+                    // Update node pdf
+                    for (int i = 0; i < LAMBDA_SAMPLES; ++i) {
+                        const auto x = LAMBDA_MIN + i * LAMBDA_STEP;
+                        const auto y = node.m_sampling_binarytree->pdf(x);
+                        pdf_x.push_back(x);
+                        pdf_y.push_back(y);
+                    }
+
+                    gui_state.sd_tree.nodes.push_back(
+                        {std::move(pdf_x), std::move(pdf_y)});
+                }
+            }
+        }
+    }
+
+    if (gui_state_needs_update) {
+        gui_state_needs_update = false;
+        gui_state_update_barrier.arrive_and_wait();
+    }
 }
 
 void
@@ -81,21 +120,20 @@ Gui::update_viewport_textures() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     }
 
-    for (auto &[name, aov] : renderer->framebuf().aovs()) {
-        if (!gui_state.viewport.aov_textures.contains(name)) {
-            GLuint image_texture;
-            glGenTextures(1, &image_texture);
-            glBindTexture(GL_TEXTURE_2D, image_texture);
+    if (gui_state_needs_update) {
+        for (auto &[name, aov] : renderer->framebuf().aovs()) {
+            if (!gui_state.viewport.aov_textures.contains(name)) {
+                GLuint image_texture;
+                glGenTextures(1, &image_texture);
+                glBindTexture(GL_TEXTURE_2D, image_texture);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            gui_state.viewport.aov_textures.insert({name, image_texture});
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                gui_state.viewport.aov_textures.insert({name, image_texture});
+            }
         }
-    }
 
-    // Update textures from framebuf
-    if (render_outputs_need_update) {
-        render_outputs_need_update = false;
+        // Update textures from framebuf
 
         glBindTexture(GL_TEXTURE_2D, gui_state.viewport.main_output_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width_x, height_y, 0, GL_RGB, GL_FLOAT,
@@ -129,15 +167,11 @@ Gui::update_viewport_textures() {
             glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width_x, height_y, 0, format,
                          data_type, tex_data);
         }
-
-        render_barrier.arrive_and_wait();
     }
 }
 
 void
-Gui::viewport_window() {
-    update_viewport_textures();
-
+Gui::viewport_window() const {
     const auto width_x = renderer->framebuf().width_x();
     const auto height_y = renderer->framebuf().height_y();
 
@@ -216,6 +250,102 @@ Gui::render_progress_window() const {
 }
 
 void
+Gui::render_guiding_tree_window() {
+    ImGui::Begin("GuidingTree");
+
+    auto &sd_tree_info = gui_state.sd_tree;
+
+    ImGui::SeparatorText("Leaf nodes");
+    const auto num_items = std::min(sd_tree_info.nodes.size(), 8UL);
+    if (ImGui::BeginListBox(
+            "##", ImVec2(-FLT_MIN, num_items * ImGui::GetTextLineHeightWithSpacing()))) {
+        for (int i = 0; i < sd_tree_info.nodes.size(); ++i) {
+            const bool is_selected = sd_tree_info.selected_node == i;
+
+            if (ImGui::Selectable(std::to_string(i).c_str(), is_selected)) {
+                sd_tree_info.selected_node = i;
+            }
+
+            if (is_selected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+
+        ImGui::EndListBox();
+    }
+
+    if (sd_tree_info.selected_node.has_value()) {
+        const auto &node = sd_tree_info.nodes[sd_tree_info.selected_node.value()];
+
+        static ImPlotAxisFlags xflags = ImPlotAxisFlags_AutoFit;
+        static ImPlotAxisFlags yflags =
+            ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_RangeFit;
+
+        if (ImPlot::BeginPlot("Node PDF")) {
+            ImPlot::SetupAxes("X", "Y", xflags, yflags);
+            ImPlot::PlotLine("PDF", node.pdf_x_values.data(), node.pdf_y_values.data(),
+                             node.pdf_x_values.size());
+            ImPlot::EndPlot();
+        }
+    }
+
+    ImGui::End();
+}
+
+void
+Gui::render_scene_inspector() {
+    auto &scene_inspector = gui_state.scene_inspector;
+    const auto &lights = renderer->scene().lights;
+
+    ImGui::Begin("SceneInspector");
+    {
+        ImGui::SeparatorText("Lights");
+        const auto num_items = std::min(lights.size(), 8UL);
+        if (ImGui::BeginListBox(
+                "##",
+                ImVec2(-FLT_MIN, num_items * ImGui::GetTextLineHeightWithSpacing()))) {
+
+            for (int n = 0; n < lights.size(); n++) {
+                const bool is_selected = scene_inspector.selected_light == n;
+                if (ImGui::Selectable(std::to_string(n).c_str(), is_selected)) {
+                    if (scene_inspector.selected_light != n) {
+                        scene_inspector.selected_light = n;
+                        const auto &light = lights[n];
+
+                        // Update light SPD
+                        for (int i = 0; i < LAMBDA_SAMPLES; ++i) {
+                            const auto x = LAMBDA_MIN + i * LAMBDA_STEP;
+                            const auto y = light.emission(x);
+                            scene_inspector.spd_x_values[i] = x;
+                            scene_inspector.spd_y_values[i] = y;
+                        }
+                    }
+                }
+
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndListBox();
+        }
+
+        if (scene_inspector.selected_light.has_value()) {
+            static ImPlotAxisFlags xflags = ImPlotAxisFlags_AutoFit;
+            static ImPlotAxisFlags yflags =
+                ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_RangeFit;
+            if (ImPlot::BeginPlot("Light SPD")) {
+                ImPlot::SetupAxes(nullptr, nullptr, xflags, yflags);
+                ImPlot::PlotLine("power", scene_inspector.spd_x_values.data(),
+                                 scene_inspector.spd_y_values.data(),
+                                 scene_inspector.spd_x_values.size());
+                ImPlot::EndPlot();
+            }
+        }
+    }
+    ImGui::End();
+}
+
+void
 Gui::main_window() {
     auto style = ImGui::GetStyle();
     style.WindowMenuButtonPosition = ImGuiDir_None;
@@ -261,12 +391,23 @@ Gui::main_window() {
             auto dockIdRightLower = ImGui::DockBuilderSplitNode(
                 dockIdRight, ImGuiDir_Down, 0.3F, nullptr, &dockIdRight);
 
+            auto dockIdLeft = ImGui::DockBuilderSplitNode(dockSpaceId, ImGuiDir_Left,
+                                                          0.25F, nullptr, &dockSpaceId);
+
+            auto dockIdLeftLower = ImGui::DockBuilderSplitNode(
+                dockIdLeft, ImGuiDir_Down, 0.25F, nullptr, &dockIdLeft);
+
             ImGui::DockBuilderDockWindow("Render Progress", dockIdRight);
             ImGui::DockBuilderDockWindow("Viewport Settings", dockIdRightLower);
             ImGui::DockBuilderDockWindow("Viewport", dockSpaceId);
+            ImGui::DockBuilderDockWindow("Scene Inspector", dockIdLeft);
+            ImGui::DockBuilderDockWindow("Guiding Tree", dockIdLeftLower);
             ImGui::DockBuilderFinish(dockSpaceId);
         }
 
+        update_gui_state();
+        render_scene_inspector();
+        render_guiding_tree_window();
         render_progress_window();
         viewport_window();
         viewport_settings_window();
@@ -281,7 +422,7 @@ Gui::start_render_thread() {
                      renderer->scene().attribs.film.resx,
                      renderer->scene().attribs.film.resy, settings.spp);
         for (u32 sample = 1; sample <= settings.spp; sample++) {
-            renderer->compute_sample();
+            renderer->compute_current_sample();
             gui_state.render_progress.samples_done = sample;
             const auto iteration_progress = renderer->iter_progress_info();
             if (iteration_progress.has_value()) {
@@ -293,16 +434,18 @@ Gui::start_render_thread() {
 
             // Update the framebuffer when the number of samples doubles...
             if (std::popcount(renderer->framebuf().num_samples) == 1) {
-                render_outputs_need_update.store(true);
-                render_barrier.arrive_and_wait();
+                gui_state_needs_update.store(true);
+                gui_state_update_barrier.arrive_and_wait();
             }
 
             if (stop_token.stop_requested()) {
                 return;
             }
+
+            renderer->reset_iteration_sample();
         }
 
-        render_outputs_need_update.store(true);
+        gui_state_needs_update.store(true);
     });
 }
 
@@ -380,6 +523,7 @@ Gui::setup() {
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

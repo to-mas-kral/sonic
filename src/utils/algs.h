@@ -18,7 +18,8 @@ binary_search_interval(const std::size_t size, const Accessor &accessor, T val) 
     // TODO: check this for overflows...
     while (left + 1 != right) {
         std::size_t half = left + (right - left) / 2;
-        if (accessor(half) <= val) {
+        const auto accessed = accessor(half); 
+        if (accessed <= val) {
             left = half;
         } else {
             right = half;

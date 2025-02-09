@@ -1,9 +1,9 @@
 #ifndef PT_MATERIAL_H
 #define PT_MATERIAL_H
 
-#include "../color/spectral_quantity.h"
-#include "../color/spectrum.h"
 #include "../scene/texture.h"
+#include "../spectrum/spectral_quantity.h"
+#include "../spectrum/spectrum.h"
 #include "../utils/basic_types.h"
 #include "bsdf_sample.h"
 #include "coateddiffuse.h"

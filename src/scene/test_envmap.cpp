@@ -1,6 +1,6 @@
-#include "../color/spectral_quantity.h"
 #include "../math/sampling.h"
 #include "../math/vecmath.h"
+#include "../spectrum/spectral_quantity.h"
 #include "envmap.h"
 
 #include <catch2/catch_test_macros.hpp>

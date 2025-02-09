@@ -38,6 +38,7 @@ add_library(pt_lib
         src/utils/sampler.cpp
         src/utils/panic.h
         src/utils/hasher.h
+        src/utils/make_array.h
 
         src/io/image_writer.h
         src/io/progress_bar.h
@@ -74,18 +75,18 @@ add_library(pt_lib
         src/geometry/geometry_storage.cpp
         src/geometry/geometry_storage.h
 
-        src/color/rgb2spec.h
-        src/color/rgb2spec.cpp
-        src/color/spectral_quantity.h
-        src/color/spectral_quantity.cpp
-        src/color/cie_spectrums.h
-        src/color/spectrum_consts.h
-        src/color/color_space.h
-        src/color/spectrum.cpp
-        src/color/spectral_data.h
-        src/color/spectrum.h
-        src/color/sampled_lambdas.cpp
-        src/color/sampled_lambdas.h
+        src/spectrum/rgb2spec.h
+        src/spectrum/rgb2spec.cpp
+        src/spectrum/spectral_quantity.h
+        src/spectrum/spectral_quantity.cpp
+        src/spectrum/cie_spectra.h
+        src/spectrum/spectrum_consts.h
+        src/spectrum/color_space.h
+        src/spectrum/spectrum.cpp
+        src/spectrum/spectral_data.h
+        src/spectrum/spectrum.h
+        src/spectrum/sampled_lambdas.cpp
+        src/spectrum/sampled_lambdas.h
 
         src/materials/material.h
         src/materials/material.cpp
@@ -118,10 +119,14 @@ add_library(pt_lib
 
         src/path_guiding/sd_tree.cpp
         src/path_guiding/sd_tree.h
+        src/path_guiding/binary_tree.cpp
+        src/path_guiding/binary_tree.h
 
         src/gui/gui.cpp
         src/gui/gui.h
         src/gui/gui_state.h
+        src/integrator/lambda_guiding_integrator.cpp
+        src/integrator/lambda_guiding_integrator.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -169,7 +174,8 @@ target_link_libraries(pt_lib
 find_package(imgui REQUIRED)
 target_link_libraries(pt_lib PRIVATE imgui::imgui)
 
-configure_file(src/gui/Roboto-Medium.ttf font.ttf COPYONLY)
+find_package(implot REQUIRED)
+target_link_libraries(pt_lib PRIVATE implot::implot)
 
 find_package(OpenGL REQUIRED)
 target_link_libraries(pt_lib PRIVATE OpenGL)
@@ -177,6 +183,8 @@ target_link_libraries(pt_lib PRIVATE OpenGL)
 add_executable(pt
         src/main.cpp
 )
+
+configure_file(src/gui/Roboto-Medium.ttf font.ttf COPYONLY)
 
 #[[RGB2SPEC]]
 add_subdirectory(${CMAKE_SOURCE_DIR}/tools/rgb2spec)
@@ -210,6 +218,8 @@ add_executable(tests
         src/integrator/test_sobol_sampler.cpp
         src/utils/tests.cpp
         src/path_guiding/test_sd_tree.cpp
+        src/path_guiding/test_binary_tree.cpp
+        src/spectrum/test_spectrum.cpp
 )
 
 target_link_libraries(tests PRIVATE pt_lib)

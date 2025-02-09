@@ -1,9 +1,9 @@
 #ifndef PT_IMAGE_WRITER_H
 #define PT_IMAGE_WRITER_H
 
-#include "../color/color_space.h"
 #include "../framebuffer.h"
 #include "../math/vecmath.h"
+#include "../spectrum/color_space.h"
 #include "../utils/basic_types.h"
 
 #include <vector>

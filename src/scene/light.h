@@ -63,6 +63,11 @@ public:
         return emitter.emission(lambdas);
     }
 
+    f32
+    emission(const f32 lambda) const {
+        return emitter.emission(lambda);
+    }
+
 private:
     ShapeIndex shape;
     Emitter emitter;
@@ -149,6 +154,18 @@ public:
         switch (light_type) {
         case LightType::ShapeLight:
             return inner.shape_light.emission(lambdas);
+        case LightType::EnvmapLight:
+            panic();
+        default:
+            panic();
+        }
+    }
+
+    f32
+    emission(const f32 lambda) const {
+        switch (light_type) {
+        case LightType::ShapeLight:
+            return inner.shape_light.emission(lambda);
         case LightType::EnvmapLight:
             panic();
         default:

@@ -9,6 +9,7 @@
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl2.h>
+#include <implot.h>
 
 class Gui {
 public:
@@ -28,6 +29,7 @@ public:
     ~Gui() {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplSDL2_Shutdown();
+        ImPlot::DestroyContext();
         ImGui::DestroyContext();
 
         SDL_DestroyWindow(window);
@@ -37,7 +39,10 @@ public:
 
 private:
     void
-    viewport_window();
+    viewport_window() const;
+
+    void
+    update_gui_state();
 
     void
     update_viewport_textures();
@@ -47,6 +52,12 @@ private:
 
     void
     render_progress_window() const;
+
+    void
+    render_guiding_tree_window();
+
+    void
+    render_scene_inspector();
 
     void
     main_window();
@@ -74,8 +85,8 @@ private:
     Renderer *renderer;
 
     std::optional<std::jthread> render_thread;
-    std::atomic_bool render_outputs_need_update{false};
-    std::barrier<> render_barrier{2};
+    std::atomic_bool gui_state_needs_update{false};
+    std::barrier<> gui_state_update_barrier{2};
 
     void *gl_context{nullptr};
     SDL_Window *window{nullptr};

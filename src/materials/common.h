@@ -1,9 +1,9 @@
 #ifndef PT_COMMON_H
 #define PT_COMMON_H
 
-#include "../color/spectrum.h"
 #include "../integrator/shading_frame.h"
 #include "../scene/texture.h"
+#include "../spectrum/spectrum.h"
 #include "../utils/basic_types.h"
 
 #include <complex>

@@ -3,7 +3,7 @@
 #include <charconv>
 #include <miniply.h>
 
-#include "../color/spectral_data.h"
+#include "../spectrum/spectral_data.h"
 
 using namespace std::literals;
 
@@ -664,9 +664,15 @@ PbrtLoader::area_light_source(Scene &sc) {
                                                       current_astate.color_space));
         } else if (p->value_type == ValueType::Blackbody) {
             radiance = Spectrum(BlackbodySpectrum(std::get<i32>(p->inner)));
+        } else if (p->value_type == ValueType::Spectrum) {
+            throw std::runtime_error(
+                "AreaLight with radiance described with f32 spectrum not implemented");
+        } else if (p->value_type == ValueType::String) {
+            const auto spectrum_name = std::get<std::string>(p->inner);
+            radiance = sc.get_builtin_spectrum(spectrum_name);
         } else {
             throw std::runtime_error("AreaLight with radiance described other than "
-                                     "in RGB is not implemented");
+                                     "in RGB / blackbody / spectrum is not implemented");
         }
     }
 

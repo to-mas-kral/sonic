@@ -1,10 +1,10 @@
 #ifndef PT_ENVMAP_H
 #define PT_ENVMAP_H
 
-#include "../color/spectral_quantity.h"
 #include "../geometry/geometry_container.h"
 #include "../geometry/ray.h"
 #include "../math/piecewise_dist.h"
+#include "../spectrum/spectral_quantity.h"
 #include "texture.h"
 
 class AABB;

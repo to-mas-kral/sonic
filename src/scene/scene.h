@@ -57,6 +57,11 @@ struct Scene {
         }
     }
 
+    Spectrum
+    get_builtin_spectrum(const std::string &name) const {
+        return builtin_spectra.at(name);
+    }
+
     void
     set_scene_bounds(const AABB &bounds);
 

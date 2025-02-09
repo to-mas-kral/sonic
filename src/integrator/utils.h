@@ -1,7 +1,7 @@
 #ifndef PT_UTILS_H
 #define PT_UTILS_H
 
-#include "../color/spectral_quantity.h"
+#include "../spectrum/spectral_quantity.h"
 #include "../utils/basic_types.h"
 
 #include <algorithm>

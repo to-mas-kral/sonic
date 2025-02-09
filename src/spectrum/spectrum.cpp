@@ -11,8 +11,7 @@
 // TODO: FIXME - can't catch exceptions in static init
 static const auto rgb2spec = RGB2Spec("rgb2spec.out");
 
-RgbSpectrum::
-RgbSpectrum(const SigmoigCoeff &sigmoig_coeff)
+RgbSpectrum::RgbSpectrum(const SigmoigCoeff &sigmoig_coeff)
     : sigmoid_coeff(sigmoig_coeff) {}
 
 RgbSpectrum
@@ -60,8 +59,7 @@ adjust_rgb(const tuple3 &rgb) {
 }
 } // namespace
 
-RgbSpectrumUnbounded::
-RgbSpectrumUnbounded(const tuple3 &rgb)
+RgbSpectrumUnbounded::RgbSpectrumUnbounded(const tuple3 &rgb)
     : RgbSpectrum(rgb2spec.fetch(adjust_rgb(rgb))), scale(2.F * rgb.max_component()) {
     assert(rgb.min_component() >= 0.f);
 }
@@ -81,8 +79,8 @@ RgbSpectrumUnbounded::eval(const SampledLambdas &lambdas) const {
     return sq;
 }
 
-RgbSpectrumIlluminant::
-RgbSpectrumIlluminant(const tuple3 &rgb, const ColorSpace color_space)
+RgbSpectrumIlluminant::RgbSpectrumIlluminant(const tuple3 &rgb,
+                                             const ColorSpace color_space)
     : RgbSpectrumUnbounded(rgb), color_space(color_space) {}
 
 f32
@@ -114,9 +112,7 @@ RgbSpectrumIlluminant::eval(const SampledLambdas &lambdas) const {
     return sq;
 }
 
-BlackbodySpectrum::
-BlackbodySpectrum(const i32 temp)
-    : temp(temp) {
+BlackbodySpectrum::BlackbodySpectrum(const i32 temp) : temp(temp) {
     assert(temp > 0);
     assert(temp <= 12000);
 }
@@ -174,9 +170,25 @@ DenseSpectrum::eval(const SampledLambdas &sl) const {
 f32
 PiecewiseSpectrum::eval_single(const f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
+    if (lambda < vals[0] || lambda > vals[size - 2]) {
+        // Values outside of the range get mapped to 0
+        return 0.F;
+    }
+
     const auto index =
-        binary_search_interval(size, [&](const size_t i) { return vals[2 * i]; }, lambda);
-    return vals[(2 * index) + 1];
+        2 * binary_search_interval(
+                size / 2, [&](const size_t i) { return vals[i * 2]; }, lambda);
+
+    assert(index + 3 < size);
+    const auto lambda_start = vals[index];
+    const auto lambda_end = vals[index + 2];
+    assert(lambda >= lambda_start && lambda <= lambda_end && lambda_end > lambda_start);
+
+    const auto t = (lambda - lambda_start) / (lambda_end - lambda_start);
+    const auto val_start = vals[index + 1];
+    const auto val_end = vals[index + 3];
+
+    return lerp(t, val_start, val_end);
 }
 
 SpectralQuantity

@@ -36,10 +36,41 @@ struct RenderProgress {
     std::atomic_uint32_t current_iteration_done{0};
 };
 
+constexpr f32 LAMBDA_SAMPLES = 1000;
+constexpr f32 LAMBDA_STEP = (LAMBDA_MAX - LAMBDA_MIN) / LAMBDA_SAMPLES;
+
+struct SceneInspector {
+    SceneInspector()
+        : spd_x_values(LAMBDA_SAMPLES, 0.F), spd_y_values(LAMBDA_SAMPLES, 0.F) {}
+
+    std::optional<u32> selected_light;
+    std::vector<f32> spd_x_values;
+    std::vector<f32> spd_y_values;
+};
+
+struct SdTreeNodeInfo {
+    SdTreeNodeInfo()
+        : pdf_x_values(LAMBDA_SAMPLES, 0.F), pdf_y_values(LAMBDA_SAMPLES, 0.F) {}
+
+    SdTreeNodeInfo(std::vector<f32> &&pdf_x_values, std::vector<f32> &&pdf_y_values)
+        : pdf_x_values(std::move(pdf_x_values)), pdf_y_values(std::move(pdf_y_values)) {}
+
+    std::vector<f32> pdf_x_values;
+    std::vector<f32> pdf_y_values;
+};
+
+struct SdTreeGuiInfo {
+    // std::optional<SDTree> sd_tree_copy;
+    std::optional<u32> selected_node;
+    std::vector<SdTreeNodeInfo> nodes;
+};
+
 struct GuiState {
     ViewportSettings viewport_settings;
     Viewport viewport;
     RenderProgress render_progress;
+    SceneInspector scene_inspector;
+    SdTreeGuiInfo sd_tree;
 };
 
 #endif // GUISTATE_H

@@ -36,7 +36,7 @@ SampledLambdas::new_sample_uniform(const f32 xi) {
 
 /// Due to: RADZISZEWSKI, Michal; BORYCZKO, Krzysztof a ALDA, Witold.
 /// An improved technique for full spectral rendering. Václav Skala - UNION Agency, 2009.
-/// Code adapted from PBRT.
+/// PDF Code adapted from PBRT.
 SampledLambdas
 SampledLambdas::new_sample_importance(Sampler &sampler) {
     // integral of 1 / (cosh(0.0072(x-538))^2) from LAMBDA_MIN to LAMBDA_MAX.
@@ -44,13 +44,24 @@ SampledLambdas::new_sample_importance(Sampler &sampler) {
 
     SampledLambdas sl{};
 
+    const auto xi = sampler.sample();
+
     // PDF f(x) = 0.003939804229 / cosh^2(0.0072 (x - 538))
     // CDF p(x) = int_0^x f(a) da
     // sampling_routine s(x) = p(x)^-1
     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        // RADZISZEWSKI uses a quasi-monte-carlo sequence for generating the samples.
+        // Here, the technique from PBRT is used where a xi is generated and the rest are
+        // placed at equal distances in the 0-1 range.
+        auto lambda_xi = xi + static_cast<f32>(i) / static_cast<f32>(N_SPECTRUM_SAMPLES);
+
+        if (lambda_xi > 1.F) {
+            lambda_xi -= 1.F;
+        }
+
         sl.lambdas[i] =
-            538 - 138.888889f * std::atanh(0.85691062f - 1.82750197f * sampler.sample());
-        sl.pdfs[i] = NORM_CONSTANT / sqr(std::cosh(0.0072 * (sl.lambdas[i] - 538)));
+            538.F - 138.888889F * std::atanhf(0.85691062F - 1.82750197F * lambda_xi);
+        sl.pdfs[i] = NORM_CONSTANT / sqr(std::coshf(0.0072F * (sl.lambdas[i] - 538.F)));
     }
 
     return sl;
@@ -65,6 +76,10 @@ SampledLambdas::to_xyz(const SpectralQuantity &radiance) const {
             rad[i] = 0.F;
         }
         local_pdfs /= N_SPECTRUM_SAMPLES;
+    }
+
+    if (weights[0] != -1.F) {
+        rad *= weights;
     }
 
     SpectralQuantity x = CIE_X.eval(*this) * rad;

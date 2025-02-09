@@ -139,9 +139,10 @@ Quadtree::sample(Sampler &sampler) const {
     }
 }
 
-f32 Quadtree::pdf(const norm_vec3 &dir) const {
+f32
+Quadtree::pdf(const norm_vec3 &dir) const {
     const auto xy = sphere_to_square(dir);
-    
+
     auto middle = vec2(0.5F);
     f32 quadrant_len_half = 0.5F / 2.F;
     f32 square_probability = 1.F;
@@ -163,7 +164,7 @@ f32 Quadtree::pdf(const norm_vec3 &dir) const {
         const auto sum = c0_rad + c1_rad + c2_rad + c3_rad;
         const std::array<f32, 4> radiances = {c0_rad, c1_rad, c2_rad, c3_rad};
         assert(sum > 0.F);
-        
+
         const auto child_indices = node.choose_child(xy, middle, quadrant_len_half);
         square_probability *= 4.F * radiances[child_indices.inner_index] / sum;
         index = child_indices.parent_index;
@@ -171,47 +172,47 @@ f32 Quadtree::pdf(const norm_vec3 &dir) const {
 }
 
 void
-Quadtree::refine(const f32 SUBDIVIDE_CRITERION) {
+Quadtree::refine(const f32 SUBDIVISION_CRITERION) {
     const f32 total_flux = nodes[0].m_radiance.load();
 
     std::vector<QuadtreeNode> new_nodes{};
     new_nodes.resize(nodes.size());
 
     struct TraversalIndex {
-        u32 index;
-        u32 insert_at;
+        u32 index_in_old;
+        u32 index_in_new;
     };
 
     {
         std::vector stack = {TraversalIndex{
-            .index = 0,
-            .insert_at = 0,
+            .index_in_old = 0,
+            .index_in_new = 0,
         }};
 
         // Prune the children first
         u32 size_counter = 1;
         while (!stack.empty()) {
             const auto trav = stack.back();
-            auto node = nodes[trav.index];
+            auto node = nodes[trav.index_in_old];
             stack.pop_back();
 
             if (!node.is_leaf()) {
-                if (node.m_radiance.load() / total_flux < SUBDIVIDE_CRITERION) {
+                if (node.m_radiance.load() / total_flux < SUBDIVISION_CRITERION) {
                     // Prune children = don't push them to the stack
                     node.prune_children();
                 } else {
                     for (int i = 0; i < 4; ++i) {
-                        const auto insert_at = size_counter;
-                        assert(insert_at < new_nodes.size());
-                        stack.push_back(TraversalIndex{.index = node.m_children[i],
-                                                       .insert_at = insert_at});
-                        node.m_children[i] = insert_at;
+                        const auto index_in_new = size_counter;
+                        assert(index_in_new < new_nodes.size());
+                        stack.push_back(TraversalIndex{.index_in_old = node.m_children[i],
+                                                       .index_in_new = index_in_new});
+                        node.m_children[i] = index_in_new;
                         size_counter++;
                     }
                 }
             }
 
-            new_nodes[trav.insert_at] = node;
+            new_nodes[trav.index_in_new] = node;
         }
 
         new_nodes.resize(size_counter);
@@ -222,7 +223,7 @@ Quadtree::refine(const f32 SUBDIVIDE_CRITERION) {
     while (i < new_nodes.size()) {
         auto &node = new_nodes[i];
         const auto node_flux = node.m_radiance.load();
-        if (node.is_leaf() && node_flux / total_flux > SUBDIVIDE_CRITERION) {
+        if (node.is_leaf() && node_flux / total_flux > SUBDIVISION_CRITERION) {
             node.m_children[0] = new_nodes.size();
             node.m_children[1] = new_nodes.size() + 1;
             node.m_children[2] = new_nodes.size() + 2;
@@ -238,21 +239,22 @@ Quadtree::refine(const f32 SUBDIVIDE_CRITERION) {
     }
 
     // new_nodes.shrink_to_fit()...
-
+    // TODO: move
     nodes = new_nodes;
 }
 
 void
-SDTree::record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi) {
+SDTree::record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
+               const SampledLambdas &lambdas) {
     auto &node = traverse<nullptr>(pos);
-    node.record(radiance, wi);
+    node.record(radiance, lambdas, wi);
 }
 
 void
 SDTree::record_bulk(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
-                    const u32 count) {
+                    const u32 count, const SampledLambdas &lambdas) {
     auto &node = traverse<nullptr>(pos);
-    node.record_bulk(radiance, wi, count);
+    node.record_bulk(radiance, lambdas, wi, count);
 }
 
 PGSample
@@ -261,7 +263,7 @@ SDTree::sample(const point3 &pos, Sampler &sampler) {
     const auto s = node.sample(sampler);
 
     assert(s.pdf > 0.F);
-    
+
     return s;
 }
 
@@ -292,13 +294,24 @@ SDTree::refine(const u32 iteration) {
                 l_child_node.m_recording_quadtree =
                     std::make_unique<Quadtree>(*node.m_recording_quadtree);
 
+                l_child_node.m_recording_binarytree =
+                    std::make_unique<BinaryTree>(*node.m_recording_binarytree);
+
                 // No need to copy sampling quadtree, becuase it's gonna get replaced by
                 // refined version of the recording tree later.
 
                 auto r_child_node = SDTreeNode(i);
                 r_child_node.m_recording_quadtree = std::move(node.m_recording_quadtree);
+                // TODO: just delete?!
                 // Move the sampling tree as well to set it to nullptr in the parent node
                 r_child_node.m_sampling_quadtree = std::move(node.m_sampling_quadtree);
+
+                r_child_node.m_recording_binarytree =
+                    std::move(node.m_recording_binarytree);
+                // TODO: just delete?!
+                // Move the sampling tree as well to set it to nullptr in the parent node
+                r_child_node.m_sampling_binarytree =
+                    std::move(node.m_sampling_binarytree);
 
                 nodes.push_back(l_child_node);
                 nodes.push_back(r_child_node);
@@ -320,9 +333,17 @@ SDTree::refine(const u32 iteration) {
                 std::make_unique<Quadtree>(*node.m_recording_quadtree);
 
             node.m_recording_quadtree->reset_flux();
+
+            node.m_recording_binarytree->refine();
+            node.m_sampling_binarytree =
+                std::make_unique<BinaryTree>(*node.m_recording_binarytree);
+
+            node.m_recording_binarytree->reset_flux();
         } else {
             assert(node.m_recording_quadtree == nullptr);
             assert(node.m_sampling_quadtree == nullptr);
+            assert(node.m_recording_binarytree == nullptr);
+            assert(node.m_sampling_binarytree == nullptr);
         }
     }
 }

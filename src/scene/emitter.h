@@ -1,8 +1,8 @@
 #ifndef PT_EMITTER_H
 #define PT_EMITTER_H
 
-#include "../color/spectral_quantity.h"
-#include "../color/spectrum.h"
+#include "../spectrum/spectral_quantity.h"
+#include "../spectrum/spectrum.h"
 #include "../utils/basic_types.h"
 
 // Just a description of how a light emits light.
@@ -15,6 +15,9 @@ public:
 
     spectral
     emission(const SampledLambdas &lambdas) const;
+
+    f32
+    emission(f32 lambda) const;
 
     // Computes the average spectral power of the light source
     f32

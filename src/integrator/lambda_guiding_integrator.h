@@ -1,23 +1,24 @@
-#ifndef PATH_GUIDING_INTEGRATOR_H
-#define PATH_GUIDING_INTEGRATOR_H
+#ifndef LAMBDA_GUIDING_INTEGRATOR_H
+#define LAMBDA_GUIDING_INTEGRATOR_H
 
 #include "../geometry/ray.h"
-#include "../integrator_context.h"
 #include "../materials/material.h"
 #include "../path_guiding/sd_tree.h"
+#include "../settings.h"
 #include "../spectrum/spectral_quantity.h"
 #include "integrator.h"
 
 struct PathVertices;
+struct LightSample;
 struct Scene;
+class SampledLambdas;
 class Sampler;
 class EmbreeAccel;
 class IntegratorContext;
-struct LightSample;
 
-class PathGuidingIntegrator final : public Integrator {
+class LambdaGuidingIntegrator final : public Integrator {
 public:
-    explicit PathGuidingIntegrator(const Settings &settings, IntegratorContext *ctx)
+    LambdaGuidingIntegrator(const Settings &settings, IntegratorContext *ctx)
         : Integrator(ctx, settings), sd_tree(ctx->scene().bounds()) {}
 
     spectral
@@ -33,6 +34,11 @@ public:
     std::optional<IterationProgressInfo>
     iter_progress_info() const override;
 
+    std::optional<SDTree>
+    get_sd_tree() const override {
+        return sd_tree;
+    }
+
 private:
     void
     add_radiance_contrib_learning(PathVertices &path_vertices, spectral &radiance,
@@ -43,7 +49,7 @@ private:
     light_mis_pg(const Intersection &its, const Ray &traced_ray,
                  const LightSample &light_sample, const norm_vec3 &geom_normal,
                  const Material *material, const spectral &throughput,
-                 const SampledLambdas &lambdas);
+                 const SampledLambdas &lambdas) const;
 
     SDTree sd_tree;
 
@@ -52,9 +58,6 @@ private:
     u32 iteration_samples{0};
     u32 iteration_max_samples{1};
     u32 max_training_samples{64};
-
-    bool do_intermediate_images{false};
-    f32 bsdf_sampling_prob{0.5F};
 };
 
-#endif // PATH_GUIDING_INTEGRATOR_H
+#endif // LAMBDA_GUIDING_INTEGRATOR_H
