@@ -1,5 +1,7 @@
 #include "gui.h"
 
+#include "../math/samplers/halton_sampler.h"
+
 #include <SDL2/SDL_opengl.h>
 #include <imgui_internal.h>
 
@@ -346,6 +348,46 @@ Gui::render_scene_inspector() {
 }
 
 void
+Gui::pokus_window() {
+    ImGui::Begin("Pokus");
+    {
+        const auto regen = [this] {
+            gui_state.halton_x.clear();
+            gui_state.halton_y.clear();
+
+            const auto dim = gui_state.dimension;
+            for (int i = 0; i < gui_state.num_points; ++i) {
+                const auto x = HaltonSampler::radical_inverse_permuted(dim, i);
+                const auto y = HaltonSampler::radical_inverse_permuted(dim + 1, i);
+                gui_state.halton_x.push_back(x);
+                gui_state.halton_y.push_back(y);
+            }
+        };
+
+        if (gui_state.halton_x.empty()) {
+            regen();
+        }
+
+        auto changed = ImGui::SliderInt("Dimension", &gui_state.dimension, 0, 166);
+        changed |= ImGui::SliderInt("Num Points", &gui_state.num_points, 16, 1024);
+
+        if (ImPlot::BeginPlot("Halton Plot", {0, 0})) {
+            ImPlot::PlotScatter(fmt::format("Halton dimensions {}-{}",
+                                            gui_state.dimension, gui_state.dimension + 1)
+                                    .c_str(),
+                                gui_state.halton_x.data(), gui_state.halton_y.data(),
+                                gui_state.halton_x.size());
+            ImPlot::EndPlot();
+        }
+
+        if (changed) {
+            regen();
+        }
+    }
+    ImGui::End();
+}
+
+void
 Gui::main_window() {
     auto style = ImGui::GetStyle();
     style.WindowMenuButtonPosition = ImGuiDir_None;
@@ -411,6 +453,8 @@ Gui::main_window() {
         render_progress_window();
         viewport_window();
         viewport_settings_window();
+
+        pokus_window();
     }
     ImGui::End(); // Main Window
 }

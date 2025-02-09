@@ -3,11 +3,11 @@
 
 #include "../embree_accel.h"
 #include "../integrator_context.h"
+#include "../math/samplers/sampler.h"
 #include "../math/vecmath.h"
 #include "../path_guiding/sd_tree.h"
 #include "../settings.h"
 #include "../utils/basic_types.h"
-#include "../utils/sampler.h"
 
 struct PathVertex {
     spectral throughput{spectral::ONE()};
@@ -28,14 +28,13 @@ public:
 
     void
     integrate_pixel(uvec2 pixel) {
-        const auto dim = uvec2(ctx->attribs().film.resx, ctx->attribs().film.resy);
+        const auto film_res = uvec2(ctx->attribs().film.resx, ctx->attribs().film.resy);
 
-        Sampler sampler{};
-        sampler.init_frame(pixel, dim, sample, settings.spp);
+        Sampler sampler(pixel, film_res, sample);
 
         const auto cam_sample = sampler.sample2();
-        const auto ray = gen_ray(pixel.x, pixel.y, dim.x, dim.y, cam_sample, ctx->cam(),
-                                 ctx->attribs().camera.camera_to_world);
+        const auto ray = gen_ray(pixel.x, pixel.y, film_res.x, film_res.y, cam_sample,
+                                 ctx->cam(), ctx->attribs().camera.camera_to_world);
 
         SampledLambdas lambdas = SampledLambdas::new_sample_importance(sampler);
 

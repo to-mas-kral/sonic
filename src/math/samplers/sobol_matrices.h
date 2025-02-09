@@ -1,12 +1,13 @@
 #ifndef SOBOL_MATRICES_H
 #define SOBOL_MATRICES_H
 
-// Taken from PBRTv-4
+#include "../../utils/basic_types.h"
 
 #include <array>
 
 // clang-format off
 
+// Taken from PBRTv-4
 static constexpr i32 N_SOBOL_DIMENSIONS = 1024;
 static constexpr i32 SOBOL_MATRIX_SIZE = 52;
 

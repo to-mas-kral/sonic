@@ -1,5 +1,5 @@
 #include "mis_nee_integrator.h"
-#include "../utils/sampler.h"
+#include "../math/samplers/sampler.h"
 #include "integrator.h"
 #include "intersection.h"
 #include "shading_frame.h"

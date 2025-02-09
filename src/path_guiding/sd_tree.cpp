@@ -1,8 +1,8 @@
 #include "sd_tree.h"
 
+#include "../math/samplers/sampler.h"
 #include "../scene/sphere_square_mapping.h"
 #include "../utils/panic.h"
-#include "../utils/sampler.h"
 
 u32
 SDTreeNode::traverse(const point3 &pos, const Axis split_axis, AABB &bounds) const {

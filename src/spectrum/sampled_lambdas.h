@@ -1,7 +1,7 @@
 #ifndef SAMPLEDLAMBDAS_H
 #define SAMPLEDLAMBDAS_H
 
-#include "../utils/sampler.h"
+#include "../math/samplers/sampler.h"
 #include "spectral_quantity.h"
 
 class SampledLambdas {

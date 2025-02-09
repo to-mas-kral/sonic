@@ -60,6 +60,9 @@ private:
     render_scene_inspector();
 
     void
+    pokus_window();
+    
+    void
     main_window();
 
     static void

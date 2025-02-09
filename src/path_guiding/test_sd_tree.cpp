@@ -1,6 +1,6 @@
+#include "../math/samplers/sampler.h"
 #include "../math/sampling.h"
 #include "../scene/sphere_square_mapping.h"
-#include "../utils/sampler.h"
 
 #define TEST_PUBLIC
 #include "sd_tree.h"
@@ -144,8 +144,7 @@ TEST_CASE("quadtree simple record") {
 
 TEST_CASE("sample quadtree root") {
     auto tree = Quadtree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     u32 count_top = 0;
     u32 count_bottom = 0;
@@ -183,8 +182,7 @@ TEST_CASE("sample quadtree root") {
 
 TEST_CASE("quadtree refine and sample level 1") {
     auto tree = Quadtree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     for (int i = 0; i < 128; ++i) {
         const auto xi_x = sampler.sample();
@@ -233,8 +231,7 @@ TEST_CASE("quadtree refine and sample level 1") {
 
 TEST_CASE("quadtree refine multiple and sample level 1") {
     auto tree = Quadtree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 1024; ++j) {
@@ -292,8 +289,7 @@ TEST_CASE("quadtree refine multiple and sample level 1") {
 
 TEST_CASE("quadtree refine uneven and sample level 1") {
     auto tree = Quadtree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     for (int i = 0; i < 8; ++i) {
         for (int j = 0; j < 1024; ++j) {
@@ -361,8 +357,7 @@ TEST_CASE("quadtree refine uneven and sample level 1") {
 
 TEST_CASE("quadtree sampling pdf integrates to 1") {
     auto tree = Quadtree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 1024U << i; ++j) {

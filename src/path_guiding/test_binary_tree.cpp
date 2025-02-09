@@ -127,8 +127,7 @@ TEST_CASE("binarytree refine") {
 
 TEST_CASE("binary tree sampling pdf integrates to 1") {
     auto tree = BinaryTree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 1024U << i; ++j) {
@@ -156,8 +155,7 @@ TEST_CASE("binary tree sampling pdf integrates to 1") {
 
 TEST_CASE("binary tree sampling pdf matches pdf") {
     auto tree = BinaryTree();
-    auto sampler = Sampler();
-    sampler.init_frame(uvec2(1, 1), uvec2(10, 10), 1, 10);
+    auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 1024U << i; ++j) {

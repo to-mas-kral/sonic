@@ -31,11 +31,9 @@ add_library(pt_lib
         src/scene/scene_attribs.h
 
         src/utils/basic_types.h
-        src/utils/sampler.h
         src/utils/algs.h
         src/utils/thread_pool.h
         src/utils/thread_pool.cpp
-        src/utils/sampler.cpp
         src/utils/panic.h
         src/utils/hasher.h
         src/utils/make_array.h
@@ -53,6 +51,12 @@ add_library(pt_lib
         src/math/aabb.h
         src/math/discrete_dist.h
         src/math/coordinate_system.h
+        src/math/samplers/sampler.cpp
+        src/math/samplers/sampler.h
+        src/math/samplers/halton_sampler.cpp
+        src/math/samplers/halton_sampler.h
+        src/math/samplers/sobol_matrices.h
+        src/math/samplers/sobol_sampler.h
 
         src/integrator/integrator.h
         src/integrator/utils.h
@@ -61,13 +65,13 @@ add_library(pt_lib
         src/integrator/integrator_type.h
         src/integrator/mis_nee_integrator.cpp
         src/integrator/intersection.h
-        src/integrator/sobol_matrices.h
-        src/integrator/sobol_sampler.h
         src/integrator/shading_frame.h
         src/integrator/path_guiding_integrator.cpp
         src/integrator/path_guiding_integrator.h
         src/integrator/mis_nee_integrator.h
         src/integrator/integrator.cpp
+        src/integrator/lambda_guiding_integrator.cpp
+        src/integrator/lambda_guiding_integrator.h
 
         src/geometry/geometry_container.h
         src/geometry/geometry_container.cpp
@@ -125,8 +129,6 @@ add_library(pt_lib
         src/gui/gui.cpp
         src/gui/gui.h
         src/gui/gui_state.h
-        src/integrator/lambda_guiding_integrator.cpp
-        src/integrator/lambda_guiding_integrator.h
 )
 
 target_compile_options(pt_lib PUBLIC
@@ -215,7 +217,7 @@ add_executable(tests
         src/math/test_sampling_piecewise.cpp
         src/math/test_coordinate_system.cpp
         src/math/test_transform.cpp
-        src/integrator/test_sobol_sampler.cpp
+        src/math/samplers/test_sobol_sampler.cpp
         src/utils/tests.cpp
         src/path_guiding/test_sd_tree.cpp
         src/path_guiding/test_binary_tree.cpp

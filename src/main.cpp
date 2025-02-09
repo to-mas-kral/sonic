@@ -3,6 +3,7 @@
 #include "integrator/integrator_type.h"
 #include "io/image_writer.h"
 #include "io/progress_bar.h"
+#include "math/samplers/halton_sampler.h"
 #include "pbrt_loader/pbrt_loader.h"
 #include "renderer.h"
 #include "settings.h"
@@ -95,6 +96,8 @@ main(int argc, char **argv) {
     if (settings.silent) {
         spdlog::set_level(spdlog::level::err);
     }
+
+    sonic::init_halton_permutations();
 
     /*
      * Load scene attribs from the scene file

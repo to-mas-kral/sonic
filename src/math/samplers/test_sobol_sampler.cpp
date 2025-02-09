@@ -1,5 +1,5 @@
 
-#include "../utils/basic_types.h"
+#include "../../utils/basic_types.h"
 #include "sobol_sampler.h"
 
 #include "catch2/catch_test_macros.hpp"

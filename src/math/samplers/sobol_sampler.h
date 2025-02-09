@@ -1,8 +1,8 @@
 #ifndef SOBOL_SAMPLER_H
 #define SOBOL_SAMPLER_H
 
-#include "../math/vecmath.h"
-#include "../utils/basic_types.h"
+#include "../../utils/basic_types.h"
+#include "../vecmath.h"
 #include "sobol_matrices.h"
 
 #include <algorithm>

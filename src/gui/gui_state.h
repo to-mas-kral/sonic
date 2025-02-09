@@ -71,6 +71,11 @@ struct GuiState {
     RenderProgress render_progress;
     SceneInspector scene_inspector;
     SdTreeGuiInfo sd_tree;
+
+    i32 dimension = 0;
+    i32 num_points = 128;
+    std::vector<f32> halton_x;
+    std::vector<f32> halton_y;
 };
 
 #endif // GUISTATE_H
