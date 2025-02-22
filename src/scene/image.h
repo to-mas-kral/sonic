@@ -118,12 +118,12 @@ public:
 
     ~
     Image() {
-        // TODO: careful about UB, deallocation depends on which allocator (library...)
-        // was used to allocate the memory
+        // Careful about UB, deallocation depends on which allocator (library...)
+        // was used to allocate the memory.
         if (m_data_type == ImageDataType::U8 && m_pixels_u8 != nullptr) {
-            delete[] m_pixels_u8;
+            std::free(m_pixels_u8);
         } else if (m_data_type == ImageDataType::F32 && m_pixels_f32 != nullptr) {
-            delete[] m_pixels_f32;
+            std::free(m_pixels_f32);
         }
     }
 

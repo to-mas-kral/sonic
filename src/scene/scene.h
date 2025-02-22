@@ -13,6 +13,13 @@
 #include "texture.h"
 
 #include <deque>
+#include <memory_resource>
+
+namespace sonic {
+inline std::pmr::monotonic_buffer_resource mbr;
+inline std::pmr::polymorphic_allocator<f32> spectra_allocator{&mbr};
+} // namespace sonic
+
 
 // TODO: redo scene initialization when refactoring pbrt_loader...
 struct Scene {

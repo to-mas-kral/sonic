@@ -207,10 +207,15 @@ template <typename T> struct Vector2 : Tuple2Base<Vector2, T> {
 struct NormalizedVector3;
 
 template <template <typename> typename Child, typename T> struct Tuple3Base {
-    explicit Tuple3Base(T val) : x{val}, y{val}, z{val} {}
+    constexpr explicit
+    Tuple3Base(T val)
+        : x{val}, y{val}, z{val} {}
 
-    Tuple3Base(T x, T y, T z) : x{x}, y{y}, z{z} {}
+    constexpr
+    Tuple3Base(T x, T y, T z)
+        : x{x}, y{y}, z{z} {}
 
+    constexpr
     Tuple3Base() {}
 
     T
@@ -439,11 +444,17 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
 };
 
 template <typename T> struct Tuple3 : Tuple3Base<Tuple3, T> {
-    explicit Tuple3(f32 val) : Tuple3Base<Tuple3, T>(val) {}
+    explicit constexpr
+    Tuple3(f32 val)
+        : Tuple3Base<Tuple3, T>(val) {}
 
-    Tuple3(T x, T y, T z) : Tuple3Base<Tuple3, T>(x, y, z) {}
-    
-    Tuple3() : Tuple3Base<Tuple3, T>() {}
+    constexpr
+    Tuple3(T x, T y, T z)
+        : Tuple3Base<Tuple3, T>(x, y, z) {}
+
+    constexpr
+    Tuple3()
+        : Tuple3Base<Tuple3, T>() {}
 };
 
 struct NormalizedVector3 : Vector3<f32> {
@@ -492,11 +503,15 @@ Vector3<T>::reflect(const Vector3 &vec, const NormalizedVector3 &normal) {
 }
 
 template <typename T = f32> struct Point3 : Tuple3Base<Point3, f32> {
-    explicit Point3(const f32 val) : Tuple3Base(val) {}
+    explicit
+    Point3(const f32 val)
+        : Tuple3Base(val) {}
 
     Point3(const f32 x, const f32 y, const f32 z) : Tuple3Base(x, y, z) {}
 
-    explicit Point3(Vector3<T> vec) : Tuple3Base(vec.x, vec.y, vec.z) {}
+    explicit
+    Point3(Vector3<T> vec)
+        : Tuple3Base(vec.x, vec.y, vec.z) {}
 
     Point3() : Tuple3Base() {}
 

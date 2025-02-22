@@ -245,21 +245,22 @@ Quadtree::refine(const f32 SUBDIVISION_CRITERION) {
 
 void
 SDTree::record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
-               const SampledLambdas &lambdas) {
-    auto &node = traverse<nullptr>(pos);
-    node.record(radiance, lambdas, wi);
+               const SampledLambdas &lambdas, const MaterialId mat_id) {
+    auto [node, _] = traverse<nullptr>(pos);
+    node.record(radiance, lambdas, wi, mat_id);
 }
 
 void
 SDTree::record_bulk(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
-                    const u32 count, const SampledLambdas &lambdas) {
-    auto &node = traverse<nullptr>(pos);
-    node.record_bulk(radiance, lambdas, wi, count);
+                    const u32 count, const SampledLambdas &lambdas,
+                    const MaterialId mat_id) {
+    auto [node, _] = traverse<nullptr>(pos);
+    node.record_bulk(radiance, lambdas, wi, mat_id, count);
 }
 
 PGSample
 SDTree::sample(const point3 &pos, Sampler &sampler) {
-    const auto &node = traverse<nullptr>(pos);
+    const auto [node, _] = traverse<nullptr>(pos);
     const auto s = node.sample(sampler);
 
     assert(s.pdf > 0.F);
@@ -269,8 +270,14 @@ SDTree::sample(const point3 &pos, Sampler &sampler) {
 
 SDTreeNode *
 SDTree::find_node(const point3 &pos) {
-    auto &node = traverse<nullptr>(pos);
+    auto [node, _] = traverse<nullptr>(pos);
     return &node;
+}
+
+u32
+SDTree::find_node_id(const point3 &pos) {
+    auto [_, id] = traverse<nullptr>(pos);
+    return id;
 }
 
 void
@@ -294,8 +301,8 @@ SDTree::refine(const u32 iteration) {
                 l_child_node.m_recording_quadtree =
                     std::make_unique<Quadtree>(*node.m_recording_quadtree);
 
-                l_child_node.m_recording_binarytree =
-                    std::make_unique<BinaryTree>(*node.m_recording_binarytree);
+                l_child_node.m_recording_binarytrees =
+                    std::make_unique<MaterialTrees>(*node.m_recording_binarytrees);
 
                 // No need to copy sampling quadtree, becuase it's gonna get replaced by
                 // refined version of the recording tree later.
@@ -306,12 +313,12 @@ SDTree::refine(const u32 iteration) {
                 // Move the sampling tree as well to set it to nullptr in the parent node
                 r_child_node.m_sampling_quadtree = std::move(node.m_sampling_quadtree);
 
-                r_child_node.m_recording_binarytree =
-                    std::move(node.m_recording_binarytree);
+                r_child_node.m_recording_binarytrees =
+                    std::move(node.m_recording_binarytrees);
                 // TODO: just delete?!
                 // Move the sampling tree as well to set it to nullptr in the parent node
-                r_child_node.m_sampling_binarytree =
-                    std::move(node.m_sampling_binarytree);
+                r_child_node.m_sampling_binarytrees =
+                    std::move(node.m_sampling_binarytrees);
 
                 nodes.push_back(l_child_node);
                 nodes.push_back(r_child_node);
@@ -334,22 +341,22 @@ SDTree::refine(const u32 iteration) {
 
             node.m_recording_quadtree->reset_flux();
 
-            node.m_recording_binarytree->refine();
-            node.m_sampling_binarytree =
-                std::make_unique<BinaryTree>(*node.m_recording_binarytree);
+            node.m_recording_binarytrees->refine();
+            node.m_sampling_binarytrees =
+                std::make_unique<MaterialTrees>(*node.m_recording_binarytrees);
 
-            node.m_recording_binarytree->reset_flux();
+            node.m_recording_binarytrees->reset_flux();
         } else {
             assert(node.m_recording_quadtree == nullptr);
             assert(node.m_sampling_quadtree == nullptr);
-            assert(node.m_recording_binarytree == nullptr);
-            assert(node.m_sampling_binarytree == nullptr);
+            assert(node.m_recording_binarytrees == nullptr);
+            assert(node.m_sampling_binarytrees == nullptr);
         }
     }
 }
 
 template <void (*NODE_VISITOR)(SDTreeNode &), typename... Ts>
-SDTreeNode &
+std::tuple<SDTreeNode &, u32>
 SDTree::traverse(const point3 &pos, Ts... args) {
     u32 index = 0;
     auto split_axis = Axis::X;
@@ -364,7 +371,7 @@ SDTree::traverse(const point3 &pos, Ts... args) {
         }
 
         if (node.is_leaf()) {
-            return node;
+            return {node, index};
         }
 
         index = node.traverse(pos, split_axis, bounds);

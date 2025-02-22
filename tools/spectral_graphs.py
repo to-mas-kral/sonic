@@ -9,6 +9,27 @@ plt.rcParams.update({
     "font.size": 12,
 })
 
+def set_common_plot_settings(ax, ylabel, kind):
+    ax.set_xlabel(xlabel='Vlnová délka (nm)', labelpad=10)
+    ax.set_ylabel(ylabel=ylabel, labelpad=10)
+
+    ax.xaxis.set_ticks_position('bottom')
+    ax.yaxis.set_ticks_position('left')
+
+    ax.set_xlim(400, 750)
+    ax.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([400, 450, 500, 550, 600, 650, 700, 750]))
+
+    if kind == "refl":
+        ax.set_ylim(0, 1)
+        ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
+        ax.yaxis.set_minor_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
+    else:
+        ax.set_ylim(bottom=0)
+        ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
+        ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+
+    ax.legend(frameon=False)
+
 def create_chart(csv_path, ykey, outpath, color, ylabel, transform, kind):
     data = pd.read_csv(csv_path)
 
@@ -21,23 +42,9 @@ def create_chart(csv_path, ykey, outpath, color, ylabel, transform, kind):
     ax.set_xlabel(xlabel='Vlnová délka (nm)', labelpad=10)
     ax.set_ylabel(ylabel=ylabel, labelpad=10)
 
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
-
-    ax.set_xlim(400, 750)
-    ax.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([400, 450, 500, 550, 600, 650, 700, 750]))
-
-    if kind == "refl":
-        ax.set_ylim(0, 1)
-        ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
-        ax.yaxis.set_minor_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
-    else:
-        ax.set_ylim(bottom=0)
-        ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
-        ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
+    set_common_plot_settings(ax, ylabel, kind)
 
     fig.savefig(outpath, bbox_inches='tight')
-    #plt.show()
 
 def create_multi_chart(csv_path, ykeys, legend_labels, outpath, colors, ylabel, transform, kind):
     data = pd.read_csv(csv_path)
@@ -49,28 +56,9 @@ def create_multi_chart(csv_path, ykeys, legend_labels, outpath, colors, ylabel, 
     for key, color, legend_label in zip(ykeys, colors, legend_labels):
         ax.plot(data['wl'], data[key].transform(transform), color=color, linewidth=1.3, label=legend_label)
 
-    ax.set_xlabel(xlabel='Vlnová délka (nm)', labelpad=10)
-    ax.set_ylabel(ylabel=ylabel, labelpad=10)
-
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
-
-    ax.set_xlim(400, 750)
-    ax.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([400, 450, 500, 550, 600, 650, 700, 750]))
-
-    if kind == "refl":
-        ax.set_ylim(0, 1)
-        ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
-        ax.yaxis.set_minor_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
-    else:
-        ax.set_ylim(bottom=0)
-        ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
-        ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-
-    ax.legend(frameon=False)
+    set_common_plot_settings(ax, ylabel, kind)
 
     fig.savefig(outpath, bbox_inches='tight')
-    #plt.show()
 
 def create_lerp_chart(csv_path, ykey, outpath, color, ylabel, transform, kind):
     data = pd.read_csv(csv_path)
@@ -82,28 +70,23 @@ def create_lerp_chart(csv_path, ykey, outpath, color, ylabel, transform, kind):
     plot = ax.plot(data['wl'], data[ykey].transform(transform), color=color, linewidth=1.3)
     ax.plot([410., 500., 550., 720.], [1.2, 0.3, 2.7, 0.8], color=color, marker='o', linewidth=1.3)
 
-    ax.set_xlabel(xlabel='Vlnová délka (nm)', labelpad=10)
-    ax.set_ylabel(ylabel=ylabel, labelpad=10)
-
-    ax.xaxis.set_ticks_position('bottom')
-    ax.yaxis.set_ticks_position('left')
-
-    ax.set_xlim(400, 750)
-    ax.xaxis.set_major_locator(matplotlib.ticker.FixedLocator([400, 450, 500, 550, 600, 650, 700, 750]))
-
-    if kind == "refl":
-        ax.set_ylim(0, 1)
-        ax.yaxis.set_major_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
-        ax.yaxis.set_minor_locator(matplotlib.ticker.FixedLocator([0., 0.25, 0.50, 0.75, 1.0]))
-    else:
-        ax.set_ylim(bottom=0)
-        ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
-        ax.yaxis.set_minor_locator(matplotlib.ticker.NullLocator())
-
-    ax.legend(frameon=False)
+    set_common_plot_settings(ax, ylabel, kind)
 
     fig.savefig(outpath, bbox_inches='tight')
-    #plt.show()
+
+def create_analytic_chart(outpath, ylabel, color, kind):
+    x = np.linspace(360, 830, 100)
+    yfunc = np.vectorize(lambda x: 0.003939804229 / np.square(np.cosh(0.0072 * (x - 538.))))
+    y = yfunc(x)
+
+    fig = plt.figure(figsize=(3.1496062992, 1.8372703412))
+    ax = fig.add_subplot()
+
+    ax.plot(x, y, color=color, linewidth=1.3)
+
+    set_common_plot_settings(ax, ylabel, kind)
+
+    fig.savefig(outpath, bbox_inches='tight')
 
 # This is to keep ticks at min/max
 plt.rcParams['axes.autolimit_mode'] = 'round_numbers'
@@ -117,3 +100,7 @@ create_multi_chart('spectral_data/CIE_xyz_1931_2deg.csv', ['x', 'y', 'z'], ['X',
 create_multi_chart('spectral_data/CIE_lms_cf_2deg.csv', ['L', 'M', 'S'], ['L', 'M', 'S'], "cm_lms.pdf", ["Red", "Green", "Blue"], "Relativní senzitivita", lambda x : x, "sens")
 
 create_lerp_chart('spectral_data/lerp_spectrum.csv', 'value', 'lerp_spectrum.pdf', "#505ba6", r"$s(\lambda)$", lambda x : x, "generic");
+
+create_analytic_chart("visual_sampling.pdf", r"$p(\lambda)$", "#505ba6", "analytic")
+
+plt.show()

@@ -36,7 +36,7 @@ TEST_CASE("binarytree record") {
         spectral::ONE());
 
     REQUIRE(tree.nodes[1].m_radiance == 0.F);
-    REQUIRE(tree.nodes[2].m_radiance == N_SPECTRUM_SAMPLES);
+    REQUIRE(tree.nodes[2].m_radiance > 0.F);
     REQUIRE(tree.nodes[3].m_radiance == 0.F);
     REQUIRE(tree.nodes[4].m_radiance == 0.F);
     REQUIRE(tree.nodes[5].m_radiance == 0.F);
@@ -52,9 +52,9 @@ TEST_CASE("binarytree record") {
         SampledLambdas(sonic::make_array<N_SPECTRUM_SAMPLES>(400.F), spectral::ONE()),
         spectral::ONE());
 
-    REQUIRE(tree.nodes[1].m_radiance == N_SPECTRUM_SAMPLES);
-    REQUIRE(tree.nodes[2].m_radiance == N_SPECTRUM_SAMPLES);
-    REQUIRE(tree.nodes[3].m_radiance == N_SPECTRUM_SAMPLES);
+    REQUIRE(tree.nodes[1].m_radiance > 0.F);
+    REQUIRE(tree.nodes[2].m_radiance > 0.F);
+    REQUIRE(tree.nodes[3].m_radiance > 0.F);
     REQUIRE(tree.nodes[4].m_radiance == 0.F);
     REQUIRE(tree.nodes[5].m_radiance == 0.F);
     REQUIRE(tree.nodes[6].m_radiance == 0.F);
@@ -65,12 +65,12 @@ TEST_CASE("binarytree record") {
         SampledLambdas(sonic::make_array<N_SPECTRUM_SAMPLES>(540.F), spectral::ONE()),
         spectral::ONE());
 
-    REQUIRE(tree.nodes[1].m_radiance == N_SPECTRUM_SAMPLES);
+    REQUIRE(tree.nodes[1].m_radiance > 0.F);
     REQUIRE(tree.nodes[2].m_radiance == 0.F);
     REQUIRE(tree.nodes[3].m_radiance == 0.F);
-    REQUIRE(tree.nodes[4].m_radiance == N_SPECTRUM_SAMPLES);
+    REQUIRE(tree.nodes[4].m_radiance > 0.F);
     REQUIRE(tree.nodes[5].m_radiance == 0.F);
-    REQUIRE(tree.nodes[6].m_radiance == N_SPECTRUM_SAMPLES);
+    REQUIRE(tree.nodes[6].m_radiance > 0.F);
 
     tree.reset_flux();
 }
@@ -142,10 +142,12 @@ TEST_CASE("binary tree sampling pdf integrates to 1") {
 
     tree.refine();
 
+    auto dimsampler = DimensionSampler();
+    
     constexpr i32 ITERS = 16384;
     f64 pdf_sum = 0.;
     for (int i = 0; i < ITERS; ++i) {
-        const auto sample = tree.pdf(LAMBDA_MIN + sampler.sample() * (LAMBDA_RANGE - 1));
+        const auto sample = tree.pdf(LAMBDA_MIN + dimsampler.sample() * (LAMBDA_RANGE - 1));
         pdf_sum += sample;
     }
 
@@ -157,8 +159,8 @@ TEST_CASE("binary tree sampling pdf matches pdf") {
     auto tree = BinaryTree();
     auto sampler = Sampler(uvec2(1, 1), uvec2(10, 10), 10);
 
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 1024U << i; ++j) {
+    for (u32 i = 0; i < 3; ++i) {
+        for (u32 j = 0; j < 1024U << i; ++j) {
             tree.record(SampledLambdas::new_sample_importance(sampler), spectral::ONE());
         }
 

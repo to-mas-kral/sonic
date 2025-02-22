@@ -52,11 +52,16 @@ struct SdTreeNodeInfo {
     SdTreeNodeInfo()
         : pdf_x_values(LAMBDA_SAMPLES, 0.F), pdf_y_values(LAMBDA_SAMPLES, 0.F) {}
 
-    SdTreeNodeInfo(std::vector<f32> &&pdf_x_values, std::vector<f32> &&pdf_y_values)
-        : pdf_x_values(std::move(pdf_x_values)), pdf_y_values(std::move(pdf_y_values)) {}
+    SdTreeNodeInfo(const std::string &name, std::vector<f32> &&pdf_x_values,
+                   std::vector<f32> &&pdf_y_values, std::vector<f32> &&samples)
+        : name(name), pdf_x_values(std::move(pdf_x_values)),
+          pdf_y_values(std::move(pdf_y_values)), samples(std::move(samples)) {}
 
+    std::string name;
     std::vector<f32> pdf_x_values;
     std::vector<f32> pdf_y_values;
+
+    std::vector<f32> samples;
 };
 
 struct SdTreeGuiInfo {

@@ -658,22 +658,7 @@ PbrtLoader::area_light_source(Scene &sc) {
     const auto l_p = params.get_optional("L");
     if (l_p.has_value()) {
         const auto *const p = l_p.value();
-        // TODO: will need some general spectrum-loader later
-        if (p->value_type == ValueType::Rgb) {
-            radiance = Spectrum(RgbSpectrumIlluminant(std::get<tuple3>(p->inner),
-                                                      current_astate.color_space));
-        } else if (p->value_type == ValueType::Blackbody) {
-            radiance = Spectrum(BlackbodySpectrum(std::get<i32>(p->inner)));
-        } else if (p->value_type == ValueType::Spectrum) {
-            throw std::runtime_error(
-                "AreaLight with radiance described with f32 spectrum not implemented");
-        } else if (p->value_type == ValueType::String) {
-            const auto spectrum_name = std::get<std::string>(p->inner);
-            radiance = sc.get_builtin_spectrum(spectrum_name);
-        } else {
-            throw std::runtime_error("AreaLight with radiance described other than "
-                                     "in RGB / blackbody / spectrum is not implemented");
-        }
+        radiance = load_spectrum(p, sc, true);
     }
 
     const Emitter emitter{radiance, twosided, scale};
@@ -856,18 +841,8 @@ PbrtLoader::parse_conductor_material(Scene &sc, ParamsList &params) {
 SpectrumTexture *
 PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) {
     // FIXME: have to handle IlluminantSpectra here...
-    if (param.value_type == ValueType::Rgb) {
-        const auto spectrum = RgbSpectrum::from_rgb(std::get<tuple3>(param.inner));
-        return sc.add_texture(SpectrumTexture(spectrum));
-    } else if (param.value_type == ValueType::String) {
-        return sc.builtin_spectrum_textures.at(std::get<std::string>(param.inner));
-    } else if (param.value_type == ValueType::Float) {
-        return sc.add_texture(
-            SpectrumTexture(Spectrum(ConstantSpectrum(std::get<f32>(param.inner)))));
-    } else {
-        spdlog::warn("Spectrum texture '{}' unimplemented, getting default", param.name);
-        return sc.add_texture(SpectrumTexture(RgbSpectrum::from_rgb(tuple3(0.5))));
-    }
+    const auto spectrum = load_spectrum(&param, sc, false);
+    return sc.add_texture(SpectrumTexture(spectrum));
 }
 
 FloatTexture *
@@ -1154,6 +1129,47 @@ PbrtLoader::parse_spectrum_param(std::string &&name) {
     }
 
     return param;
+}
+
+Spectrum
+PbrtLoader::load_spectrum(const Param *param, const Scene &sc,
+                          const bool is_illuminant) const {
+    if (param->value_type == ValueType::Rgb) {
+        if (is_illuminant) {
+            return Spectrum(RgbSpectrumIlluminant(std::get<tuple3>(param->inner),
+                                                  current_astate.color_space));
+        } else {
+            return Spectrum(RgbSpectrum::from_rgb(std::get<tuple3>(param->inner)));
+        }
+    } else if (param->value_type == ValueType::Blackbody) {
+        return Spectrum(BlackbodySpectrum(std::get<i32>(param->inner)));
+    } else if (param->value_type == ValueType::Spectrum) {
+        if (param->type == ParamType::List) {
+            const auto piecewise_spectrum = std::get<std::vector<f32>>(param->inner);
+            auto *const ptr =
+                sonic::spectra_allocator.allocate(piecewise_spectrum.size());
+            const auto spectrum_span = std::span<f32>(ptr, piecewise_spectrum.size());
+            std::ranges::copy(piecewise_spectrum, spectrum_span.begin());
+            return Spectrum(PiecewiseSpectrum(spectrum_span));
+        } else {
+            throw std::runtime_error(fmt::format("Unknown spectrum, value type: {}",
+                                                 to_string(param->value_type)));
+        }
+    } else if (param->value_type == ValueType::String) {
+        const auto spectrum_name = std::get<std::string>(param->inner);
+        return sc.get_builtin_spectrum(spectrum_name);
+    } else if (param->value_type == ValueType::Float) {
+        if (param->type == ParamType::List) {
+            throw std::runtime_error(fmt::format("Unknown spectrum, value type: {}",
+                                                 to_string(param->value_type)));
+        } else {
+            const auto number = std::get<f32>(param->inner);
+            return Spectrum(ConstantSpectrum(number));
+        }
+    } else {
+        throw std::runtime_error(fmt::format("Unknown spectrum, value type: {}",
+                                             to_string(param->value_type)));
+    }
 }
 
 i32

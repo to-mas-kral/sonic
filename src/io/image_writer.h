@@ -36,7 +36,7 @@ write_framebuffer(const std::string &filename, Framebuffer &fb) {
     images[2].resize(width * height);
 
     for (int i = 0; i < width * height; i++) {
-        const vec3 xyz = pixels[i] / static_cast<float>(fb.num_samples);
+        const vec3 xyz = pixels[i] / static_cast<f32>(fb.num_samples);
         tuple3 rgb = xyz_to_srgb(tuple3(xyz.x, xyz.y, xyz.z));
 
         rgb.x = std::max(rgb.x, 0.F);

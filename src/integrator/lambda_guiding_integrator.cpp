@@ -1,6 +1,7 @@
 #include "lambda_guiding_integrator.h"
 
 #include "../math/samplers/sampler.h"
+#include "../utils/colormaps.h"
 #include "integrator.h"
 #include "intersection.h"
 #include "shading_frame.h"
@@ -88,15 +89,19 @@ struct PathVertices {
     }
 
     void
-    add_to_sd_tree(const SampledLambdas &lambdas) {
-        for (int i = 0; i < path_vertices.size(); ++i) {
-            auto &vertex = path_vertices[i];
+    add_to_sd_tree(const MaterialId mat_id, const SampledLambdas &lambdas,
+                   bool record_lambdas = false) {
+        for (auto &vertex : path_vertices) {
             if (vertex.count == 0) {
                 continue;
             }
 
-            vertex.tree_node->record_bulk(vertex.radiance, lambdas, vertex.wi,
-                                          vertex.count);
+            if (record_lambdas) {
+                vertex.tree_node->record_bulk(vertex.radiance, lambdas, vertex.wi, mat_id,
+                                              vertex.count);
+            } else {
+                vertex.tree_node->record_bulk(vertex.radiance, vertex.wi, vertex.count);
+            }
         }
     }
 
@@ -114,6 +119,21 @@ struct PathVertices {
 private:
     std::vector<PgVertex> path_vertices{};
 };
+
+void
+LambdaGuidingIntegrator::record_aovs(const uvec2 &pixel, const Intersection &its) {
+    Integrator::record_aovs(pixel, its);
+
+    if (iteration_samples == 0) {
+        // TOOD: refactor - make sd_tree.find_node const.
+        const auto id = sd_tree.find_node_id(its.pos);
+        const auto color = sonic::colormap(id);
+
+        ctx->framebuf().add_aov(pixel, "S-Tree ID",
+                                color * std::max(its.normal.max_component(),
+                                                 std::abs(its.normal.min_component())));
+    }
+}
 
 void
 LambdaGuidingIntegrator::add_radiance_contrib_learning(PathVertices &path_vertices,
@@ -181,6 +201,8 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
     auto last_vertex = PathVertex{};
     auto path_vertices = PathVertices();
 
+    MaterialId first_mat_id{0};
+
     while (true) {
         auto opt_its = ctx->accel().cast_ray(ray);
         if (!opt_its.has_value()) {
@@ -214,21 +236,23 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
         if (depth == 1) {
             record_aovs(pixel, its);
 
-            if (!training_phase || training_iteration != 0) {
-                // subequent iteration
+            first_mat_id = its.material_id;
 
+            if (training_phase && training_iteration > 4) {
+                // subequent iteration
                 const auto &node = sd_tree.find_node(its.pos);
 
                 //
                 // MIS sampling
                 //
-                constexpr f32 guiding_prob = 0.75F;
+                constexpr f32 guiding_prob = 0.5F;
                 constexpr f32 other_prob = 1.F - guiding_prob;
                 const auto kind = sampler.sample();
                 spectral other_pdf;
                 if (kind < guiding_prob) {
                     // Sample guiding tree
-                    lambdas = node->m_sampling_binarytree->sample(sampler);
+                    lambdas = node->m_sampling_binarytrees->sample(first_mat_id, sampler);
+
                     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
                         other_pdf[i] = 0.003939804229F /
                                        sqr(std::coshf(0.0072F * (lambdas[i] - 538.F)));
@@ -243,7 +267,8 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
                     // Sample regular
                     lambdas = SampledLambdas::new_sample_importance(sampler);
                     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-                        other_pdf[i] = node->m_sampling_binarytree->pdf(lambdas[i]);
+                        other_pdf[i] =
+                            node->m_sampling_binarytrees->pdf(first_mat_id, lambdas[i]);
                     }
 
                     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
@@ -252,6 +277,9 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
                         lambdas.weights[i] = mis_weight / other_prob;
                     }
                 }
+            } else if (!training_phase) {
+                const auto &node = sd_tree.find_node(its.pos);
+                lambdas = node->m_sampling_binarytrees->sample(first_mat_id, sampler);
             }
         }
 
@@ -357,7 +385,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
     }
 
     if (training_phase) {
-        path_vertices.add_to_sd_tree(lambdas);
+        path_vertices.add_to_sd_tree(first_mat_id, lambdas, training_iteration > 3);
     }
 
     return radiance;

@@ -72,29 +72,45 @@ Gui::update_gui_state() {
     update_viewport_textures();
 
     if (gui_state_needs_update) {
-        const auto sd_tree = renderer->integrator()->get_sd_tree();
+        const auto &sd_tree = renderer->integrator()->get_sd_tree();
         if (sd_tree.has_value()) {
             gui_state.sd_tree.nodes.clear();
 
-            const auto tree = sd_tree.value();
-            for (auto &node : tree.get_nodes()) {
+            const auto &tree = sd_tree.value();
+            for (int n = 0; n < tree.get_nodes().size(); ++n) {
+                const auto &node = tree.get_nodes()[n];
+
                 if (node.is_leaf()) {
-                    std::vector<f32> pdf_x;
-                    std::vector<f32> pdf_y;
+                    for (const auto &[mat_id, tree] :
+                         node.m_sampling_binarytrees->trees) {
+                        std::vector<f32> pdf_x;
+                        std::vector<f32> pdf_y;
 
-                    pdf_x.reserve(LAMBDA_SAMPLES);
-                    pdf_y.reserve(LAMBDA_SAMPLES);
+                        pdf_x.reserve(LAMBDA_SAMPLES);
+                        pdf_y.reserve(LAMBDA_SAMPLES);
 
-                    // Update node pdf
-                    for (int i = 0; i < LAMBDA_SAMPLES; ++i) {
-                        const auto x = LAMBDA_MIN + i * LAMBDA_STEP;
-                        const auto y = node.m_sampling_binarytree->pdf(x);
-                        pdf_x.push_back(x);
-                        pdf_y.push_back(y);
+                        // Update node pdf
+                        for (int i = 0; i < LAMBDA_SAMPLES; ++i) {
+                            const auto x = LAMBDA_MIN + i * LAMBDA_STEP;
+                            const auto y = tree.pdf(x);
+                            pdf_x.push_back(x);
+                            pdf_y.push_back(y);
+                        }
+
+                        auto samples = std::vector<f32>();
+                        samples.reserve(1000 * N_SPECTRUM_SAMPLES);
+                        for (int i = 0; i < 1000; ++i) {
+                            auto sampler = Sampler(uvec2(10, 10), uvec2(1000, 1000), i);
+                            auto lambdas = tree.sample(sampler);
+                            for (int j = 0; j < N_SPECTRUM_SAMPLES; ++j) {
+                                samples.push_back(lambdas[j]);
+                            }
+                        }
+
+                        gui_state.sd_tree.nodes.push_back(
+                            {fmt::format("Node {} - Mat {}", n, mat_id.inner),
+                             std::move(pdf_x), std::move(pdf_y), std::move(samples)});
                     }
-
-                    gui_state.sd_tree.nodes.push_back(
-                        {std::move(pdf_x), std::move(pdf_y)});
                 }
             }
         }
@@ -264,7 +280,7 @@ Gui::render_guiding_tree_window() {
         for (int i = 0; i < sd_tree_info.nodes.size(); ++i) {
             const bool is_selected = sd_tree_info.selected_node == i;
 
-            if (ImGui::Selectable(std::to_string(i).c_str(), is_selected)) {
+            if (ImGui::Selectable(sd_tree_info.nodes[i].name.c_str(), is_selected)) {
                 sd_tree_info.selected_node = i;
             }
 
@@ -284,7 +300,12 @@ Gui::render_guiding_tree_window() {
             ImPlotAxisFlags_AutoFit | ImPlotAxisFlags_RangeFit;
 
         if (ImPlot::BeginPlot("Node PDF")) {
+            static ImPlotHistogramFlags hist_flags = ImPlotHistogramFlags_Density;
             ImPlot::SetupAxes("X", "Y", xflags, yflags);
+            ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.5F);
+            ImPlot::PlotHistogram("Samples", node.samples.data(), node.samples.size(),
+                                  ImPlotBin_Sqrt, 1.0F, ImPlotRange(), hist_flags);
+            ImPlot::SetNextLineStyle(IMPLOT_AUTO_COL, 1.5F);
             ImPlot::PlotLine("PDF", node.pdf_x_values.data(), node.pdf_y_values.data(),
                              node.pdf_x_values.size());
             ImPlot::EndPlot();

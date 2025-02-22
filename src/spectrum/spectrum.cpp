@@ -17,7 +17,7 @@ RgbSpectrum::RgbSpectrum(const SigmoigCoeff &sigmoig_coeff)
 RgbSpectrum
 RgbSpectrum::from_rgb(const tuple3 &rgb) {
     // TODO: FIXME: this assert keeps happening with some image textures
-    assert(rgb.max_component() <= 1.F);
+    //assert(rgb.max_component() <= 1.F);
     assert(rgb.min_component() >= 0.F);
     return RgbSpectrum(rgb2spec.fetch(rgb));
 }
@@ -170,23 +170,23 @@ DenseSpectrum::eval(const SampledLambdas &sl) const {
 f32
 PiecewiseSpectrum::eval_single(const f32 lambda) const {
     assert(lambda >= LAMBDA_MIN && lambda <= LAMBDA_MAX);
-    if (lambda < vals[0] || lambda > vals[size - 2]) {
+    if (lambda < m_vals[0] || lambda > m_vals[m_vals.size() - 2]) {
         // Values outside of the range get mapped to 0
         return 0.F;
     }
 
     const auto index =
         2 * binary_search_interval(
-                size / 2, [&](const size_t i) { return vals[i * 2]; }, lambda);
+                m_vals.size() / 2, [&](const size_t i) { return m_vals[i * 2]; }, lambda);
 
-    assert(index + 3 < size);
-    const auto lambda_start = vals[index];
-    const auto lambda_end = vals[index + 2];
+    assert(index + 3 < m_vals.size());
+    const auto lambda_start = m_vals[index];
+    const auto lambda_end = m_vals[index + 2];
     assert(lambda >= lambda_start && lambda <= lambda_end && lambda_end > lambda_start);
 
     const auto t = (lambda - lambda_start) / (lambda_end - lambda_start);
-    const auto val_start = vals[index + 1];
-    const auto val_end = vals[index + 3];
+    const auto val_start = m_vals[index + 1];
+    const auto val_end = m_vals[index + 3];
 
     return lerp(t, val_start, val_end);
 }

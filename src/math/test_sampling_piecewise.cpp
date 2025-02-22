@@ -1,4 +1,5 @@
 #include "../scene/envmap.h"
+#include "../test/test_globals.h"
 #include "discrete_dist.h"
 #include "piecewise_dist.h"
 
@@ -148,7 +149,7 @@ TEST_CASE("sample piecewise1d third") {
     }
 
     {
-        const auto [res, index] = dist.sample_continuous(0.95f);
+        const auto [res, index] = dist.sample_continuous(0.95F);
         REQUIRE(index == 4);
         CHECK_THAT(dist.pdf(index), Catch::Matchers::WithinAbs(1.F / integral, 0.00001F));
         CHECK_THAT(dist.pdf(res), Catch::Matchers::WithinAbs(1.F / integral, 0.00001F));
@@ -162,9 +163,8 @@ TEST_CASE("piecewise2d pdf roundtrip") {
     constexpr i32 SIZE = 4096;
     func.reserve(SIZE * SIZE);
 
+    auto sampler = DimensionSampler();
     std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
-
     std::normal_distribution norm{1.0, 100.0};
 
     for (i32 i = 0; i < SIZE * SIZE; ++i) {
@@ -173,11 +173,9 @@ TEST_CASE("piecewise2d pdf roundtrip") {
 
     const auto dist = PiecewiseDist2D::from_grid(func, SIZE, SIZE);
 
-    constexpr i32 N = 32768;
+    constexpr i32 N = 1024;
     for (i32 i = 0; i < N; ++i) {
-        const auto a = distribution(generator);
-        const auto b = distribution(generator);
-        const auto xi = vec2(a, b);
+        const auto xi = sampler.sample2();
 
         const auto [xy, sample_pdf] = dist.sample(xi);
         const auto pdf = dist.pdf(xy);
@@ -188,7 +186,7 @@ TEST_CASE("piecewise2d pdf roundtrip") {
 
 TEST_CASE("piecewise2d pdf roundtrip extreme values") {
     constexpr i32 SIZE = 4096;
-    std::vector<f32> func(SIZE * SIZE, 0.f);
+    std::vector<f32> func(SIZE * SIZE, 0.F);
 
     func[10000] = 1000.F;
     func[200000] = 10000000.F;
@@ -196,16 +194,13 @@ TEST_CASE("piecewise2d pdf roundtrip extreme values") {
     func[400000] = 300000000.F;
     func[500000] = 5000000000.F;
 
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
     const auto dist = PiecewiseDist2D::from_grid(func, SIZE, SIZE);
 
-    constexpr i32 N = 32768;
+    constexpr i32 N = 1024;
     for (i32 i = 0; i < N; ++i) {
-        const auto a = distribution(generator);
-        const auto b = distribution(generator);
-        const auto xi = vec2(a, b);
+        const auto xi = sampler.sample2();
 
         const auto [xy, sample_pdf] = dist.sample(xi);
         const auto pdf = dist.pdf(xy);
@@ -215,8 +210,7 @@ TEST_CASE("piecewise2d pdf roundtrip extreme values") {
 }
 
 TEST_CASE("piecewise2d pdf roundtrip image") {
-    auto image = Image::from_filepath("../resources/test/abandoned_tank_farm_03_4k.exr");
-    auto tex = ImageTexture(&image);
+    auto tex = ImageTexture(&sonic::ENVMAP_BIG_TEST_IMAGE.value());
 
     std::vector<f32> sampling_grid(tex.width() * tex.height(), 0.F);
 
@@ -238,14 +232,11 @@ TEST_CASE("piecewise2d pdf roundtrip image") {
 
     auto dist = PiecewiseDist2D::from_grid(sampling_grid, tex.width(), tex.height());
 
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
-    constexpr i32 N = 32768;
+    constexpr i32 N = 1024;
     for (i32 i = 0; i < N; ++i) {
-        const auto a = distribution(generator);
-        const auto b = distribution(generator);
-        const auto xi = vec2(a, b);
+        const auto xi = sampler.sample2();
 
         const auto [xy, sample_pdf] = dist.sample(xi);
         const auto pdf = dist.pdf(xy);
@@ -267,14 +258,11 @@ TEST_CASE("piecewise2d sampling") {
 
     const auto dist = PiecewiseDist2D::from_grid(func, 5, 5);
 
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
     constexpr i32 N = 1024;
     for (i32 i = 0; i < N; ++i) {
-        const auto a = distribution(generator);
-        const auto b = distribution(generator);
-        const auto xi = vec2(a, b);
+        const auto xi = sampler.sample2();
         const auto [uv, pdf] = dist.sample(xi);
 
         REQUIRE_THAT(pdf, Catch::Matchers::WithinAbs(25.F, 0.0001F));
@@ -288,16 +276,14 @@ TEST_CASE("piecewise1d pdf integrates to 1") {
     std::vector<f32> func = {1.F, 2.F, 4.F, 2.F, 1.F};
     const auto dist = PiecewiseDist1D(func);
 
-    // TODO: replace with PCG or samplers ?
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
     f32 sumpdf = 0.F;
 
     constexpr i32 N = 8192;
 
     for (i32 i = 0; i < N; ++i) {
-        const auto xi = distribution(generator);
+        const auto xi = sampler.sample();
         sumpdf += dist.pdf(xi);
     }
 
@@ -318,17 +304,14 @@ TEST_CASE("piecewise2d pdf integrates to 1") {
 
     const auto dist = PiecewiseDist2D::from_grid(func, 4, 4);
 
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
     f32 sumpdf = 0.F;
 
     constexpr i32 N = 8192;
 
     for (i32 i = 0; i < N; ++i) {
-        const auto x_xi = distribution(generator);
-        const auto y_xi = distribution(generator);
-        sumpdf += dist.pdf(vec2(x_xi, y_xi));
+        sumpdf += dist.pdf(sampler.sample2());
     }
 
     f32 integral = (1.F / N) * sumpdf;

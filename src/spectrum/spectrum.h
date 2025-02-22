@@ -33,9 +33,9 @@ class PiecewiseSpectrum {
 public:
     explicit constexpr
     PiecewiseSpectrum(const std::span<const f32> &vals)
-        : vals{vals.data()}, size{static_cast<u32>(vals.size())} {
-        assert(vals.size() < std::numeric_limits<u32>::max());
-        if (vals.size() % 2 != 0 || vals.size() < 2) {
+        : m_vals{vals} {
+        assert(m_vals.size() < std::numeric_limits<u32>::max());
+        if (m_vals.size() % 2 != 0 || m_vals.size() < 2) {
             throw std::runtime_error("Piecewise spectrum data is wrong");
         }
     }
@@ -47,8 +47,7 @@ public:
     eval(const SampledLambdas &sl) const;
 
 private:
-    const f32 *vals;
-    u32 size{0};
+    std::span<const f32> m_vals;
 };
 
 class ConstantSpectrum {

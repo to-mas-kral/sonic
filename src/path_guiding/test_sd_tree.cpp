@@ -376,10 +376,11 @@ TEST_CASE("quadtree sampling pdf integrates to 1") {
 
     tree.refine();
 
-    constexpr i32 ITERS = 1024;
+    auto dimsampler = DimensionSampler();
+    constexpr i32 ITERS = 2048;
     f64 pdf_sum = 0.;
     for (int i = 0; i < ITERS; ++i) {
-        const auto sample = tree.pdf(square_to_sphere(sampler.sample2()));
+        const auto sample = tree.pdf(square_to_sphere(dimsampler.sample2()));
         pdf_sum += sample;
     }
 
@@ -498,27 +499,27 @@ TEST_CASE("spatial tree splitting") {
     SDTree tree(AABB(vec3(-1.F, -1.F, -1.F), vec3(1.F, 1.F, 1.F)));
 
     tree.record_bulk(point3(0.F), spectral::ZERO(), norm_vec3(), 100000,
-                     SampledLambdas::new_mock());
-    tree.refine(0);
+                     SampledLambdas::new_mock(), MaterialId(0));
+    tree.refine(0, false);
 
     REQUIRE(tree.nodes.size() == 3);
 
     tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10,
-                     SampledLambdas::new_mock());
+                     SampledLambdas::new_mock(), MaterialId(0));
     tree.record_bulk(point3(0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 100000,
-                     SampledLambdas::new_mock());
+                     SampledLambdas::new_mock(), MaterialId(0));
 
     REQUIRE(tree.nodes[1].record_count() == 10);
     REQUIRE(tree.nodes[2].record_count() == 100000);
 
-    tree.refine(0);
+    tree.refine(0, false);
 
     tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10,
-                     SampledLambdas::new_mock());
+                     SampledLambdas::new_mock(), MaterialId(0));
     tree.record_bulk(point3(0.5F, 0.5F, 0.F), spectral::ZERO(), norm_vec3(), 20,
-                     SampledLambdas::new_mock());
+                     SampledLambdas::new_mock(), MaterialId(0));
     tree.record_bulk(point3(0.5F, -0.5F, 0.F), spectral::ZERO(), norm_vec3(), 30,
-                     SampledLambdas::new_mock());
+                     SampledLambdas::new_mock(), MaterialId(0));
 
     REQUIRE(tree.nodes[1].record_count() == 10);
     REQUIRE(tree.nodes[3].record_count() == 30);

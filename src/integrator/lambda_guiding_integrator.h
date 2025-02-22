@@ -39,6 +39,10 @@ public:
         return sd_tree;
     }
 
+protected:
+    void
+    record_aovs(const uvec2 &pixel, const Intersection &its) override;
+
 private:
     void
     add_radiance_contrib_learning(PathVertices &path_vertices, spectral &radiance,

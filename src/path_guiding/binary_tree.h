@@ -1,9 +1,12 @@
 #ifndef BINARY_TREE_H
 #define BINARY_TREE_H
 
+#include "../materials/material_id.h"
 #include "../spectrum/sampled_lambdas.h"
 
 #include <atomic>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 
 /// A binary tree class for sampling wavelengths.
@@ -85,10 +88,100 @@ public:
     f32
     pdf(f32 lambda) const;
 
+    f32
+    total_flux() const {
+        return nodes[0].m_radiance;
+    }
+
     void
     record(const SampledLambdas &lambdas, const spectral &radiance);
 
     std::vector<BinaryTreeNode> nodes{};
+};
+
+class MaterialTrees {
+public:
+    MaterialTrees() = default;
+
+    MaterialTrees(const MaterialTrees &other) : trees(other.trees) {}
+
+    MaterialTrees(MaterialTrees &&other) noexcept : trees(std::move(other.trees)) {}
+
+    MaterialTrees &
+    operator=(const MaterialTrees &other) {
+        if (this == &other) {
+            return *this;
+        }
+
+        trees = other.trees;
+        return *this;
+    }
+
+    MaterialTrees &
+    operator=(MaterialTrees &&other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+
+        trees = std::move(other.trees);
+        return *this;
+    }
+
+    ~MaterialTrees() = default;
+
+    void
+    refine(const f32 SUBDIVISION_CRITERION = 0.03F) {
+        std::erase_if(trees, [](auto &kv) { return kv.second.total_flux() == 0.F; });
+
+        for (auto &[_, tree] : trees) {
+            tree.refine(SUBDIVISION_CRITERION);
+        }
+    }
+
+    void
+    reset_flux() {
+        for (auto &[_, tree] : trees) {
+            tree.reset_flux();
+        }
+    }
+
+    SampledLambdas
+    sample(const MaterialId mat_id, Sampler &sampler) const {
+        if (!trees.contains(mat_id)) {
+            return SampledLambdas::new_sample_importance(sampler);
+        }
+
+        return trees.at(mat_id).sample(sampler);
+    }
+
+    f32
+    pdf(const MaterialId mat_id, const f32 lambda) const {
+        if (!trees.contains(mat_id)) {
+            return 0.003939804229F / sqr(std::coshf(0.0072F * (lambda - 538.F)));
+        }
+
+        return trees.at(mat_id).pdf(lambda);
+    }
+
+    void
+    record(const MaterialId mat_id, const SampledLambdas &lambdas,
+           const spectral &radiance) {
+        const std::scoped_lock lock(trees_mutex);
+        ensure_mat_id_present(mat_id);
+        trees.at(mat_id).record(lambdas, radiance);
+    }
+
+    std::unordered_map<MaterialId, BinaryTree> trees;
+
+private:
+    void
+    ensure_mat_id_present(const MaterialId mat_id) {
+        if (!trees.contains(mat_id)) {
+            trees.insert({mat_id, BinaryTree()});
+        }
+    }
+
+    std::mutex trees_mutex;
 };
 
 #endif // BINARY_TREE_H

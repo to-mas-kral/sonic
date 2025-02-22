@@ -4,6 +4,8 @@ project(pt CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+
 #[[Main executable]]
 
 add_library(pt_lib
@@ -37,6 +39,7 @@ add_library(pt_lib
         src/utils/panic.h
         src/utils/hasher.h
         src/utils/make_array.h
+        src/utils/colormaps.h
 
         src/io/image_writer.h
         src/io/progress_bar.h
@@ -209,6 +212,8 @@ target_link_libraries(pt PRIVATE pt_lib)
 
 #[[Tests]]
 add_executable(tests
+        src/test/catch2_test_setup.cpp
+        src/test/test_globals.h
         src/pbrt_loader/test_lexer.cpp
         src/pbrt_loader/test_params_parser.cpp
         src/pbrt_loader/test_pbrt_loader.cpp

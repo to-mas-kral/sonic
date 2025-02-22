@@ -1,5 +1,6 @@
 #include "binary_tree.h"
 
+#include "../spectrum/spectrum.h"
 #include "../spectrum/spectrum_consts.h"
 
 void
@@ -78,7 +79,14 @@ BinaryTree::sample(Sampler &sampler) const {
         return SampledLambdas::new_sample_importance(sampler);
     }
 
+    const auto xi_base = sampler.sample();
+
     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        auto xi = xi_base + static_cast<f32>(i) / static_cast<f32>(N_SPECTRUM_SAMPLES);
+        if (xi > 1.F) {
+            xi -= 1.F;
+        }
+
         u32 node_index = 0;
         f32 midpoint = 0.5F;
         f32 current_half = 0.25F;
@@ -90,7 +98,6 @@ BinaryTree::sample(Sampler &sampler) const {
                 const auto node_start = midpoint - 2.F * current_half;
                 const auto node_end = midpoint + 2.F * current_half;
 
-                const auto xi = sampler.sample();
                 const auto lambda_map = node_start + xi * (node_end - node_start);
 
                 const auto lambda = LAMBDA_MIN + lambda_map * (LAMBDA_RANGE - 1);
@@ -108,15 +115,17 @@ BinaryTree::sample(Sampler &sampler) const {
             const auto r_child_frac = r_child.m_radiance / radiance_sum;
             const auto l_child_frac = l_child.m_radiance / radiance_sum;
 
-            const f32 xi = sampler.sample();
             if (xi < r_child_frac) {
                 midpoint += current_half;
                 node_index = node.m_children_indices[1];
                 node_probability *= 2.F * r_child_frac;
+                xi /= r_child_frac;
             } else {
                 midpoint -= current_half;
                 node_index = node.m_children_indices[0];
                 node_probability *= 2.F * l_child_frac;
+                xi -= r_child_frac;
+                xi /= l_child_frac;
             }
 
             current_half /= 2.F;
@@ -166,6 +175,10 @@ void
 BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
     // TODO: this is O(n^2), improve later
     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        if (radiance[i] == 0.F) {
+            continue;
+        }
+
         const f32 lambda = lambdas[i];
         const f32 lambda_map = (lambda - LAMBDA_MIN) / (LAMBDA_RANGE - 1);
 
@@ -175,7 +188,11 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
         while (true) {
             auto &node = nodes[node_index];
 
-            node.m_radiance.fetch_add(radiance[i] / lambdas.pdfs[i]);
+            // constexpr auto sensor_response = 1.F;
+            const auto sensor_response =
+                0.003939804229F / sqr(std::coshf(0.0072F * (lambdas[i] - 538.F)));
+
+            node.m_radiance.fetch_add(radiance[i] * sensor_response / lambdas.pdfs[i]);
 
             if (node.is_leaf()) {
                 break;

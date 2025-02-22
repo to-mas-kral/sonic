@@ -305,6 +305,9 @@ private:
         }
     }
 
+    Spectrum
+    load_spectrum(const Param *param, const Scene &sc, bool is_illuminant) const;
+
     i32
     parse_int();
 

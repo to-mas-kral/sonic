@@ -46,7 +46,8 @@ public:
 
     void
     reset() {
-        std::fill(pixels.begin(), pixels.end(), vec3(0.f));
+        std::ranges::fill(pixels, vec3(0.F));
+        m_aovs.clear();
         num_samples = 0;
     }
 
@@ -57,7 +58,7 @@ public:
 
     void
     add_to_pixel(const uvec2 &pixel, const vec3 &val) {
-        const auto pixel_index = ((m_height_y - 1U - pixel.y) * m_width_x) + pixel.x;
+        const auto pixel_index = (pixel.y * m_width_x) + pixel.x;
         pixels[pixel_index] += val;
     }
 
@@ -71,7 +72,7 @@ public:
         auto &aov_var = m_aovs.at(name);
         auto &aov = std::get<std::vector<AOVVar>>(aov_var);
 
-        const auto pixel_index = ((m_height_y - 1U - pixel.y) * m_width_x) + pixel.x;
+        const auto pixel_index = (pixel.y * m_width_x) + pixel.x;
         aov[pixel_index] += val;
     }
 

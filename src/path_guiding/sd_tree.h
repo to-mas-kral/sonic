@@ -118,8 +118,8 @@ public:
     explicit SDTreeNode(const u32 parent_index)
         : m_recording_quadtree{std::make_unique<Quadtree>()},
           m_sampling_quadtree{std::make_unique<Quadtree>()},
-          m_recording_binarytree{std::make_unique<BinaryTree>()},
-          m_sampling_binarytree{std::make_unique<BinaryTree>()},
+          m_recording_binarytrees{std::make_unique<MaterialTrees>()},
+          m_sampling_binarytrees{std::make_unique<MaterialTrees>()},
           m_parent_index{parent_index} {}
 
     SDTreeNode(const SDTreeNode &other)
@@ -134,13 +134,13 @@ public:
             m_sampling_quadtree = std::make_unique<Quadtree>(*other.m_sampling_quadtree);
         }
 
-        if (other.m_recording_binarytree) {
-            m_recording_binarytree =
-                std::make_unique<BinaryTree>(*other.m_recording_binarytree);
+        if (other.m_recording_binarytrees) {
+            m_recording_binarytrees =
+                std::make_unique<MaterialTrees>(*other.m_recording_binarytrees);
         }
-        if (other.m_sampling_binarytree) {
-            m_sampling_binarytree =
-                std::make_unique<BinaryTree>(*other.m_sampling_binarytree);
+        if (other.m_sampling_binarytrees) {
+            m_sampling_binarytrees =
+                std::make_unique<MaterialTrees>(*other.m_sampling_binarytrees);
         }
     }
 
@@ -186,10 +186,11 @@ public:
     traverse(const point3 &pos, Axis split_axis, AABB &bounds) const;
 
     void
-    record(const spectral &radiance, const SampledLambdas &lambdas, const norm_vec3 &wi) {
+    record(const spectral &radiance, const SampledLambdas &lambdas, const norm_vec3 &wi,
+           const MaterialId mat_id) {
         m_record_count.fetch_add(1, std::memory_order_relaxed);
         m_recording_quadtree->record(radiance, wi);
-        m_recording_binarytree->record(lambdas, radiance);
+        m_recording_binarytrees->record(mat_id, lambdas, radiance);
     }
 
     void
@@ -200,10 +201,10 @@ public:
 
     void
     record_bulk(const spectral &radiance, const SampledLambdas &lambdas,
-                const norm_vec3 &wi, const u32 count) {
+                const norm_vec3 &wi, const MaterialId mat_id, const u32 count) {
         m_record_count.fetch_add(count, std::memory_order_relaxed);
         m_recording_quadtree->record(radiance, wi);
-        m_recording_binarytree->record(lambdas, radiance);
+        m_recording_binarytrees->record(mat_id, lambdas, radiance);
     }
 
     PGSample
@@ -239,8 +240,8 @@ public:
     // Can be null for interior nodes
     std::unique_ptr<Quadtree> m_recording_quadtree{nullptr};
     std::unique_ptr<Quadtree> m_sampling_quadtree{nullptr};
-    std::unique_ptr<BinaryTree> m_recording_binarytree{nullptr};
-    std::unique_ptr<BinaryTree> m_sampling_binarytree{nullptr};
+    std::unique_ptr<MaterialTrees> m_recording_binarytrees{nullptr};
+    std::unique_ptr<MaterialTrees> m_sampling_binarytrees{nullptr};
 
 private:
     //  TODO: could put this inside a union
@@ -259,17 +260,20 @@ public:
 
     void
     record(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
-           const SampledLambdas &lambdas);
+           const SampledLambdas &lambdas, MaterialId mat_id);
 
     void
     record_bulk(const point3 &pos, const spectral &radiance, const norm_vec3 &wi,
-                u32 count, const SampledLambdas &lambdas);
+                u32 count, const SampledLambdas &lambdas, MaterialId mat_id);
 
     PGSample
     sample(const point3 &pos, Sampler &sampler);
 
     SDTreeNode *
     find_node(const point3 &pos);
+
+    u32
+    find_node_id(const point3 &pos);
 
     /// Creates a new sampling tree from the recording tree
     /// iteration starts from 0 as far as I can tell
@@ -287,7 +291,7 @@ public:
 private:
 #endif
     template <void (*NODE_VISITOR)(SDTreeNode &), typename... Ts>
-    SDTreeNode &
+    std::tuple<SDTreeNode &, u32>
     traverse(const point3 &pos, Ts...);
 
     AABB scene_bounds;

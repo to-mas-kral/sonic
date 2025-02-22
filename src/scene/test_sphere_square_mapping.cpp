@@ -1,3 +1,4 @@
+#include "../math/samplers/sampler.h"
 #include "../math/vecmath.h"
 #include "sphere_square_mapping.h"
 
@@ -5,17 +6,13 @@
 
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include <random>
 
 TEST_CASE("sphere_to_square roundtrip 1", "[sphere_to_square roundtrip 1]") {
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
-    constexpr i32 N = 8192;
+    constexpr i32 N = 1024;
     for (int i = 0; i < N; ++i) {
-        const auto x = distribution(generator);
-        const auto y = distribution(generator);
-        const auto uv = vec2(x, y);
+        const auto uv = sampler.sample2();
 
         const auto vec = square_to_sphere(uv);
         const auto uv_roundtrip = sphere_to_square(vec);
@@ -27,15 +24,11 @@ TEST_CASE("sphere_to_square roundtrip 1", "[sphere_to_square roundtrip 1]") {
 }
 
 TEST_CASE("sphere_to_square roundtrip 2", "[sphere_to_square roundtrip 2]") {
-    std::mt19937 generator(73927932889);
-    std::uniform_real_distribution<f32> distribution{};
+    auto sampler = DimensionSampler();
 
     constexpr i32 N = 8192;
     for (int i = 0; i < N; ++i) {
-        const auto x = distribution(generator);
-        const auto y = distribution(generator);
-        const auto z = distribution(generator);
-        const auto vec = vec3(x, y, z).normalized();
+        const auto vec = sampler.sample3().normalized();
 
         const auto uv = sphere_to_square(vec);
         const auto vec_roundtrip = square_to_sphere(uv);

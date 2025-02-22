@@ -94,8 +94,8 @@ protected:
     void
     add_radiance_contrib(spectral &radiance, const spectral &contrib) const;
 
-    void
-    record_aovs(const uvec2 &pixel, const Intersection &its) const {
+    virtual void
+    record_aovs(const uvec2 &pixel, const Intersection &its) {
         ctx->framebuf().add_aov(pixel, "Normals", its.normal.as_tuple());
         ctx->framebuf().add_aov(pixel, "Position", its.pos.as_tuple());
     }
@@ -120,7 +120,7 @@ private:
         const f32 t_offset = sample.y;
 
         const f32 s = (static_cast<f32>(x) + s_offset) / image_x;
-        const f32 t = (static_cast<f32>(y) + t_offset) / image_y;
+        const f32 t = (static_cast<f32>(res_y - y - 1) + t_offset) / image_y;
 
         Ray ray = cam.get_ray(s, t);
         ray.transform(cam_to_world);
