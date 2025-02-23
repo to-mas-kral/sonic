@@ -12,6 +12,8 @@
 #include "../scene/scene.h"
 #include "../utils/basic_types.h"
 
+enum class RgbSpectrumKind { Bounded, Unbounded, Illuminant };
+
 struct AttributeState {
     SquareMatrix4 ctm = SquareMatrix4::identity();
     bool reverse_orientation = false;
@@ -35,11 +37,9 @@ struct RoughnessDescription {
 
 class PbrtLoader {
 public:
-    explicit
-    PbrtLoader(const std::filesystem::path &file_path);
+    explicit PbrtLoader(const std::filesystem::path &file_path);
 
-    explicit
-    PbrtLoader(const std::string &input);
+    explicit PbrtLoader(const std::string &input);
 
     void
     load_scene(Scene &sc);
@@ -232,7 +232,7 @@ private:
     }
 
     SpectrumTexture *
-    parse_inline_spectrum_texture(const Param &param, Scene &sc);
+    parse_inline_spectrum_texture(const Param &param, Scene &sc) const;
 
     FloatTexture *
     parse_inline_float_texture(const Param &param, Scene &sc) const;
@@ -306,7 +306,8 @@ private:
     }
 
     Spectrum
-    load_spectrum(const Param *param, const Scene &sc, bool is_illuminant) const;
+    load_spectrum(const Param *param, const Scene &sc,
+                  RgbSpectrumKind spectrum_kind = RgbSpectrumKind::Bounded) const;
 
     i32
     parse_int();

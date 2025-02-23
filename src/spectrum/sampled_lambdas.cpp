@@ -7,7 +7,7 @@ static constexpr f32 UNIFORM_PDF =
     1.F / (static_cast<f32>(LAMBDA_MAX) - static_cast<f32>(LAMBDA_MIN));
 
 SampledLambdas
-SampledLambdas::new_sample_uniform(const f32 xi) {
+SampledLambdas::sample_uniform(const f32 xi) {
     SampledLambdas sl{};
 
     constexpr f32 lambda_min = static_cast<f32>(LAMBDA_MIN);
@@ -38,13 +38,8 @@ SampledLambdas::new_sample_uniform(const f32 xi) {
 /// An improved technique for full spectral rendering. Václav Skala - UNION Agency, 2009.
 /// PDF Code adapted from PBRT.
 SampledLambdas
-SampledLambdas::new_sample_importance(Sampler &sampler) {
-    // integral of 1 / (cosh(0.0072(x-538))^2) from LAMBDA_MIN to LAMBDA_MAX.
-    constexpr f32 NORM_CONSTANT = 0.003939804229F;
-
+SampledLambdas::sample_visual_importance(const f32 xi) {
     SampledLambdas sl{};
-
-    const auto xi = sampler.sample();
 
     // PDF f(x) = 0.003939804229 / cosh^2(0.0072 (x - 538))
     // CDF p(x) = int_0^x f(a) da
@@ -61,10 +56,17 @@ SampledLambdas::new_sample_importance(Sampler &sampler) {
 
         sl.lambdas[i] =
             538.F - 138.888889F * std::atanhf(0.85691062F - 1.82750197F * lambda_xi);
-        sl.pdfs[i] = NORM_CONSTANT / sqr(std::coshf(0.0072F * (sl.lambdas[i] - 538.F)));
+        sl.pdfs[i] = pdf_visual_importance(sl.lambdas[i]);
     }
 
     return sl;
+}
+
+f32
+SampledLambdas::pdf_visual_importance(const f32 lambda) {
+    // integral of 1 / (cosh(0.0072(x-538))^2) from LAMBDA_MIN to LAMBDA_MAX.
+    constexpr f32 NORM_CONSTANT = 0.003939804229F;
+    return NORM_CONSTANT / sqr(std::coshf(0.0072F * (lambda - 538.F)));
 }
 
 vec3

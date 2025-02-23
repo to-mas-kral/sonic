@@ -2,6 +2,7 @@
 
 #include "../math/samplers/sampler.h"
 #include "../utils/colormaps.h"
+#include "../utils/float_comparison.h"
 #include "integrator.h"
 #include "intersection.h"
 #include "shading_frame.h"
@@ -251,11 +252,11 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
                 spectral other_pdf;
                 if (kind < guiding_prob) {
                     // Sample guiding tree
-                    lambdas = node->m_sampling_binarytrees->sample(first_mat_id, sampler);
+                    lambdas = node->m_sampling_binarytrees->sample(first_mat_id,
+                                                                   sampler.sample());
 
                     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-                        other_pdf[i] = 0.003939804229F /
-                                       sqr(std::coshf(0.0072F * (lambdas[i] - 538.F)));
+                        other_pdf[i] = SampledLambdas::pdf_visual_importance(lambdas[i]);
                     }
 
                     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
@@ -265,7 +266,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
                     }
                 } else {
                     // Sample regular
-                    lambdas = SampledLambdas::new_sample_importance(sampler);
+                    lambdas = SampledLambdas::sample_visual_importance(sampler.sample());
                     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
                         other_pdf[i] =
                             node->m_sampling_binarytrees->pdf(first_mat_id, lambdas[i]);
@@ -279,7 +280,8 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
                 }
             } else if (!training_phase) {
                 const auto &node = sd_tree.find_node(its.pos);
-                lambdas = node->m_sampling_binarytrees->sample(first_mat_id, sampler);
+                lambdas =
+                    node->m_sampling_binarytrees->sample(first_mat_id, sampler.sample());
             }
         }
 

@@ -36,7 +36,8 @@ public:
         const auto ray = gen_ray(pixel.x, pixel.y, film_res.x, film_res.y, cam_sample,
                                  ctx->cam(), ctx->attribs().camera.camera_to_world);
 
-        SampledLambdas lambdas = SampledLambdas::new_sample_importance(sampler);
+        SampledLambdas lambdas =
+            SampledLambdas::sample_visual_importance(sampler.sample());
 
         const auto radiance = estimate_radiance(ray, sampler, lambdas, pixel);
 

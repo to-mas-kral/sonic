@@ -658,7 +658,7 @@ PbrtLoader::area_light_source(Scene &sc) {
     const auto l_p = params.get_optional("L");
     if (l_p.has_value()) {
         const auto *const p = l_p.value();
-        radiance = load_spectrum(p, sc, true);
+        radiance = load_spectrum(p, sc, RgbSpectrumKind::Illuminant);
     }
 
     const Emitter emitter{radiance, twosided, scale};
@@ -839,9 +839,9 @@ PbrtLoader::parse_conductor_material(Scene &sc, ParamsList &params) {
 // TODO: probably should validate here, that the texture has correct params
 
 SpectrumTexture *
-PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) {
+PbrtLoader::parse_inline_spectrum_texture(const Param &param, Scene &sc) const {
     // FIXME: have to handle IlluminantSpectra here...
-    const auto spectrum = load_spectrum(&param, sc, false);
+    const auto spectrum = load_spectrum(&param, sc, RgbSpectrumKind::Unbounded);
     return sc.add_texture(SpectrumTexture(spectrum));
 }
 
@@ -1133,13 +1133,18 @@ PbrtLoader::parse_spectrum_param(std::string &&name) {
 
 Spectrum
 PbrtLoader::load_spectrum(const Param *param, const Scene &sc,
-                          const bool is_illuminant) const {
+                          const RgbSpectrumKind spectrum_kind) const {
     if (param->value_type == ValueType::Rgb) {
-        if (is_illuminant) {
+        if (spectrum_kind == RgbSpectrumKind::Illuminant) {
             return Spectrum(RgbSpectrumIlluminant(std::get<tuple3>(param->inner),
                                                   current_astate.color_space));
         } else {
-            return Spectrum(RgbSpectrum::from_rgb(std::get<tuple3>(param->inner)));
+            const auto rgb = std::get<tuple3>(param->inner);
+            if (rgb.max_component() > 1.F) {
+                return Spectrum(RgbSpectrumUnbounded(rgb));
+            } else {
+                return Spectrum(RgbSpectrum::from_rgb(rgb));
+            }
         }
     } else if (param->value_type == ValueType::Blackbody) {
         return Spectrum(BlackbodySpectrum(std::get<i32>(param->inner)));

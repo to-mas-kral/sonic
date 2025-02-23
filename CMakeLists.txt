@@ -40,6 +40,7 @@ add_library(pt_lib
         src/utils/hasher.h
         src/utils/make_array.h
         src/utils/colormaps.h
+        src/utils/float_comparison.h
 
         src/io/image_writer.h
         src/io/progress_bar.h

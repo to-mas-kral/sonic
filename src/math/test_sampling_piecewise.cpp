@@ -2,6 +2,7 @@
 #include "../test/test_globals.h"
 #include "discrete_dist.h"
 #include "piecewise_dist.h"
+#include "samplers/sampler.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
@@ -214,7 +215,7 @@ TEST_CASE("piecewise2d pdf roundtrip image") {
 
     std::vector<f32> sampling_grid(tex.width() * tex.height(), 0.F);
 
-    const auto lambdas = SampledLambdas::new_sample_uniform(0.4F);
+    const auto lambdas = SampledLambdas::sample_uniform(0.4F);
 
     spectral sum_rad = spectral::ZERO();
 

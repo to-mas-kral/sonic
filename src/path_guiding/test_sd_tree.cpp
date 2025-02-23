@@ -500,7 +500,7 @@ TEST_CASE("spatial tree splitting") {
 
     tree.record_bulk(point3(0.F), spectral::ZERO(), norm_vec3(), 100000,
                      SampledLambdas::new_mock(), MaterialId(0));
-    tree.refine(0, false);
+    tree.refine(0);
 
     REQUIRE(tree.nodes.size() == 3);
 
@@ -512,7 +512,7 @@ TEST_CASE("spatial tree splitting") {
     REQUIRE(tree.nodes[1].record_count() == 10);
     REQUIRE(tree.nodes[2].record_count() == 100000);
 
-    tree.refine(0, false);
+    tree.refine(0);
 
     tree.record_bulk(point3(-0.5F, 0.F, 0.F), spectral::ZERO(), norm_vec3(), 10,
                      SampledLambdas::new_mock(), MaterialId(0));

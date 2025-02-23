@@ -1,16 +1,18 @@
 #ifndef SAMPLEDLAMBDAS_H
 #define SAMPLEDLAMBDAS_H
 
-#include "../math/samplers/sampler.h"
 #include "spectral_quantity.h"
 
 class SampledLambdas {
 public:
     static SampledLambdas
-    new_sample_uniform(f32 xi);
+    sample_uniform(f32 xi);
 
     static SampledLambdas
-    new_sample_importance(Sampler &sampler);
+    sample_visual_importance(f32 xi);
+
+    static f32
+    pdf_visual_importance(f32 lambda);
 
     static SampledLambdas
     new_mock();

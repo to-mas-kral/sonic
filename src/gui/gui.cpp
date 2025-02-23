@@ -101,7 +101,7 @@ Gui::update_gui_state() {
                         samples.reserve(1000 * N_SPECTRUM_SAMPLES);
                         for (int i = 0; i < 1000; ++i) {
                             auto sampler = Sampler(uvec2(10, 10), uvec2(1000, 1000), i);
-                            auto lambdas = tree.sample(sampler);
+                            auto lambdas = tree.sample(sampler.sample());
                             for (int j = 0; j < N_SPECTRUM_SAMPLES; ++j) {
                                 samples.push_back(lambdas[j]);
                             }

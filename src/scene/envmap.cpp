@@ -15,7 +15,7 @@ Envmap::from_image(const ImageTexture &tex, const f32 scale,
                    const SquareMatrix4 &world_from_light) {
     std::vector<f32> sampling_grid(tex.width() * tex.height(), 0.f);
 
-    const auto lambdas = SampledLambdas::new_sample_uniform(0.4f);
+    const auto lambdas = SampledLambdas::sample_uniform(0.4f);
 
     spectral sum_rad = spectral::ZERO();
 

@@ -83,7 +83,7 @@ public:
     }
 
     SampledLambdas
-    sample(Sampler &sampler) const;
+    sample(f32 xi) const;
 
     f32
     pdf(f32 lambda) const;
@@ -146,18 +146,18 @@ public:
     }
 
     SampledLambdas
-    sample(const MaterialId mat_id, Sampler &sampler) const {
+    sample(const MaterialId mat_id, const f32 xi) const {
         if (!trees.contains(mat_id)) {
-            return SampledLambdas::new_sample_importance(sampler);
+            return SampledLambdas::sample_visual_importance(xi);
         }
 
-        return trees.at(mat_id).sample(sampler);
+        return trees.at(mat_id).sample(xi);
     }
 
     f32
     pdf(const MaterialId mat_id, const f32 lambda) const {
         if (!trees.contains(mat_id)) {
-            return 0.003939804229F / sqr(std::coshf(0.0072F * (lambda - 538.F)));
+            return SampledLambdas::pdf_visual_importance(lambda);
         }
 
         return trees.at(mat_id).pdf(lambda);

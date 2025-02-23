@@ -71,15 +71,13 @@ BinaryTree::refine(const f32 SUBDIVISION_CRITERION) {
 }
 
 SampledLambdas
-BinaryTree::sample(Sampler &sampler) const {
+BinaryTree::sample(const f32 xi_base) const {
     std::array<f32, N_SPECTRUM_SAMPLES> lambdas;
     spectral pdfs;
 
     if (nodes[0].m_radiance == 0.F) {
-        return SampledLambdas::new_sample_importance(sampler);
+        return SampledLambdas::sample_visual_importance(xi_base);
     }
-
-    const auto xi_base = sampler.sample();
 
     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
         auto xi = xi_base + static_cast<f32>(i) / static_cast<f32>(N_SPECTRUM_SAMPLES);
@@ -188,9 +186,8 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
         while (true) {
             auto &node = nodes[node_index];
 
-            // constexpr auto sensor_response = 1.F;
             const auto sensor_response =
-                0.003939804229F / sqr(std::coshf(0.0072F * (lambdas[i] - 538.F)));
+                SampledLambdas::pdf_visual_importance(lambdas[i]);
 
             node.m_radiance.fetch_add(radiance[i] * sensor_response / lambdas.pdfs[i]);
 

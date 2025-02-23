@@ -1,3 +1,4 @@
+#include "../math/samplers/sampler.h"
 #include "../spectrum/spectrum_consts.h"
 #include "../utils/make_array.h"
 #include "binary_tree.h"
@@ -131,7 +132,8 @@ TEST_CASE("binary tree sampling pdf integrates to 1") {
 
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 1024U << i; ++j) {
-            tree.record(SampledLambdas::new_sample_importance(sampler), spectral::ONE());
+            tree.record(SampledLambdas::sample_visual_importance(sampler.sample()),
+                        spectral::ONE());
         }
 
         if (i != 2) {
@@ -143,11 +145,12 @@ TEST_CASE("binary tree sampling pdf integrates to 1") {
     tree.refine();
 
     auto dimsampler = DimensionSampler();
-    
+
     constexpr i32 ITERS = 16384;
     f64 pdf_sum = 0.;
     for (int i = 0; i < ITERS; ++i) {
-        const auto sample = tree.pdf(LAMBDA_MIN + dimsampler.sample() * (LAMBDA_RANGE - 1));
+        const auto sample =
+            tree.pdf(LAMBDA_MIN + dimsampler.sample() * (LAMBDA_RANGE - 1));
         pdf_sum += sample;
     }
 
@@ -161,7 +164,8 @@ TEST_CASE("binary tree sampling pdf matches pdf") {
 
     for (u32 i = 0; i < 3; ++i) {
         for (u32 j = 0; j < 1024U << i; ++j) {
-            tree.record(SampledLambdas::new_sample_importance(sampler), spectral::ONE());
+            tree.record(SampledLambdas::sample_visual_importance(sampler.sample()),
+                        spectral::ONE());
         }
 
         if (i != 2) {
@@ -174,7 +178,7 @@ TEST_CASE("binary tree sampling pdf matches pdf") {
 
     constexpr i32 ITERS = 16384;
     for (int i = 0; i < ITERS; ++i) {
-        const auto lambdas = tree.sample(sampler);
+        const auto lambdas = tree.sample(sampler.sample());
         const auto pdf = tree.pdf(lambdas[0]);
         REQUIRE_THAT(lambdas.pdfs[0], Catch::Matchers::WithinRelMatcher(pdf, 0.0001F));
     }

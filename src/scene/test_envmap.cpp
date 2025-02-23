@@ -1,5 +1,6 @@
 #include "../math/sampling.h"
 #include "../math/vecmath.h"
+#include "../math/samplers/sampler.h"
 #include "../spectrum/spectral_quantity.h"
 #include "../test/test_globals.h"
 #include "envmap.h"
