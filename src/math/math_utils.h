@@ -22,7 +22,7 @@ template <class T>
 concept Squarable = requires(T a) { a *a; };
 
 template <Squarable T>
-T
+constexpr T
 sqr(T v) {
     return v * v;
 }

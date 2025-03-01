@@ -171,7 +171,6 @@ BinaryTree::pdf(const f32 lambda) const {
 
 void
 BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
-    // TODO: this is O(n^2), improve later
     for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
         if (radiance[i] == 0.F) {
             continue;

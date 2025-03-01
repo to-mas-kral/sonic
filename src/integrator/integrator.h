@@ -8,6 +8,7 @@
 #include "../path_guiding/sd_tree.h"
 #include "../settings.h"
 #include "../utils/basic_types.h"
+#include "../utils/colormaps.h"
 
 struct PathVertex {
     spectral throughput{spectral::ONE()};
@@ -97,8 +98,15 @@ protected:
 
     virtual void
     record_aovs(const uvec2 &pixel, const Intersection &its) {
-        ctx->framebuf().add_aov(pixel, "Normals", its.normal.as_tuple());
-        ctx->framebuf().add_aov(pixel, "Position", its.pos.as_tuple());
+        if (sample == 0) {
+            ctx->framebuf().add_aov(pixel, "Normals", its.normal.as_tuple());
+            ctx->framebuf().add_aov(pixel, "Position", its.pos.as_tuple());
+            ctx->framebuf().add_aov(pixel, "Material ID",
+                                    sonic::colormap(its.material_id.inner));
+            if (its.has_light) {
+                ctx->framebuf().add_aov(pixel, "Light ID", sonic::colormap(its.light_id));
+            }
+        }
     }
 
     IntegratorContext *ctx;

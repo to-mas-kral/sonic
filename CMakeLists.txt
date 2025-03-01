@@ -129,6 +129,8 @@ add_library(pt_lib
         src/path_guiding/sd_tree.h
         src/path_guiding/binary_tree.cpp
         src/path_guiding/binary_tree.h
+        src/path_guiding/sc_tree.cpp
+        src/path_guiding/sc_tree.h
 
         src/gui/gui.cpp
         src/gui/gui.h

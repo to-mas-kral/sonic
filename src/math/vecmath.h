@@ -124,7 +124,7 @@ template <template <typename> typename Child, typename T> struct Tuple2Base {
 
     Child<T>
     operator-(const Child<T> &other) const {
-        return Child(x - other.x, y - other.y);
+        return Child<T>(x - other.x, y - other.y);
     }
 
     Child<T>
@@ -195,7 +195,7 @@ template <typename T> struct Vector2 : Tuple2Base<Vector2, T> {
 
     f32
     length() const {
-        return sqrt(length_squared());
+        return sqrtf(length_squared());
     }
 
     static T
@@ -422,7 +422,7 @@ template <typename T> struct Vector3 : Tuple3Base<Vector3, T> {
 
     f32
     length() const {
-        return sqrt(length_squared());
+        return sqrtf(length_squared());
     }
 
     NormalizedVector3
@@ -685,6 +685,8 @@ using vec3 = Vector3<f32>;
 using norm_vec3 = NormalizedVector3;
 using point3 = Point3<>;
 
+using i16vec2 = Vector2<i16>;
+using u16vec2 = Vector2<u16>;
 using uvec2 = Vector2<u32>;
 using uvec3 = Vector3<u32>;
 
