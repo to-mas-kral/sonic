@@ -188,7 +188,8 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
             const auto sensor_response =
                 SampledLambdas::pdf_visual_importance(lambdas[i]);
 
-            node.m_radiance.fetch_add(radiance[i] * sensor_response / lambdas.pdfs[i]);
+            node.m_radiance.fetch_add(radiance[i] * sensor_response / lambdas.pdfs[i],
+                                      std::memory_order_relaxed);
 
             if (node.is_leaf()) {
                 break;

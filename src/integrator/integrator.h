@@ -5,6 +5,7 @@
 #include "../integrator_context.h"
 #include "../math/samplers/sampler.h"
 #include "../math/vecmath.h"
+#include "../path_guiding/sc_tree.h"
 #include "../path_guiding/sd_tree.h"
 #include "../settings.h"
 #include "../utils/basic_types.h"
@@ -67,6 +68,11 @@ public:
 
     virtual std::optional<SDTree>
     get_sd_tree() const {
+        return {};
+    }
+
+    virtual std::optional<LgTree>
+    get_lg_tree() const {
         return {};
     }
 

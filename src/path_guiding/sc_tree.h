@@ -342,31 +342,59 @@ public:
 
 class LgTree {
 public:
+    LgTree() = default;
+
+    LgTree(const LgTree &other) : m_reservoirs(other.m_reservoirs) {}
+
+    LgTree(LgTree &&other) noexcept : m_reservoirs(std::move(other.m_reservoirs)) {}
+
+    LgTree &
+    operator=(const LgTree &other) {
+        if (this == &other) {
+            return *this;
+        }
+        m_reservoirs = other.m_reservoirs;
+        return *this;
+    }
+
+    LgTree &
+    operator=(LgTree &&other) noexcept {
+        if (this == &other) {
+            return *this;
+        }
+        m_reservoirs = std::move(other.m_reservoirs);
+        return *this;
+    }
+
+    ~LgTree() = default;
+
     Reservoir &
     find_reservoir(const MaterialId mat_id, const uvec2 pixel) {
         {
-            const std::scoped_lock lock(trees_mutex);
-            if (!reservoirs.contains(mat_id)) {
-                reservoirs.insert({mat_id, Reservoirs()});
+            const std::scoped_lock lock(m_trees_mutex);
+            if (!m_reservoirs.contains(mat_id)) {
+                m_reservoirs.insert({mat_id, Reservoirs()});
             }
         }
 
-        return reservoirs.at(mat_id).find_reservoir(pixel);
+        return m_reservoirs.at(mat_id).find_reservoir(pixel);
     }
 
     void
     refine() {
-        for (auto &kv : reservoirs) {
+        for (auto &kv : m_reservoirs) {
             kv.second.refine();
-            /*fmt::println("\n mat: {}, reservoirs: {}", kv.first.inner,
-                         kv.second.reservoirs.size());*/
         }
     }
 
+    const std::unordered_map<MaterialId, Reservoirs> &
+    reservoirs() const {
+        return m_reservoirs;
+    }
+
 private:
-    // std::unordered_map<MaterialId, ScTree> trees;
-    std::unordered_map<MaterialId, Reservoirs> reservoirs;
-    std::mutex trees_mutex;
+    std::unordered_map<MaterialId, Reservoirs> m_reservoirs;
+    std::mutex m_trees_mutex;
 };
 
 #endif // SS_TREE_H

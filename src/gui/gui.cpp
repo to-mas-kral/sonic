@@ -114,6 +114,47 @@ Gui::update_gui_state() {
                 }
             }
         }
+
+        const auto &lg_tree = renderer->integrator()->get_lg_tree();
+        if (lg_tree.has_value()) {
+            gui_state.sd_tree.nodes.clear();
+
+            const auto &tree = lg_tree.value();
+            for (const auto &[mat_id, reservoirs] : tree.reservoirs()) {
+                for (u32 i = 0; i < reservoirs.reservoirs.size(); ++i) {
+                    const auto &reservoir = reservoirs.reservoirs[i];
+
+                    std::vector<f32> pdf_x;
+                    std::vector<f32> pdf_y;
+
+                    pdf_x.reserve(LAMBDA_SAMPLES);
+                    pdf_y.reserve(LAMBDA_SAMPLES);
+
+                    // Update node pdf
+                    for (int i = 0; i < LAMBDA_SAMPLES; ++i) {
+                        const auto x = LAMBDA_MIN + i * LAMBDA_STEP;
+                        const auto y = reservoir.sampling_binary_tree->pdf(x);
+                        pdf_x.push_back(x);
+                        pdf_y.push_back(y);
+                    }
+
+                    auto samples = std::vector<f32>();
+                    samples.reserve(1000 * N_SPECTRUM_SAMPLES);
+                    for (int i = 0; i < 1000; ++i) {
+                        auto sampler = Sampler(uvec2(10, 10), uvec2(1000, 1000), i);
+                        auto lambdas =
+                            reservoir.sampling_binary_tree->sample(sampler.sample());
+                        for (int j = 0; j < N_SPECTRUM_SAMPLES; ++j) {
+                            samples.push_back(lambdas[j]);
+                        }
+                    }
+
+                    gui_state.sd_tree.nodes.push_back(
+                        {fmt::format("Mat {} Reservoir {}", mat_id.inner, i),
+                         std::move(pdf_x), std::move(pdf_y), std::move(samples)});
+                }
+            }
+        }
     }
 
     if (gui_state_needs_update) {
@@ -511,6 +552,7 @@ Gui::start_render_thread() {
         }
 
         gui_state_needs_update.store(true);
+        gui_state_update_barrier.arrive_and_wait();
     });
 }
 

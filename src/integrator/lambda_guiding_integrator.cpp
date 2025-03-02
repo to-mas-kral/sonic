@@ -28,7 +28,7 @@ LambdaGuidingIntegrator::reset_iteration() {
 
     if (iteration_samples >= iteration_max_samples) {
         spdlog::info("Resetting training iteration");
-        iteration_max_samples *= 2;
+        iteration_max_samples += 1;
         ctx->framebuf().reset();
         iteration_samples = 0;
         lg_tree.refine();
@@ -113,7 +113,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
 
             reservoir = &lg_tree.find_reservoir(first_mat_id, pixel);
 
-            if (training_phase && training_iteration > 4) {
+            if (training_phase && training_iteration > 0) {
                 // subequent iteration
 
                 //

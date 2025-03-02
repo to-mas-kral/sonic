@@ -7,7 +7,7 @@
 #include <array>
 #include <string>
 
-constexpr u32 N_SPECTRUM_SAMPLES = 4;
+constexpr u32 N_SPECTRUM_SAMPLES = 8;
 
 class SpectralQuantity {
 public:
