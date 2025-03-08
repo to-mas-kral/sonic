@@ -19,7 +19,7 @@ LambdaGuidingIntegrator::reset_iteration() {
         return;
     }
 
-    if (iteration_samples >= max_training_samples) {
+    if (training_iteration == 5) {
         spdlog::info("Starting rendering");
         ctx->framebuf().reset();
         iteration_samples = 0;
@@ -28,7 +28,9 @@ LambdaGuidingIntegrator::reset_iteration() {
 
     if (iteration_samples >= iteration_max_samples) {
         spdlog::info("Resetting training iteration");
-        iteration_max_samples += 1;
+        if (training_iteration == 0) {
+            iteration_max_samples += 1;
+        }
         ctx->framebuf().reset();
         iteration_samples = 0;
         lg_tree.refine();
@@ -57,8 +59,8 @@ LambdaGuidingIntegrator::record_aovs(const uvec2 &pixel, const Intersection &its
     Integrator::record_aovs(pixel, its);
 
     if (iteration_samples == 0) {
-        const auto reservoir =
-            reinterpret_cast<u64>(&lg_tree.find_reservoir(its.material_id, pixel));
+        const auto reservoir = reinterpret_cast<u64>(
+            lg_tree.find_reservoir(its.material_id, pixel, training_phase));
         const auto hash = hash_buffer(&reservoir, sizeof(reservoir));
         ctx->framebuf().add_aov(pixel, "Reservoir", sonic::colormap(hash));
     }
@@ -77,7 +79,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
     auto last_vertex = PathVertex{};
 
     MaterialId first_mat_id{0};
-    Reservoir *reservoir = nullptr;
+    const Reservoir *reservoir = nullptr;
 
     while (true) {
         auto opt_its = ctx->accel().cast_ray(ray);
@@ -111,9 +113,11 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
             first_mat_id = its.material_id;
             record_aovs(pixel, its);
 
-            reservoir = &lg_tree.find_reservoir(first_mat_id, pixel);
+            reservoir = lg_tree.find_reservoir(first_mat_id, pixel, training_phase);
 
-            if (training_phase && training_iteration > 0) {
+            if (reservoir == nullptr) {
+                lambdas = SampledLambdas::sample_visual_importance(sampler.sample());
+            } else if (training_phase && training_iteration > 0) {
                 // subequent iteration
 
                 //
@@ -248,7 +252,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
         depth++;
     }
 
-    if (reservoir != nullptr && training_iteration > 0) {
+    if (training_phase && reservoir != nullptr && training_iteration > 0) {
         reservoir->recording_binary_tree->record(lambdas, radiance);
     }
 

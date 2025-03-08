@@ -6,7 +6,7 @@
 namespace sonic {
 /// https://stackoverflow.com/a/17923795
 template <std::size_t N, class T>
-std::array<T, N>
+constexpr std::array<T, N>
 make_array(const T &v) {
     std::array<T, N> ret;
     ret.fill(v);

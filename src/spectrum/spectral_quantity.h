@@ -8,6 +8,7 @@
 #include <string>
 
 constexpr u32 N_SPECTRUM_SAMPLES = 8;
+static_assert(N_SPECTRUM_SAMPLES <= 8);
 
 class SpectralQuantity {
 public:

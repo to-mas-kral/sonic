@@ -20,7 +20,7 @@ class IntegratorContext;
 class LambdaGuidingIntegrator final : public Integrator {
 public:
     LambdaGuidingIntegrator(const Settings &settings, IntegratorContext *ctx)
-        : Integrator(ctx, settings) {}
+        : Integrator(ctx, settings), lg_tree(ctx->scene().materials.size()) {}
 
     spectral
     estimate_radiance(Ray ray, Sampler &sampler, SampledLambdas &lambdas,

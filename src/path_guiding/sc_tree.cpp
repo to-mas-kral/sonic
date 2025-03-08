@@ -1,45 +1,51 @@
 #include "sc_tree.h"
 
-Reservoir &
-Reservoirs::find_reservoir(const uvec2 pixel) {
-    // TODO: have a bool flag for when inserting should not be done anymore so mutex
-    // doesn't need to be locked
-    const std::scoped_lock lock(reservoirs_mutex);
-
+const Reservoir *
+Reservoirs::find_reservoir_inner(const uvec2 pixel, bool is_training_phase) {
     auto min_dist = std::numeric_limits<f32>::max();
-    auto min_index = 0;
+    i32 min_index = -1;
 
-    constexpr f32 MAX_DIST = 150.F;
+    constexpr f32 MAX_DIST = 150;
     constexpr f32 SQUARED_MAX_DIST = sqr(MAX_DIST);
 
-    for (u32 i = 0; i < reservoirs.size(); ++i) {
-        const auto &reservoir = reservoirs[i];
-
-        const auto res_coord = vec2(reservoir.coords.x, reservoir.coords.y);
+    for (i32 i = 0; i < num_reservoirs; ++i) {
+        const auto res_coord = vec2(x_coords[i], y_coords[i]);
         const auto pixel_coord = vec2(pixel.x, pixel.y);
 
         const auto diff = res_coord - pixel_coord;
-
-        if (std::abs(diff.x) > MAX_DIST || std::abs(diff.y) > MAX_DIST) {
-            continue;
-        }
-
         const auto dist = diff.length_squared();
 
-        if (dist < min_dist) {
+        if (dist < SQUARED_MAX_DIST && dist < min_dist) {
             min_dist = dist;
             min_index = i;
         }
     }
 
-    assert(reservoirs.capacity() == MAX_RESERVOIRS_IN_VEC);
-    if ((!reservoirs.empty() && min_dist < SQUARED_MAX_DIST) ||
-        reservoirs.size() >= MAX_RESERVOIRS_IN_VEC) {
-        return reservoirs[min_index];
+    if (!is_training_phase && min_index == -1) {
+        return nullptr;
+    }
+
+    if (min_index == -1) {
+        if (num_reservoirs == MAX_RESERVOIRS_PER_MAT - 1) {
+            spdlog::critical("Max number of reservoirs exceeded");
+            return &reservoirs[0];
+        }
+
+        x_coords[num_reservoirs] = pixel.x;
+        y_coords[num_reservoirs] = pixel.y;
+        reservoirs[num_reservoirs] = Reservoir();
+        num_reservoirs++;
+        return &reservoirs[num_reservoirs - 1];
     } else {
-        // Need to insert reservoir because the closest one is too far
-        auto reservoir = Reservoir(u16vec2(pixel.x, pixel.y));
-        reservoirs.push_back(reservoir);
-        return reservoirs.back();
+        return &reservoirs[min_index];
+    }
+}
+const Reservoir *
+Reservoirs::find_reservoir(const uvec2 pixel, const bool is_training_phase) {
+    if (is_training_phase) {
+        const std::scoped_lock lock(reservoirs_mutex);
+        return find_reservoir_inner(pixel, is_training_phase);
+    } else {
+        return find_reservoir_inner(pixel, is_training_phase);
     }
 }

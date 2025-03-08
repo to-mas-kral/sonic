@@ -83,7 +83,7 @@ public:
     }
 
     SampledLambdas
-    sample(f32 xi) const;
+    sample(f32 xi_base) const;
 
     f32
     pdf(f32 lambda) const;

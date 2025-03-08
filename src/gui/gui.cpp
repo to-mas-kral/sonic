@@ -120,9 +120,16 @@ Gui::update_gui_state() {
             gui_state.sd_tree.nodes.clear();
 
             const auto &tree = lg_tree.value();
-            for (const auto &[mat_id, reservoirs] : tree.reservoirs()) {
-                for (u32 i = 0; i < reservoirs.reservoirs.size(); ++i) {
-                    const auto &reservoir = reservoirs.reservoirs[i];
+
+            for (u32 mat_id = 0; mat_id < tree.reservoirs().size(); ++mat_id) {
+                const auto &bucket = tree.reservoirs()[mat_id];
+
+                if (bucket.reservoirs == nullptr) {
+                    continue;
+                }
+
+                for (u32 i = 0; i < bucket.reservoirs->num_reservoirs; ++i) {
+                    const auto &reservoir = bucket.reservoirs->reservoirs[i];
 
                     std::vector<f32> pdf_x;
                     std::vector<f32> pdf_y;
@@ -150,8 +157,8 @@ Gui::update_gui_state() {
                     }
 
                     gui_state.sd_tree.nodes.push_back(
-                        {fmt::format("Mat {} Reservoir {}", mat_id.inner, i),
-                         std::move(pdf_x), std::move(pdf_y), std::move(samples)});
+                        {fmt::format("Mat {} Reservoir {}", mat_id, i), std::move(pdf_x),
+                         std::move(pdf_y), std::move(samples)});
                 }
             }
         }
