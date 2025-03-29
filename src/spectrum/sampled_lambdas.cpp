@@ -14,7 +14,7 @@ SampledLambdas::sample_uniform(const f32 xi) {
     constexpr f32 lambda_max = static_cast<f32>(LAMBDA_MAX);
 
     // Sample first wavelength
-    sl.lambdas[0] = lerp(xi, lambda_min, lambda_max);
+    sl.m_lambdas[0] = lerp(xi, lambda_min, lambda_max);
 
     if constexpr (N_SPECTRUM_SAMPLES > 1) {
         // Initialize remaining wavelenghts
@@ -22,9 +22,9 @@ SampledLambdas::sample_uniform(const f32 xi) {
             (lambda_max - lambda_min) / static_cast<f32>(N_SPECTRUM_SAMPLES);
 
         for (int i = 1; i < N_SPECTRUM_SAMPLES; i++) {
-            sl.lambdas[i] = sl.lambdas[i - 1] + delta;
-            if (sl.lambdas[i] > lambda_max) {
-                sl.lambdas[i] = lambda_min + (sl.lambdas[i] - lambda_max);
+            sl.m_lambdas[i] = sl.m_lambdas[i - 1] + delta;
+            if (sl.m_lambdas[i] > lambda_max) {
+                sl.m_lambdas[i] = lambda_min + (sl.m_lambdas[i] - lambda_max);
             }
         }
     }
@@ -54,9 +54,9 @@ SampledLambdas::sample_visual_importance(const f32 xi) {
             lambda_xi -= 1.F;
         }
 
-        sl.lambdas[i] =
+        sl.m_lambdas[i] =
             538.F - 138.888889F * std::atanhf(0.85691062F - 1.82750197F * lambda_xi);
-        sl.pdfs[i] = pdf_visual_importance(sl.lambdas[i]);
+        sl.pdfs[i] = pdf_visual_importance(sl.m_lambdas[i]);
     }
 
     return sl;
@@ -73,15 +73,11 @@ vec3
 SampledLambdas::to_xyz(const SpectralQuantity &radiance) const {
     auto rad = radiance;
     auto local_pdfs = pdfs;
-    if (is_secondary_terminated) {
+    if (m_is_secondary_terminated) {
         for (int i = 1; i < N_SPECTRUM_SAMPLES; ++i) {
             rad[i] = 0.F;
         }
         local_pdfs /= N_SPECTRUM_SAMPLES;
-    }
-
-    if (weights[0] != -1.F) {
-        rad *= weights;
     }
 
     SpectralQuantity x = CIE_X.eval(*this) * rad;
@@ -100,17 +96,17 @@ SampledLambdas::to_xyz(const SpectralQuantity &radiance) const {
 
 void
 SampledLambdas::terminate_secondary() {
-    is_secondary_terminated = true;
+    m_is_secondary_terminated = true;
 }
 
 SampledLambdas
 SampledLambdas::new_mock() {
     SampledLambdas sl{};
-    sl.lambdas.fill(400.F);
+    sl.m_lambdas.fill(400.F);
     return sl;
 }
 
 const f32 &
 SampledLambdas::operator[](const u32 index) const {
-    return lambdas[index];
+    return m_lambdas[index];
 }

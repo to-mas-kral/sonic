@@ -10,12 +10,12 @@
 
 class PiecewiseDist1D {
 public:
-    PiecewiseDist1D(PiecewiseDist1D &other) = delete;
+    PiecewiseDist1D(PiecewiseDist1D const &other) = default;
 
     PiecewiseDist1D(PiecewiseDist1D &&other) noexcept = default;
 
     PiecewiseDist1D &
-    operator=(PiecewiseDist1D &other) = delete;
+    operator=(PiecewiseDist1D const &other) = default;
 
     PiecewiseDist1D &
     operator=(PiecewiseDist1D &&other) noexcept = default;

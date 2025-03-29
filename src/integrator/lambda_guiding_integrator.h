@@ -35,7 +35,7 @@ public:
     std::optional<IterationProgressInfo>
     iter_progress_info() const override;
 
-    std::optional<LgTree>
+    std::optional<ReservoirsContainer>
     get_lg_tree() const override {
         return lg_tree;
     }
@@ -45,7 +45,7 @@ protected:
     record_aovs(const uvec2 &pixel, const Intersection &its) override;
 
 private:
-    LgTree lg_tree;
+    ReservoirsContainer lg_tree;
 
     bool training_phase{true};
     u32 training_iteration{0};

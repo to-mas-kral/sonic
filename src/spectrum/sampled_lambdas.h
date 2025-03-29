@@ -19,7 +19,7 @@ public:
 
     SampledLambdas(const std::array<f32, N_SPECTRUM_SAMPLES> &lambdas,
                    const spectral &pdfs)
-        : pdfs(pdfs), lambdas(lambdas) {}
+        : pdfs(pdfs), m_lambdas(lambdas) {}
 
     SampledLambdas() {}
 
@@ -29,15 +29,19 @@ public:
     void
     terminate_secondary();
 
+    bool
+    is_secondary_terminated() const {
+        return m_is_secondary_terminated;
+    }
+
     const f32 &
     operator[](u32 index) const;
 
     spectral pdfs{};
-    spectral weights{-1.F};
 
 private:
-    bool is_secondary_terminated{false};
-    std::array<f32, N_SPECTRUM_SAMPLES> lambdas{};
+    bool m_is_secondary_terminated{false};
+    std::array<f32, N_SPECTRUM_SAMPLES> m_lambdas{};
 };
 
 #endif // SAMPLEDLAMBDAS_H

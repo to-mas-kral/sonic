@@ -45,8 +45,7 @@ public:
 
     void
     record_radiance(const spectral &radiance) {
-        // TODO: Don't know what memory ordering...
-        m_radiance.fetch_add(radiance.average());
+        m_radiance.fetch_add(radiance.average(), std::memory_order_relaxed);
     }
 
     u32
@@ -69,14 +68,14 @@ public:
         nodes.emplace_back();
         nodes[0].m_radiance = 1.F;
         refine();
-        reset_flux();
+        reset_radiance();
     }
 
     void
     refine(f32 SUBDIVISION_CRITERION = 0.1F);
 
     void
-    reset_flux() {
+    reset_radiance() {
         for (auto &node : nodes) {
             node.m_radiance = 0.F;
         }
@@ -89,7 +88,7 @@ public:
     pdf(f32 lambda) const;
 
     f32
-    total_flux() const {
+    total_radiance() const {
         return nodes[0].m_radiance;
     }
 
@@ -131,7 +130,7 @@ public:
 
     void
     refine(const f32 SUBDIVISION_CRITERION = 0.03F) {
-        std::erase_if(trees, [](auto &kv) { return kv.second.total_flux() == 0.F; });
+        std::erase_if(trees, [](auto &kv) { return kv.second.total_radiance() == 0.F; });
 
         for (auto &[_, tree] : trees) {
             tree.refine(SUBDIVISION_CRITERION);
@@ -141,7 +140,7 @@ public:
     void
     reset_flux() {
         for (auto &[_, tree] : trees) {
-            tree.reset_flux();
+            tree.reset_radiance();
         }
     }
 

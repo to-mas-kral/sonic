@@ -71,7 +71,7 @@ public:
         return {};
     }
 
-    virtual std::optional<LgTree>
+    virtual std::optional<ReservoirsContainer>
     get_lg_tree() const {
         return {};
     }

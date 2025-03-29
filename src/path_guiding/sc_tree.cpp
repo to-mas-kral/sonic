@@ -1,6 +1,8 @@
 #include "sc_tree.h"
 
-const Reservoir *
+#include "../utils/panic.h"
+
+Reservoir *
 Reservoirs::find_reservoir_inner(const uvec2 pixel, bool is_training_phase) {
     auto min_dist = std::numeric_limits<f32>::max();
     i32 min_index = -1;
@@ -8,7 +10,7 @@ Reservoirs::find_reservoir_inner(const uvec2 pixel, bool is_training_phase) {
     constexpr f32 MAX_DIST = 150;
     constexpr f32 SQUARED_MAX_DIST = sqr(MAX_DIST);
 
-    for (i32 i = 0; i < num_reservoirs; ++i) {
+    for (i32 i = 0; i < reservoirs.size(); ++i) {
         const auto res_coord = vec2(x_coords[i], y_coords[i]);
         const auto pixel_coord = vec2(pixel.x, pixel.y);
 
@@ -26,21 +28,24 @@ Reservoirs::find_reservoir_inner(const uvec2 pixel, bool is_training_phase) {
     }
 
     if (min_index == -1) {
-        if (num_reservoirs == MAX_RESERVOIRS_PER_MAT - 1) {
-            spdlog::critical("Max number of reservoirs exceeded");
-            return &reservoirs[0];
+        if (reservoirs.capacity() == 0) {
+            if (reservoirs.empty()) {
+                panic();
+            } else {
+                return &reservoirs.front();
+            }
         }
 
-        x_coords[num_reservoirs] = pixel.x;
-        y_coords[num_reservoirs] = pixel.y;
-        reservoirs[num_reservoirs] = Reservoir();
-        num_reservoirs++;
-        return &reservoirs[num_reservoirs - 1];
+        x_coords.push_back(pixel.x);
+        y_coords.push_back(pixel.y);
+        reservoirs.push_back(Reservoir());
+        return &reservoirs.back();
     } else {
         return &reservoirs[min_index];
     }
 }
-const Reservoir *
+
+Reservoir *
 Reservoirs::find_reservoir(const uvec2 pixel, const bool is_training_phase) {
     if (is_training_phase) {
         const std::scoped_lock lock(reservoirs_mutex);

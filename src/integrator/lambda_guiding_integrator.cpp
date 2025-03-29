@@ -19,7 +19,8 @@ LambdaGuidingIntegrator::reset_iteration() {
         return;
     }
 
-    if (training_iteration == 5) {
+    if (training_iteration == 3 && iteration_samples >= iteration_max_samples) {
+        lg_tree.refine(true);
         spdlog::info("Starting rendering");
         ctx->framebuf().reset();
         iteration_samples = 0;
@@ -28,9 +29,7 @@ LambdaGuidingIntegrator::reset_iteration() {
 
     if (iteration_samples >= iteration_max_samples) {
         spdlog::info("Resetting training iteration");
-        if (training_iteration == 0) {
-            iteration_max_samples += 1;
-        }
+        iteration_max_samples *= 2;
         ctx->framebuf().reset();
         iteration_samples = 0;
         lg_tree.refine();
@@ -79,7 +78,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
     auto last_vertex = PathVertex{};
 
     MaterialId first_mat_id{0};
-    const Reservoir *reservoir = nullptr;
+    Reservoir *reservoir = nullptr;
 
     while (true) {
         auto opt_its = ctx->accel().cast_ray(ray);
@@ -119,39 +118,15 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
                 lambdas = SampledLambdas::sample_visual_importance(sampler.sample());
             } else if (training_phase && training_iteration > 0) {
                 // subequent iteration
-
-                //
-                // MIS sampling
-                //
-                constexpr f32 guiding_prob = 0.5F;
-                constexpr f32 other_prob = 1.F - guiding_prob;
+                constexpr f32 GUIDING_PROB = 0.5F;
                 const auto kind = sampler.sample();
-                spectral other_pdf;
-                if (kind < guiding_prob) {
+                // spectral other_pdf;
+                if (kind < GUIDING_PROB) {
                     // Sample guiding tree
                     lambdas = reservoir->sample(sampler.sample());
-
-                    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-                        other_pdf[i] = SampledLambdas::pdf_visual_importance(lambdas[i]);
-                    }
-
-                    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-                        const auto mis_weight =
-                            mis_power_heuristic(lambdas.pdfs[i], other_pdf[i]);
-                        lambdas.weights[i] = mis_weight / guiding_prob;
-                    }
                 } else {
                     // Sample regular
                     lambdas = SampledLambdas::sample_visual_importance(sampler.sample());
-                    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-                        other_pdf[i] = reservoir->pdf(lambdas[i]);
-                    }
-
-                    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
-                        const auto mis_weight =
-                            mis_power_heuristic(lambdas.pdfs[i], other_pdf[i]);
-                        lambdas.weights[i] = mis_weight / other_prob;
-                    }
                 }
             } else if (!training_phase) {
                 lambdas = reservoir->sample(sampler.sample());
@@ -253,7 +228,7 @@ LambdaGuidingIntegrator::estimate_radiance(Ray ray, Sampler &sampler,
     }
 
     if (training_phase && reservoir != nullptr && training_iteration > 0) {
-        reservoir->recording_binary_tree->record(lambdas, radiance);
+        reservoir->record(lambdas, radiance);
     }
 
     return radiance;

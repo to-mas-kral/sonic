@@ -41,21 +41,24 @@ constexpr f32 LAMBDA_STEP = (LAMBDA_MAX - LAMBDA_MIN) / LAMBDA_SAMPLES;
 
 struct SceneInspector {
     SceneInspector()
-        : spd_x_values(LAMBDA_SAMPLES, 0.F), spd_y_values(LAMBDA_SAMPLES, 0.F) {}
+        : spd_x_values(LAMBDA_SAMPLES, 0.F), spd_y_values(LAMBDA_SAMPLES, 0.F),
+          product_y_values(LAMBDA_SAMPLES, 0.F), visual_y_values(LAMBDA_SAMPLES, 0.F) {}
 
     std::optional<u32> selected_light;
     std::vector<f32> spd_x_values;
     std::vector<f32> spd_y_values;
+    std::vector<f32> product_y_values;
+    std::vector<f32> visual_y_values;
 };
 
 struct SdTreeNodeInfo {
     SdTreeNodeInfo()
         : pdf_x_values(LAMBDA_SAMPLES, 0.F), pdf_y_values(LAMBDA_SAMPLES, 0.F) {}
 
-    SdTreeNodeInfo(const std::string &name, std::vector<f32> &&pdf_x_values,
-                   std::vector<f32> &&pdf_y_values, std::vector<f32> &&samples)
-        : name(name), pdf_x_values(std::move(pdf_x_values)),
-          pdf_y_values(std::move(pdf_y_values)), samples(std::move(samples)) {}
+    SdTreeNodeInfo(const std::string &p_name, std::vector<f32> &&p_pdf_x_values,
+                   std::vector<f32> &&p_pdf_y_values, std::vector<f32> &&p_samples)
+        : name(p_name), pdf_x_values(std::move(p_pdf_x_values)),
+          pdf_y_values(std::move(p_pdf_y_values)), samples(std::move(p_samples)) {}
 
     std::string name;
     std::vector<f32> pdf_x_values;

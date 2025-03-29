@@ -43,7 +43,7 @@ TEST_CASE("binarytree record") {
     REQUIRE(tree.nodes[5].m_radiance == 0.F);
     REQUIRE(tree.nodes[6].m_radiance == 0.F);
 
-    tree.reset_flux();
+    tree.reset_radiance();
 
     tree.record(
         SampledLambdas(sonic::make_array<N_SPECTRUM_SAMPLES>(800.F), spectral::ONE()),
@@ -60,7 +60,7 @@ TEST_CASE("binarytree record") {
     REQUIRE(tree.nodes[5].m_radiance == 0.F);
     REQUIRE(tree.nodes[6].m_radiance == 0.F);
 
-    tree.reset_flux();
+    tree.reset_radiance();
 
     tree.record(
         SampledLambdas(sonic::make_array<N_SPECTRUM_SAMPLES>(540.F), spectral::ONE()),
@@ -73,7 +73,7 @@ TEST_CASE("binarytree record") {
     REQUIRE(tree.nodes[5].m_radiance == 0.F);
     REQUIRE(tree.nodes[6].m_radiance > 0.F);
 
-    tree.reset_flux();
+    tree.reset_radiance();
 }
 
 TEST_CASE("binarytree refine") {
@@ -138,7 +138,7 @@ TEST_CASE("binary tree sampling pdf integrates to 1") {
 
         if (i != 2) {
             tree.refine();
-            tree.reset_flux();
+            tree.reset_radiance();
         }
     }
 
@@ -170,7 +170,7 @@ TEST_CASE("binary tree sampling pdf matches pdf") {
 
         if (i != 2) {
             tree.refine();
-            tree.reset_flux();
+            tree.reset_radiance();
         }
     }
 

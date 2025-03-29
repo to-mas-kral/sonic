@@ -122,14 +122,14 @@ Gui::update_gui_state() {
             const auto &tree = lg_tree.value();
 
             for (u32 mat_id = 0; mat_id < tree.reservoirs().size(); ++mat_id) {
-                const auto &bucket = tree.reservoirs()[mat_id];
+                const auto &reservoirs = tree.reservoirs()[mat_id];
 
-                if (bucket.reservoirs == nullptr) {
+                if (reservoirs == nullptr) {
                     continue;
                 }
 
-                for (u32 i = 0; i < bucket.reservoirs->num_reservoirs; ++i) {
-                    const auto &reservoir = bucket.reservoirs->reservoirs[i];
+                for (u32 i = 0; i < reservoirs->reservoirs.size(); ++i) {
+                    const auto &reservoir = reservoirs->reservoirs[i];
 
                     std::vector<f32> pdf_x;
                     std::vector<f32> pdf_y;
@@ -138,8 +138,8 @@ Gui::update_gui_state() {
                     pdf_y.reserve(LAMBDA_SAMPLES);
 
                     // Update node pdf
-                    for (int i = 0; i < LAMBDA_SAMPLES; ++i) {
-                        const auto x = LAMBDA_MIN + i * LAMBDA_STEP;
+                    for (int j = 0; j < LAMBDA_SAMPLES; ++j) {
+                        const auto x = LAMBDA_MIN + j * LAMBDA_STEP;
                         const auto y = reservoir.sampling_binary_tree->pdf(x);
                         pdf_x.push_back(x);
                         pdf_y.push_back(y);
@@ -147,8 +147,8 @@ Gui::update_gui_state() {
 
                     auto samples = std::vector<f32>();
                     samples.reserve(1000 * N_SPECTRUM_SAMPLES);
-                    for (int i = 0; i < 1000; ++i) {
-                        auto sampler = Sampler(uvec2(10, 10), uvec2(1000, 1000), i);
+                    for (int k = 0; k < 1000; ++k) {
+                        auto sampler = Sampler(uvec2(10, 10), uvec2(1000, 1000), k);
                         auto lambdas =
                             reservoir.sampling_binary_tree->sample(sampler.sample());
                         for (int j = 0; j < N_SPECTRUM_SAMPLES; ++j) {
@@ -233,6 +233,18 @@ Gui::update_viewport_textures() {
             glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width_x, height_y, 0, format,
                          data_type, tex_data);
         }
+
+        for (auto &[name, aov] : renderer->framebuf().aovs()) {
+            auto &targets = gui_state.viewport_settings.viewport_targets;
+            auto contains = false;
+            if (std::find(targets.begin(), targets.end(), name) == targets.end()) {
+                contains = true;
+            }
+
+            if (contains) {
+                targets.push_back(std::string(name));
+            }
+        }
     }
 }
 
@@ -253,13 +265,6 @@ Gui::viewport_window() const {
 
 void
 Gui::viewport_settings_window() {
-    for (auto &[name, aov] : renderer->framebuf().aovs()) {
-        auto &targets = gui_state.viewport_settings.viewport_targets;
-        if (std::find(targets.begin(), targets.end(), name) == targets.end()) {
-            targets.push_back(std::string(name));
-        }
-    }
-
     ImGui::Begin("Viewport Settings");
     {
         auto &settings = gui_state.viewport_settings;
@@ -289,7 +294,7 @@ Gui::render_progress_window() const {
     {
         const auto &rprogress = gui_state.render_progress;
 
-        auto progress_bar = [this](u32 start, u32 end, const char *label) {
+        auto progress_bar = [this](u32 start, u32 end, const char *const label) {
             if (end == 0) {
                 return;
             }
@@ -300,8 +305,8 @@ Gui::render_progress_window() const {
             }
 
             const auto inner_text = fmt::format("{}/{}", start, end);
-            ImGui::ProgressBar(progress, ImVec2(0.f, 0.f), inner_text.c_str());
-            ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+            ImGui::ProgressBar(progress, ImVec2(0.F, 0.F), inner_text.c_str());
+            ImGui::SameLine(0.0F, ImGui::GetStyle().ItemInnerSpacing.x);
             ImGui::Text(label);
         };
 
@@ -389,6 +394,12 @@ Gui::render_scene_inspector() {
                             const auto y = light.emission(x);
                             scene_inspector.spd_x_values[i] = x;
                             scene_inspector.spd_y_values[i] = y;
+
+                            scene_inspector.product_y_values[i] =
+                                y * SampledLambdas::pdf_visual_importance(x);
+
+                            scene_inspector.visual_y_values[i] =
+                                SampledLambdas::pdf_visual_importance(x);
                         }
                     }
                 }
@@ -408,6 +419,22 @@ Gui::render_scene_inspector() {
                 ImPlot::SetupAxes(nullptr, nullptr, xflags, yflags);
                 ImPlot::PlotLine("power", scene_inspector.spd_x_values.data(),
                                  scene_inspector.spd_y_values.data(),
+                                 scene_inspector.spd_x_values.size());
+                ImPlot::EndPlot();
+            }
+
+            if (ImPlot::BeginPlot("Optimal sampling")) {
+                ImPlot::SetupAxes(nullptr, nullptr, xflags, yflags);
+                ImPlot::PlotLine("power", scene_inspector.spd_x_values.data(),
+                                 scene_inspector.product_y_values.data(),
+                                 scene_inspector.spd_x_values.size());
+                ImPlot::EndPlot();
+            }
+
+            if (ImPlot::BeginPlot("Visual sampling")) {
+                ImPlot::SetupAxes(nullptr, nullptr, xflags, yflags);
+                ImPlot::PlotLine("power", scene_inspector.spd_x_values.data(),
+                                 scene_inspector.visual_y_values.data(),
                                  scene_inspector.spd_x_values.size());
                 ImPlot::EndPlot();
             }

@@ -69,7 +69,7 @@ private:
     set_imgui_style() {
         ImGui::StyleColorsLight();
         auto &style = ImGui::GetStyle();
-        style.ScaleAllSizes(2.5F);
+        style.ScaleAllSizes(1.2F);
         style.WindowMenuButtonPosition = ImGuiDir_None;
     }
 

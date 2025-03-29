@@ -68,6 +68,9 @@ BinaryTree::refine(const f32 SUBDIVISION_CRITERION) {
     // new_nodes.shrink_to_fit()...
     // TODO: move
     nodes = new_nodes;
+    if (new_nodes.size() > std::numeric_limits<u16>::max()) {
+        panic("Binary tree size too large for u16");
+    }
 }
 
 SampledLambdas
@@ -177,14 +180,15 @@ void
 BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
     spectral contributions = radiance;
     for (u32 i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+        if (i > 0 && lambdas.is_secondary_terminated()) {
+            contributions[i] = 0.F;
+            continue;
+        }
+
         const auto sensor_response = SampledLambdas::pdf_visual_importance(lambdas[i]);
 
         if (contributions[i] != 0.F) {
             contributions[i] *= sensor_response / lambdas.pdfs[i];
-
-            if (lambdas.weights[i] != -1.F) {
-                contributions[i] *= lambdas.weights[i];
-            }
         }
     }
 
@@ -218,6 +222,34 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
             buffer[0].lambdas_mask ^= masks[i];
         }
     }
+
+    const auto finish_single_lambda = [this, &contributions,
+                                       &lambdas](const u32 lambda_index, u32 node_index,
+                                                 f32 midpoint, f32 current_half) {
+        const f32 lambda = lambdas[lambda_index];
+        const f32 lambda_map = (lambda - LAMBDA_MIN) / (LAMBDA_RANGE - 1);
+        const auto contribution = contributions[lambda_index];
+
+        while (true) {
+            auto &node = nodes[node_index];
+
+            node.m_radiance.fetch_add(contribution, std::memory_order_relaxed);
+
+            if (node.is_leaf()) {
+                break;
+            }
+
+            if (lambda_map > midpoint) {
+                midpoint += current_half;
+                node_index = node.m_children_indices[1];
+            } else {
+                midpoint -= current_half;
+                node_index = node.m_children_indices[0];
+            }
+
+            current_half /= 2.F;
+        }
+    };
 
     while (buf_size > 0) {
         const auto trav_node = buffer[buf_size - 1];
@@ -253,7 +285,12 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
                 }
             }
 
-            if (lambdas_mask != 0) {
+            if (std::popcount(lambdas_mask) == 1) {
+                finish_single_lambda(std::countr_zero(lambdas_mask),
+                                     node.m_children_indices[0],
+                                     trav_node.midpoint - trav_node.current_half,
+                                     trav_node.current_half / 2.F);
+            } else if (lambdas_mask != 0) {
                 buffer[buf_size] = TraversalNode{
                     .midpoint = trav_node.midpoint - trav_node.current_half,
                     .current_half = trav_node.current_half / 2.F,
@@ -277,7 +314,12 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
                 }
             }
 
-            if (lambdas_mask != 0) {
+            if (std::popcount(lambdas_mask) == 1) {
+                finish_single_lambda(std::countr_zero(lambdas_mask),
+                                     node.m_children_indices[1],
+                                     trav_node.midpoint + trav_node.current_half,
+                                     trav_node.current_half / 2.F);
+            } else if (lambdas_mask != 0) {
                 buffer[buf_size] = TraversalNode{
                     .midpoint = trav_node.midpoint + trav_node.current_half,
                     .current_half = trav_node.current_half / 2.F,
@@ -293,8 +335,12 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
             panic("Binary tree traversal buffer overflow");
         }
     }
+}
 
-    /*for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
+/*
+void
+BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
+    for (int i = 0; i < N_SPECTRUM_SAMPLES; ++i) {
         if (radiance[i] == 0.F) {
             continue;
         }
@@ -328,5 +374,6 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
 
             current_half /= 2.F;
         }
-    }*/
+    }
 }
+*/
