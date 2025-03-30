@@ -21,6 +21,8 @@ Scene::Scene() {
     builtin_spectra.insert({"glass-F11", Spectrum(GLASS_F11_ETA)});
 
     builtin_spectra.insert({"stdillum-F10", Spectrum(CIE_FL_10)});
+    builtin_spectra.insert({"philips-candlelight", Spectrum(PHILIPS_CANDLELIGHT)});
+    builtin_spectra.insert({"philips-helios", Spectrum(PHILIPS_HELIOS)});
 
     for (const auto &spectrum : builtin_spectra) {
         builtin_spectrum_textures.insert(

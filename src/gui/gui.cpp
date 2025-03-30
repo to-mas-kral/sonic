@@ -357,7 +357,7 @@ Gui::render_guiding_tree_window() {
             ImPlot::SetupAxes("X", "Y", xflags, yflags);
             ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.5F);
             ImPlot::PlotHistogram("Samples", node.samples.data(), node.samples.size(),
-                                  ImPlotBin_Sqrt, 1.0F, ImPlotRange(), hist_flags);
+                                  470, 1.0F, ImPlotRange(), hist_flags);
             ImPlot::SetNextLineStyle(IMPLOT_AUTO_COL, 1.5F);
             ImPlot::PlotLine("PDF", node.pdf_x_values.data(), node.pdf_y_values.data(),
                              node.pdf_x_values.size());

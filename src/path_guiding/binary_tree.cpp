@@ -185,9 +185,9 @@ BinaryTree::record(const SampledLambdas &lambdas, const spectral &radiance) {
             continue;
         }
 
-        const auto sensor_response = SampledLambdas::pdf_visual_importance(lambdas[i]);
-
         if (contributions[i] != 0.F) {
+            const auto sensor_response =
+                SampledLambdas::pdf_visual_importance(lambdas[i]);
             contributions[i] *= sensor_response / lambdas.pdfs[i];
         }
     }

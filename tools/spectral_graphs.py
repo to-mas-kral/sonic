@@ -95,6 +95,9 @@ create_chart('spectral_data/macbeth_pb.csv', 'val', "refl_macbethpb.pdf", "#505b
 create_chart('spectral_data/CIE_std_illum_D65.csv', 'val', "illum_d65.pdf", "#505ba6", "Relativní záře", lambda x : x, "illum")
 create_chart('spectral_data/CIE_illum_FLs.csv', 'val10', "illum_fl10.pdf", "#505ba6", "Relativní záře", lambda x : x, "illum")
 
+create_chart('spectral_data/phillips-candlelight.csv', 'intensity', "illum_phillips_candlelight.pdf", "#505ba6", "Relativní záře", lambda x : x, "illum")
+create_chart('spectral_data/philips_helios.csv', 'intensity', "illum_phillips_helios.pdf", "#505ba6", "Relativní záře", lambda x : x, "illum")
+
 create_multi_chart('spectral_data/CIE_xyz_1931_2deg.csv', ['x', 'y', 'z'], ['X', 'Y', 'Z'], "cm_xyz.pdf", ["Red", "Green", "Blue"], "Relativní senzitivita", lambda x : x, "sens")
 
 create_multi_chart('spectral_data/CIE_lms_cf_2deg.csv', ['L', 'M', 'S'], ['L', 'M', 'S'], "cm_lms.pdf", ["Red", "Green", "Blue"], "Relativní senzitivita", lambda x : x, "sens")
