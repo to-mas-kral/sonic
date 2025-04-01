@@ -32,9 +32,16 @@ public:
             fmt::print("{}", bar_filler_left);
         }
 
-        const auto remaining = elapsed * (1. / progress) - elapsed;
+        const auto duration_per_count = elapsed.count() / static_cast<f64>(current_count);
 
-        fmt::print(" time remaining: {:%H:%M:%S}",
+        spdlog::critical(
+            "{} {} {}", static_cast<f64>(total_count - current_count), duration_per_count,
+            static_cast<f64>(total_count - current_count) * duration_per_count);
+
+        std::chrono::duration<f64> const remaining(
+            static_cast<f64>(total_count - current_count) * duration_per_count);
+
+        fmt::print(" time remaining: {:%j days and %H:%M:%S}",
                    std::chrono::floor<std::chrono::seconds>(remaining));
 
         fmt::print("{}", bar_end);

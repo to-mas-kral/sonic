@@ -14,7 +14,9 @@ DigitPermutation::DigitPermutation(const u32 base) : base(base) {
         inv_base_m *= inv_base;
     }
 
-    std::mt19937 g(1298792179);
+    std::random_device rd;
+    // TODO: make this deterministic
+    std::mt19937 g(rd());
 
     std::vector<u16> local_permutations;
     local_permutations.reserve(base);
