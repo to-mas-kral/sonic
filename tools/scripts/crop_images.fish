@@ -12,6 +12,7 @@ set x $argv[2]
 set y $argv[3]
 set width $argv[4]
 set height $argv[5]
+set outfolder $argv[6]
 
 # Ensure the file exists
 if not test -f $file_path
@@ -35,7 +36,12 @@ for file in $dir/$base_name*.exr
     if test -f "$file"
         set output_file (string replace -a .exr ".png" $file)
         set output_file (string replace .png "$x-$y" $output_file)
-        magick "$file" -gamma 2.2 -crop "$width"x"$height"+"$x"+"$y" "$output_file"
-        echo "Cropped: $file -> $output_file"
+
+        if string match -q '*.png' $output_file
+            set output_basefile (basename -- "$output_file")
+            set output_path "$outfolder/$output_basefile"
+
+            magick "$file" -gamma 2.2 -crop "$width"x"$height"+"$x"+"$y" "$output_path"
+        end
     end
 end

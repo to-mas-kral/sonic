@@ -34,10 +34,6 @@ public:
 
         const auto duration_per_count = elapsed.count() / static_cast<f64>(current_count);
 
-        spdlog::critical(
-            "{} {} {}", static_cast<f64>(total_count - current_count), duration_per_count,
-            static_cast<f64>(total_count - current_count) * duration_per_count);
-
         std::chrono::duration<f64> const remaining(
             static_cast<f64>(total_count - current_count) * duration_per_count);
 

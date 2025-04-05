@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
+mpl.use('pdf')
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 from matplotlib.ticker import ScalarFormatter
@@ -34,13 +36,25 @@ def set_common_plot_settings(ax, ylabel, typ, do_x_label=True):
 
     ax.legend(frameon=False)
 
-def create_lerp_chart(csv_ref_path, csv_test_path, outpath):
-    ref_data = pd.read_csv(csv_ref_path, sep=",")
-    test_data = pd.read_csv(csv_test_path, sep=",")
+def create_lerp_chart(csv_ref_path, csv_test_path, outpath, id_landscape=False):
+    n_rows = 2
+    n_cols = 1
 
-    fig, axs = plt.subplots(2, 1)
-    fig.set_size_inches(6, 12)
+    width = 6
+    height = 10
+
+    if (id_landscape):
+        n_rows = 1
+        n_cols = 2
+
+        width = 12
+        height = 6
+
+    fig, axs = plt.subplots(n_rows, n_cols, layout="constrained")
+    fig.set_size_inches(width, height)
     #fig.tight_layout(pad=1.5)
+
+    ref_data, test_data = load_dataframes(csv_ref_path, csv_test_path)
 
     axs[0].plot(ref_data['Samples'], ref_data['MSE'], linewidth=1.3, label="Baseline")
     axs[0].plot(test_data['Samples'], test_data['MSE'], linewidth=1.3, label="Navádění")
@@ -48,10 +62,30 @@ def create_lerp_chart(csv_ref_path, csv_test_path, outpath):
     axs[1].plot(ref_data['Samples'], ref_data['FLIP'], linewidth=1.3, label="Baseline")
     axs[1].plot(test_data['Samples'], test_data['FLIP'], linewidth=1.3, label="Navádění")
 
-    set_common_plot_settings(axs[0], 'MSE', 'MSE', False)
+    set_common_plot_settings(axs[0], 'MSE', 'MSE', id_landscape)
     set_common_plot_settings(axs[1], 'FLIP', 'FLIP')
 
     fig.savefig(outpath, bbox_inches='tight')
+
+def load_dataframes(csv_ref_path, csv_test_path):
+    ref_data = pd.read_csv(csv_ref_path, sep=",")
+    test_data = pd.read_csv(csv_test_path, sep=",")
+
+    min_len = min(len(ref_data['Samples']), len(test_data['Samples']))
+
+    ref_data = pd.DataFrame({
+        'Samples': ref_data['Samples'][:min_len].reset_index(drop=True),
+        'MSE': ref_data['MSE'][:min_len].reset_index(drop=True),
+        'FLIP': ref_data['FLIP'][:min_len].reset_index(drop=True)
+    })
+
+    test_data = pd.DataFrame({
+        'Samples': test_data['Samples'][:min_len].reset_index(drop=True),
+        'MSE': test_data['MSE'][:min_len].reset_index(drop=True),
+        'FLIP': test_data['FLIP'][:min_len].reset_index(drop=True)
+    })
+
+    return ref_data,test_data
 
 plt.rcParams.update({
     "text.usetex": True,
@@ -62,15 +96,10 @@ plt.rcParams.update({
 # This is to keep ticks at min/max
 plt.rcParams['axes.autolimit_mode'] = 'round_numbers'
 
-#create_lerp_chart('./cornell-box-normal.csv', './cornell-box-lg.csv', 'MSE', "cornell-box-mse.pdf", "MSE")
-
-create_lerp_chart('./cornell-box-f10-normal.csv', './cornell-box-f10-lg.csv', "cornell-box-f10-conv.pdf")
-#create_lerp_chart('./cornell-box-f10-normal.csv', './cornell-box-f10-lg.csv', 'FLIP', "cornell-box-f10-flip.pdf", "FLIP")
-
-create_lerp_chart('./staircase-normal.csv', './staircase-lg.csv', "staircase-conv.pdf")
-#create_lerp_chart('./staircase-normal.csv', './staircase-lg.csv', 'FLIP', "staircase-flip.pdf", "FLIP")
-
-create_lerp_chart('./machines-normal.csv', './machines-lg.csv', "machines-conv.pdf")
-#create_lerp_chart('./machines-normal.csv', './machines-lg.csv', 'FLIP', "machines-flip.pdf", "FLIP")
+create_lerp_chart('./csvs/cboxf-normal.csv', './csvs/cboxf-lg.csv', "./pdfs/cornell-box-f10-conv.pdf")
+create_lerp_chart('./csvs/cbox-normal.csv', './csvs/cbox-lg.csv', "./pdfs/cornell-box-conv.pdf")
+create_lerp_chart('./csvs/kitchenpc-normal.csv', './csvs/kitchenpc-lg.csv', "./pdfs/kitchenpc-conv.pdf")
+create_lerp_chart('./csvs/staircaseph-normal.csv', './csvs/staircaseph-lg.csv', "./pdfs/staircaseph-conv.pdf")
+#create_lerp_chart('./csvs/machines-normal.csv', './csvs/machines-lg.csv', "./pdfs/machines-conv.pdf")
 
 plt.show()
