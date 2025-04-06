@@ -91,6 +91,23 @@ def create_analytic_chart(outpath, ylabel, color, kind):
 
     fig.savefig(outpath)
 
+def create_combined_chart(csv_paths, ykey, legend_labels, linestyles, outpath, ylabel, kind):
+    datas = [pd.read_csv(csv_path) for csv_path in csv_paths]
+
+    # Corresponds to 8cm width
+    fig = plt.figure(figsize=(4, 2.6), layout="constrained")
+    ax = fig.add_subplot()
+
+    for data, legend_label, this_linestyle in zip(datas, legend_labels, linestyles):
+        ydata = data[ykey] / data[ykey].max()
+        ax.plot(data['wl'], ydata, linewidth=1.3, label=legend_label, linestyle=this_linestyle)
+
+    set_common_plot_settings(ax, ylabel, kind)
+
+    ax.legend(frameon=False, borderpad=0)
+
+    fig.savefig(outpath)
+
 # This is to keep ticks at min/max
 plt.rcParams['axes.autolimit_mode'] = 'round_numbers'
 
@@ -112,5 +129,11 @@ create_analytic_chart("visual_sampling.pdf", r"$p(\lambda)$", "#505ba6", "analyt
 create_chart('spectral_data/070101.csv', 'val', "refl_070101.pdf", "#b21919", "Odrazivost", lambda x: x, "refl")
 create_chart('spectral_data/1110-illum.csv', 'val', "illum_1110.pdf", "#505ba6", "Relativní záře", lambda x : x / 19.0, "illum")
 create_chart('spectral_data/cbox-illum.csv', 'val', "illum_cbox.pdf", "#505ba6", "Relativní záře", lambda x : x / 15.0, "illum")
+
+create_chart('spectral_data/pdf_learned_f10.csv', 'val', "pdf_learned_f10.pdf", "#505ba6", r"$p(\lambda)$", lambda x : x, "generic")
+create_chart('spectral_data/pdf_groundtruth_f10.csv', 'val', "pdf_groundtruth_f10.pdf", "#505ba6", r"$p(\lambda)$", lambda x : x / 80.0, "generic")
+
+create_combined_chart(['spectral_data/pdf_groundtruth_f10.csv', 'spectral_data/pdf_learned_f10.csv'], 'val',  ['Optimální distribuce', 'Naučený strom'], ['solid', 'solid'], "pdf_f10_combined.pdf", r"$p(\lambda)$", "generic")
+create_combined_chart(['spectral_data/pdf_groundtruth_cbox.csv', 'spectral_data/pdf_learned_cbox.csv'], 'val',  ['Optimální distribuce', 'Naučený strom'], ['solid', 'solid'], "pdf_cbox_combined.pdf", r"$p(\lambda)$", "generic")
 
 plt.show()

@@ -48,7 +48,7 @@ def create_lerp_chart(csv_ref_path, csv_test_path, outpath, id_landscape=False):
         n_cols = 2
 
         width = 12
-        height = 6
+        height = 5
 
     fig, axs = plt.subplots(n_rows, n_cols, layout="constrained")
     fig.set_size_inches(width, height)
@@ -98,8 +98,8 @@ plt.rcParams['axes.autolimit_mode'] = 'round_numbers'
 
 create_lerp_chart('./csvs/cboxf-normal.csv', './csvs/cboxf-lg.csv', "./pdfs/cornell-box-f10-conv.pdf")
 create_lerp_chart('./csvs/cbox-normal.csv', './csvs/cbox-lg.csv', "./pdfs/cornell-box-conv.pdf")
-create_lerp_chart('./csvs/kitchenpc-normal.csv', './csvs/kitchenpc-lg.csv', "./pdfs/kitchenpc-conv.pdf")
+create_lerp_chart('./csvs/kitchenpc-normal.csv', './csvs/kitchenpc-lg.csv', "./pdfs/kitchenpc-conv.pdf", id_landscape=True)
 create_lerp_chart('./csvs/staircaseph-normal.csv', './csvs/staircaseph-lg.csv', "./pdfs/staircaseph-conv.pdf")
-#create_lerp_chart('./csvs/machines-normal.csv', './csvs/machines-lg.csv', "./pdfs/machines-conv.pdf")
+create_lerp_chart('./csvs/machines-normal.csv', './csvs/machines-lg.csv', "./pdfs/machines-conv.pdf", id_landscape=True)
 
 plt.show()

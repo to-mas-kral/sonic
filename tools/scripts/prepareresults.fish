@@ -12,8 +12,8 @@
 ./compare_images.fish ../../cmake-build-release/out/staircaseph/normal.exr-131072.exr  ../../cmake-build-release/out/staircaseph/lg.exr ./csvs/staircaseph-lg.csv
 ./compare_images.fish ../../cmake-build-release/out/staircaseph/normal.exr-131072.exr  ../../cmake-build-release/out/staircaseph/normal.exr ./csvs/staircaseph-normal.csv
 
-#./compare_images.fish ../../cmake-build-release/out/cbox/normal.exr-131072.exr  ../../cmake-build-release/out/cbox/lg.exr ./csvs/cbox-lg.csv
-#./compare_images.fish ../../cmake-build-release/out/cbox/normal.exr-131072.exr  ../../cmake-build-release/out/cbox/normal.exr ./csvs/cbox-normal.csv
+./compare_images.fish ../../cmake-build-release/out/machines/normal.exr-131072.exr  ../../cmake-build-release/out/machines/lg.exr ./csvs/machines-lg.csv
+./compare_images.fish ../../cmake-build-release/out/machines/normal.exr-131072.exr  ../../cmake-build-release/out/machines/normal.exr ./csvs/machines-normal.csv
 
 python ./convergence_graphs.py
 

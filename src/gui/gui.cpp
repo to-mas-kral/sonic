@@ -363,6 +363,13 @@ Gui::render_guiding_tree_window() {
                              node.pdf_x_values.size());
             ImPlot::EndPlot();
         }
+
+        if (ImGui::Button("Plot")) {
+            fmt::println("wl,val");
+            for (int j = 0; j < node.pdf_x_values.size(); ++j) {
+                fmt::println("{},{}", node.pdf_x_values[j], node.pdf_y_values[j]);
+            }
+        }
     }
 
     ImGui::End();
@@ -437,6 +444,14 @@ Gui::render_scene_inspector() {
                                  scene_inspector.visual_y_values.data(),
                                  scene_inspector.spd_x_values.size());
                 ImPlot::EndPlot();
+            }
+
+            if (ImGui::Button("Plot")) {
+                fmt::println("wl,val");
+                for (int j = 0; j < scene_inspector.spd_x_values.size(); ++j) {
+                    fmt::println("{},{}", scene_inspector.spd_x_values[j],
+                                 scene_inspector.product_y_values[j]);
+                }
             }
         }
     }
