@@ -108,6 +108,43 @@ def create_combined_chart(csv_paths, ykey, legend_labels, linestyles, outpath, y
 
     fig.savefig(outpath)
 
+def create_scene_spectra_chart():
+    csv_paths = [
+        'spectral_data/CIE_illum_FLs.csv',
+        'spectral_data/cbox-illum.csv',
+        'spectral_data/philips_helios.csv',
+        'spectral_data/phillips-candlelight.csv'
+    ]
+
+    datas = [pd.read_csv(csv_path) for csv_path in csv_paths]
+
+    ykeys = ['val10', 'val', 'intensity', 'intensity']
+
+    # Corresponds to 8cm width
+    fig = plt.figure(figsize=(8, 5.2), layout="constrained")
+    fig.get_layout_engine().set(h_pad=0.13)
+    axes = fig.subplots(2, 2)
+
+    indices = [(0, 0), (0, 1), (1, 0), (1, 1)]
+
+    for data, ykey, index in zip(datas, ykeys, indices):
+        ydata = data[ykey] / data[ykey].max()
+        axes[index].plot(data['wl'], ydata, linewidth=1.3, color="#505ba6")
+
+    set_common_plot_settings(axes[0, 0], "Relativní záře", "refl")
+    axes[0, 0].set_title("CIE-FL10")
+    axes[0, 0].set_xlabel(xlabel='')
+    set_common_plot_settings(axes[0, 1], "", "refl")
+    axes[0, 1].set_xlabel(xlabel='')
+    axes[0, 1].set_title(r"RGB $(17, 12, 4)$")
+    set_common_plot_settings(axes[1, 0], "Relativní záře", "refl")
+    axes[1, 0].set_title("Philips Helios")
+    set_common_plot_settings(axes[1, 1], "", "refl")
+    axes[1, 1].set_title("Philips Candlelight")
+
+    fig.savefig("scene_spectra_all.pdf")
+    fig.savefig("scene_spectra_all.png")
+
 # This is to keep ticks at min/max
 plt.rcParams['axes.autolimit_mode'] = 'round_numbers'
 
@@ -135,5 +172,7 @@ create_chart('spectral_data/pdf_groundtruth_f10.csv', 'val', "pdf_groundtruth_f1
 
 create_combined_chart(['spectral_data/pdf_groundtruth_f10.csv', 'spectral_data/pdf_learned_f10.csv'], 'val',  ['Optimální distribuce', 'Naučený strom'], ['solid', 'solid'], "pdf_f10_combined.pdf", r"$p(\lambda)$", "generic")
 create_combined_chart(['spectral_data/pdf_groundtruth_cbox.csv', 'spectral_data/pdf_learned_cbox.csv'], 'val',  ['Optimální distribuce', 'Naučený strom'], ['solid', 'solid'], "pdf_cbox_combined.pdf", r"$p(\lambda)$", "generic")
+
+create_scene_spectra_chart()
 
 plt.show()
