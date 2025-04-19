@@ -48,6 +48,9 @@ private:
     update_viewport_textures();
 
     void
+    process_main_output_color();
+
+    void
     viewport_settings_window();
 
     void

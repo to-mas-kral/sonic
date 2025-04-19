@@ -202,8 +202,12 @@ Gui::update_viewport_textures() {
         // Update textures from framebuf
 
         glBindTexture(GL_TEXTURE_2D, gui_state.viewport.main_output_texture);
+
+        gui_state.main_pixels = renderer->framebuf().get_pixels();
+        process_main_output_color();
+
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width_x, height_y, 0, GL_RGB, GL_FLOAT,
-                     renderer->framebuf().get_pixels().data());
+                     gui_state.main_pixels.data());
 
         for (auto &[name, aov] : renderer->framebuf().aovs()) {
             GLint internal_format;
@@ -245,6 +249,20 @@ Gui::update_viewport_textures() {
                 targets.push_back(std::string(name));
             }
         }
+    }
+}
+
+void
+Gui::process_main_output_color() {
+    // Quick and dirty color processing...
+    for (auto &pixel : gui_state.main_pixels) {
+        const auto xyz = tuple3(pixel.x, pixel.y, pixel.z) /
+                         static_cast<f32>(renderer->framebuf().num_samples);
+        auto rgb = xyz_to_srgb(xyz);
+        rgb.x = std::powf(rgb.x, 1.F / 2.4F);
+        rgb.y = std::powf(rgb.y, 1.F / 2.4F);
+        rgb.z = std::powf(rgb.z, 1.F / 2.4F);
+        pixel = vec3(rgb.x, rgb.y, rgb.z);
     }
 }
 

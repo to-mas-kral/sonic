@@ -84,6 +84,8 @@ struct GuiState {
     i32 num_points = 128;
     std::vector<f32> halton_x;
     std::vector<f32> halton_y;
+    
+    std::vector<vec3> main_pixels;
 };
 
 #endif // GUISTATE_H
